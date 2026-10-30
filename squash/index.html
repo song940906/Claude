@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="ko" class="pwa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="폰·태블릿용 스쿼시 점수판 — PAR 11/15, 전통식 9점, 서브 박스, 게임볼, 렛, 휴식 타이머">
+<meta name="theme-color" content="#EDEFF2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1015" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-title" content="스쿼시 점수판">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>window.SQUASH_PWA = true;</script>
+<title>스쿼시 점수판</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap">
+<style>
+/* 레이아웃: 한 화면 고정 — 상단 정보줄 / 좌우(세로화면은 위아래) 선수 패널 / 하단 콜·조작줄 */
+:root {
+  --bg: #EDEFF2;          /* 코트 벽 같은 차가운 흰회색 */
+  --card: #FFFFFF;
+  --ink: #15181E;
+  --sub: #6A7280;
+  --line: #E1E4E9;
+  --btn: #F2F3F5;
+  --btn-press: #E4E6EA;
+  --red: #D3263A;         /* 코트 라인(틴·아웃라인) 빨강 */
+  --red-soft: #FCEBED;
+  --ball: #F2C21B;        /* 더블 옐로 닷 */
+  --ball-ink: #17181A;
+  --ok: #1F8A5B;
+  --ok-soft: #E6F4EC;
+  --dot: #CDD2DA;
+  --scrim: rgba(17, 20, 26, .42);
+  --shadow: 0 1px 2px rgba(20, 26, 38, .05), 0 10px 28px rgba(20, 26, 38, .07);
+  --f-num: "Outfit", "Noto Sans KR", system-ui, sans-serif;
+  --f-body: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --r-lg: 26px;
+  --r-md: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1015; --card: #171B22; --ink: #F1F3F6; --sub: #97A0AE; --line: #262B34;
+    --btn: #1F242D; --btn-press: #2A303B; --red: #FF4E60; --red-soft: #3A1B21;
+    --ball: #F5CB2E; --ball-ink: #17181A; --ok: #45C08A; --ok-soft: #16302A; --dot: #525B6A;
+    --scrim: rgba(0, 0, 0, .6); --shadow: 0 1px 0 rgba(255, 255, 255, .03);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="light"] { color-scheme: only light; }   /* 브라우저 강제 다크(삼성 인터넷 등)가 '밝게'를 덮지 않게 */
+:root[data-theme="dark"] {
+  --bg: #0D1015; --card: #171B22; --ink: #F1F3F6; --sub: #97A0AE; --line: #262B34;
+  --btn: #1F242D; --btn-press: #2A303B; --red: #FF4E60; --red-soft: #3A1B21;
+  --ball: #F5CB2E; --ball-ink: #17181A; --ok: #45C08A; --ok-soft: #16302A; --dot: #525B6A;
+  --scrim: rgba(0, 0, 0, .6); --shadow: 0 1px 0 rgba(255, 255, 255, .03);
+  color-scheme: dark;
+}
+
+html, body { height: 100%; overscroll-behavior: none; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+/* 설치형 앱(홈 화면)으로 열 때는 노치·홈 바 영역을 직접 비운다 */
+.pwa body {
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body);
+  margin: 0; display: flex; flex-direction: column; gap: 12px; overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px; box-sizing: border-box;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+*, *::before, *::after { box-sizing: border-box; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+
+/* ── 상단 ── */
+.top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.match-meta { display: flex; flex-direction: column; min-width: 0; }
+.match-meta b { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.match-meta span { font-size: 12px; color: var(--sub); }
+.history { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.history:empty { display: none; }
+.match-meta b, .match-meta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hchip {
+  font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600;
+  padding: 5px 10px; border-radius: 999px; background: var(--card); box-shadow: var(--shadow);
+}
+.hchip i { font-style: normal; color: var(--sub); font-weight: 500; margin-right: 4px; }
+.tools { display: flex; gap: 6px; margin-left: auto; }
+.icon-btn {
+  height: 40px; min-width: 40px; padding: 0 12px; border-radius: 12px; background: var(--card);
+  box-shadow: var(--shadow); font-size: 14px; font-weight: 500; display: inline-flex;
+  align-items: center; justify-content: center; gap: 6px;
+}
+.icon-btn:active { background: var(--btn-press); }
+.icon-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.timer-pill { font-family: var(--f-num); font-variant-numeric: tabular-nums; font-weight: 600; background: var(--ink); color: var(--card); }
+.timer-pill.warn { background: var(--red); color: #fff; }
+
+/* ── 코트 패널 ── */
+.courts { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (orientation: portrait) { .courts { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+.panel {
+  position: relative; container-type: size; min-height: 0; min-width: 0;
+  background: var(--card); border-radius: var(--r-lg); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; padding: 16px 18px; cursor: pointer;
+  outline-offset: -3px; transition: transform .08s ease, background-color .2s ease;
+  border: 2px solid transparent;
+}
+.panel:active { transform: scale(.985); }
+.panel.serving { border-color: var(--red); }
+.panel.flash { background: var(--red-soft); }
+.p-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.p-name { font-size: 20px; font-size: clamp(16px, 5.5cqmin, 26px); font-weight: 700; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.p-games { display: flex; gap: 5px; margin-left: auto; flex: none; }
+.p-games i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--dot); }
+.p-games i.on { background: var(--ink); border-color: var(--ink); }
+.p-score {
+  flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--f-num); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.04em;
+  container-type: size; overflow: hidden;
+}
+.p-score span { font-size: 28vmin; font-size: min(90cqh, 56cqw); line-height: 1; }  /* 앞줄: 컨테이너 단위 미지원 구형 브라우저용 */
+.p-bot { display: flex; align-items: center; gap: 8px; min-height: 40px; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+.serve-ind { pointer-events: none; }
+.serve-btn, .serve-ind {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 999px;
+  background: var(--btn); font-size: 14px; font-weight: 700;
+}
+.serve-btn.can { background: var(--red-soft); color: var(--red); }
+.box { font-family: var(--f-num); font-weight: 700; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--card); font-size: 14px; }
+.ball { width: 22px; height: 22px; border-radius: 50%; background: #16171A; position: relative; flex: none; box-shadow: 0 0 0 1.5px var(--dot); }
+.ball::before, .ball::after { content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--ball); top: 8.5px; }
+.ball::before { left: 5px; } .ball::after { right: 5px; }
+.recv { font-size: 14px; color: var(--sub); font-weight: 500; padding: 6px 2px; }
+.flag { font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 999px; background: var(--red); color: #fff; }
+.flag.match { background: var(--ink); color: var(--card); }
+.tap-hint { position: absolute; right: 16px; bottom: 14px; font-size: 12px; color: var(--sub); }
+
+/* ── 하단 ── */
+.bottom { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.call { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
+.call-main { font-family: var(--f-num); font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+.call-sub { font-size: 13px; color: var(--sub); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.act {
+  height: 48px; padding: 0 16px; border-radius: 14px; background: var(--card); box-shadow: var(--shadow);
+  font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 8px;
+}
+.act:active { background: var(--btn-press); }
+.act[disabled] { opacity: .4; cursor: default; }
+.act svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── 시트(모달) ── */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 40; display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.sheet {
+  background: var(--card); border-radius: 24px; width: min(520px, 100%); max-height: 100%; overflow-y: auto;
+  padding: 22px; display: flex; flex-direction: column; gap: 16px; -webkit-user-select: text; user-select: text;
+}
+.sheet h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; text-wrap: balance; }
+.sheet p { margin: 0; color: var(--sub); font-size: 14px; line-height: 1.6; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field > label, .field > .lab { font-size: 13px; font-weight: 700; color: var(--sub); letter-spacing: .02em; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+input[type="text"] {
+  font: inherit; font-size: 16px; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%; min-width: 0;
+}
+input[type="text"]:focus { outline: none; border-color: var(--red); }
+.seg { display: flex; background: var(--btn); border-radius: 12px; padding: 4px; gap: 4px; flex-wrap: wrap; }
+.seg button { flex: 1; min-width: 72px; padding: 10px 8px; border-radius: 9px; font-size: 14px; font-weight: 500; color: var(--sub); }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); font-weight: 700; box-shadow: var(--shadow); }
+.seg-note { font-size: 12px; color: var(--sub); line-height: 1.5; }
+.sheet-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.btn { height: 48px; padding: 0 18px; border-radius: 14px; font-weight: 700; font-size: 15px; background: var(--btn); }
+.btn:active { background: var(--btn-press); }
+.btn.primary { background: var(--red); color: #fff; }
+.btn.wide { flex: 1; }
+.warnbox { font-size: 13px; color: var(--red); background: var(--red-soft); padding: 10px 12px; border-radius: 12px; }
+.big-timer { font-family: var(--f-num); font-variant-numeric: tabular-nums; font-size: 64px; font-weight: 600; text-align: center; letter-spacing: -.03em; line-height: 1; }
+.big-timer small { display: block; font-family: var(--f-body); font-size: 13px; color: var(--sub); font-weight: 500; letter-spacing: 0; margin-top: 8px; }
+.result-line { font-family: var(--f-num); font-size: 40px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.result-line span { color: var(--sub); font-weight: 500; margin: 0 .2em; }
+table.games { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.games th { text-align: left; font-weight: 500; color: var(--sub); font-size: 12px; padding: 0 8px 6px; }
+table.games td { padding: 10px 8px; border-top: 1px solid var(--line); }
+table.games td.num { font-family: var(--f-num); font-weight: 600; font-size: 16px; }
+table.games td.win { color: var(--red); font-weight: 700; }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 500; }
+.switch { width: 50px; height: 30px; border-radius: 999px; background: var(--line); position: relative; flex: none; transition: background .15s; }
+.switch::after { content: ""; position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+.switch[aria-checked="true"] { background: var(--red); }
+.switch[aria-checked="true"]::after { transform: translateX(20px); }
+.rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.6; }
+.rules b { color: var(--ink); }
+.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice { padding: 18px 12px; border-radius: 16px; background: var(--btn); display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.choice b { font-family: var(--f-num); font-size: 30px; }
+.choice span { font-size: 13px; color: var(--sub); }
+
+.steps { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.steps ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; line-height: 1.55; color: var(--sub); }
+.steps ol b { color: var(--ink); }
+.kbd { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--btn); color: var(--ink); font-weight: 700; }
+.linkrow { display: flex; gap: 8px; }
+.linkrow input { flex: 1; font-size: 14px; }
+.install-btn { background: var(--red); color: #fff; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--ink); color: var(--card); padding: 10px 16px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  z-index: 60; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+.toast.long { white-space: normal; width: max-content; max-width: calc(100% - 32px); text-align: center; border-radius: 16px; line-height: 1.5; }
+
+@media (max-height: 460px) {
+  body { gap: 8px; padding-block: 8px; }
+  .act { height: 42px; padding: 0 12px; }
+  .call-main { font-size: 18px; }
+  .icon-btn { height: 36px; }
+}
+@media (max-width: 520px) {
+  .act span.lbl { display: none; }
+  .act { padding: 0 14px; }
+  .history { order: 3; flex-basis: 100%; }
+  .match-meta { flex: 1; }
+  .tools { gap: 4px; }
+  .icon-btn { min-width: 36px; height: 36px; padding: 0 8px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="match-meta"><b id="metaTitle">게임 1</b><span id="metaSub">3게임 중 2선승 · PAR 11</span></div>
+  <div class="history" id="history" aria-label="지난 게임 점수"></div>
+  <div class="tools">
+    <button class="icon-btn install-btn" id="btnInstall" hidden aria-label="앱 설치">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">설치</span>
+    </button>
+    <button class="icon-btn timer-pill" id="timerPill" hidden aria-label="타이머 열기">0:00</button>
+    <button class="icon-btn" id="btnTimer" aria-label="타이머">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
+    </button>
+    <button class="icon-btn" id="btnFull" aria-label="전체 화면">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    </button>
+    <button class="icon-btn" id="btnHelp" aria-label="룰 요약">?</button>
+    <button class="icon-btn" id="btnSetup" aria-label="경기 설정">
+      <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="courts" id="courts">
+  <div class="panel" id="panel0" role="button" tabindex="0">
+    <div class="p-top"><span class="p-name"></span><span class="p-games"></span></div>
+    <div class="p-score"><span>0</span></div>
+    <div class="p-bot"></div>
+  </div>
+  <div class="panel" id="panel1" role="button" tabindex="0">
+    <div class="p-top"><span class="p-name"></span><span class="p-games"></span></div>
+    <div class="p-score"><span>0</span></div>
+    <div class="p-bot"></div>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="call" aria-live="polite">
+    <div class="call-main" id="callMain">Love all</div>
+    <div class="call-sub" id="callSub">패널을 누르면 그 선수가 랠리를 이긴 것으로 기록됩니다</div>
+  </div>
+  <div class="actions">
+    <button class="act" id="btnUndo" aria-label="되돌리기">
+      <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span class="lbl">되돌리기</span>
+    </button>
+    <button class="act" id="btnLet" aria-label="렛">
+      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="lbl">렛</span>
+    </button>
+    <button class="act" id="btnSwap" aria-label="좌우 바꾸기">
+      <svg viewBox="0 0 24 24"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg><span class="lbl">좌우</span>
+    </button>
+  </div>
+</footer>
+
+<!-- 경기 설정 -->
+<div class="scrim" id="sheetSetup" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <h2 id="setupTitle">경기 설정</h2>
+    <div class="row2">
+      <div class="field"><label for="nameA">선수 1</label><input type="text" id="nameA" maxlength="14" autocomplete="off"></div>
+      <div class="field"><label for="nameB">선수 2</label><input type="text" id="nameB" maxlength="14" autocomplete="off"></div>
+    </div>
+    <div class="field"><span class="lab">경기 방식</span>
+      <div class="seg" id="segBest">
+        <button data-v="1">단판</button><button data-v="3">3게임 2선승</button><button data-v="5">5게임 3선승</button>
+      </div>
+    </div>
+    <div class="field"><span class="lab">점수 방식</span>
+      <div class="seg" id="segScoring">
+        <button data-v="par11">PAR 11</button><button data-v="par15">PAR 15</button><button data-v="hiho9">전통식 9</button>
+      </div>
+      <div class="seg-note" id="scoringNote"></div>
+    </div>
+    <div class="field"><span class="lab">첫 서브</span>
+      <div class="seg" id="segFirst">
+        <button data-v="0" id="firstA">선수 1</button><button data-v="1" id="firstB">선수 2</button><button data-v="r">라켓 스핀(무작위)</button>
+      </div>
+    </div>
+    <div class="toggle"><span>심판 콜 음성 (영어)</span><button class="switch" id="swVoice" role="switch" aria-checked="false" aria-label="심판 콜 음성"></button></div>
+    <div class="seg-note" id="voiceNote" hidden>아이폰은 무음 모드에서 음성이 나오지 않을 수 있습니다. 소리가 안 나면 무음 스위치를 꺼 주세요.</div>
+    <div class="field"><span class="lab">화면 테마</span>
+      <div class="seg" id="segTheme">
+        <button data-v="auto">자동</button><button data-v="light">밝게</button><button data-v="dark">어둡게</button>
+      </div>
+    </div>
+    <button class="btn" id="setupApp" hidden>앱으로 설치 · 링크 공유</button>
+    <div class="warnbox" id="setupWarn" hidden>진행 중인 경기가 있습니다. 새 경기를 시작하면 현재 점수는 지워집니다.</div>
+    <div class="sheet-actions">
+      <button class="btn" id="setupClose">닫기</button>
+      <button class="btn" id="setupNames">이름만 바꾸기</button>
+      <button class="btn primary" id="setupStart">새 경기 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- 게임 종료 / 휴식 -->
+<div class="scrim" id="sheetGame" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="gameTitle">
+    <h2 id="gameTitle">게임 종료</h2>
+    <div class="result-line" id="gameResult"></div>
+    <p id="gameTally" style="text-align:center"></p>
+    <div class="big-timer" id="restBig">1:30<small>게임 사이 휴식 90초</small></div>
+    <div class="sheet-actions">
+      <button class="btn" id="gameUndo">마지막 랠리 취소</button>
+      <button class="btn primary wide" id="gameNext">다음 게임 시작</button>
+    </div>
+  </div>
+</div>
+
+<!-- 경기 종료 -->
+<div class="scrim" id="sheetMatch" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="matchTitle">
+    <h2 id="matchTitle">경기 종료</h2>
+    <div class="result-line" id="matchResult"></div>
+    <div style="overflow-x:auto"><table class="games" id="matchTable"></table></div>
+    <p id="matchStats"></p>
+    <div class="sheet-actions">
+      <button class="btn" id="matchUndo">마지막 랠리 취소</button>
+      <button class="btn" id="matchClose">점수판 보기</button>
+      <button class="btn primary" id="matchNew">새 경기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 전통식 8:8 선택 -->
+<div class="scrim" id="sheetChoose" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="chooseTitle">
+    <h2 id="chooseTitle">8 : 8 — 리시버 선택</h2>
+    <p id="chooseText"></p>
+    <div class="choice-grid">
+      <button class="choice" id="chooseOne"><b>9점</b><span>노 셋 (Set one)</span></button>
+      <button class="choice" id="chooseTwo"><b>10점</b><span>셋 투 (Set two)</span></button>
+    </div>
+    <div class="sheet-actions"><button class="btn" id="chooseUndo">마지막 랠리 취소</button></div>
+  </div>
+</div>
+
+<!-- 타이머 -->
+<div class="scrim" id="sheetTimer" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="timerTitle">
+    <h2 id="timerTitle">타이머</h2>
+    <div class="big-timer" id="timerBig">—<small>실행 중인 타이머 없음</small></div>
+    <div class="row2">
+      <button class="btn" id="tWarm">워밍업 5분</button>
+      <button class="btn" id="tRest">휴식 90초</button>
+    </div>
+    <p>워밍업은 2분 30초에 코트 사이드 교체(Half-time)를, 휴식은 75초에 “15초 전”을 알립니다.</p>
+    <div class="sheet-actions">
+      <button class="btn" id="tStop">타이머 끄기</button>
+      <button class="btn primary" id="tClose">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 룰 요약 -->
+<div class="scrim" id="sheetHelp" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <h2 id="helpTitle">스쿼시 룰 요약</h2>
+    <ul class="rules">
+      <li><b>PAR(랠리 포인트)</b> — 랠리를 이긴 쪽이 서브권과 상관없이 1점. 11점 먼저, 10:10부터는 2점 차가 날 때까지.</li>
+      <li><b>전통식(핸드인·핸드아웃)</b> — 서브권자만 득점. 리시버가 이기면 점수 없이 서브권만 넘어감(핸드아웃). 9점 먼저, 8:8이 되면 리시버가 9점 또는 10점 중 선택.</li>
+      <li><b>서브 박스</b> — 서브권을 새로 얻은 선수가 좌우 박스를 고르고(점수판의 R/L 버튼), 득점해 서브를 이어가면 매번 반대쪽 박스로 바꿔 넣습니다.</li>
+      <li><b>첫 서브</b> — 1게임은 라켓 스핀으로 정하고, 다음 게임부터는 직전 게임 승자가 먼저 서브합니다.</li>
+      <li><b>콜</b> — 서브권자 점수를 먼저 부릅니다. 0점은 “love”, 같으면 “all”. 한 점이면 게임이 끝나는 상황은 게임볼, 경기까지 끝나면 매치볼.</li>
+      <li><b>렛</b> — 방해가 있었지만 득점으로 보지 않는 경우. 점수 변화 없이 같은 서버가 같은 박스에서 다시 서브합니다. 스트로크(방해받은 선수에게 1점)·노렛(상대에게 1점)은 해당 선수 패널을 누르면 됩니다.</li>
+      <li><b>시간</b> — 워밍업 5분(2분 30초에 사이드 교체), 게임 사이 휴식 90초.</li>
+    </ul>
+    <p>단축키: ← / → 좌우 패널 득점, Z 또는 Backspace 되돌리기, L 렛.</p>
+    <div class="sheet-actions"><button class="btn primary" id="helpClose">닫기</button></div>
+  </div>
+</div>
+
+<!-- 앱 설치·공유 -->
+<div class="scrim" id="sheetInstall" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+    <h2 id="installTitle">홈 화면에 앱으로 설치</h2>
+    <p>설치하면 홈 화면 아이콘으로 바로 열리고, 주소창 없이 전체 화면으로 보이며, 인터넷이 없어도 동작합니다.</p>
+    <div class="steps" id="stepsIos">
+      <b>아이폰 · 아이패드 (Safari)</b>
+      <ol>
+        <li>Safari로 이 페이지를 엽니다. 카카오톡 등 앱 안 브라우저라면 먼저 “Safari로 열기”를 누르세요.</li>
+        <li>화면 아래(아이패드는 위)의 공유 버튼 <span class="kbd">□↑</span> 을 누릅니다.</li>
+        <li>목록을 내려 <b>홈 화면에 추가</b>를 누르고, 오른쪽 위 <b>추가</b>를 누릅니다.</li>
+      </ol>
+    </div>
+    <div class="steps" id="stepsAndroid">
+      <b>갤럭시 · 안드로이드</b>
+      <ol>
+        <li>Chrome: 오른쪽 위 <span class="kbd">⋮</span> 메뉴 → <b>홈 화면에 추가</b> 또는 <b>앱 설치</b>.</li>
+        <li>삼성 인터넷: 아래 <span class="kbd">≡</span> 메뉴 → <b>현재 페이지 추가</b> → <b>홈 화면</b>.</li>
+        <li>점수판 위쪽에 <b>설치</b> 버튼이 보이면 그 버튼을 눌러도 됩니다.</li>
+      </ol>
+    </div>
+    <div class="field"><span class="lab">앱 링크</span>
+      <div class="linkrow"><input type="text" id="appUrl" readonly aria-label="앱 링크"><button class="btn" id="copyUrl">복사</button></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn" id="installClose">닫기</button>
+      <button class="btn primary" id="shareApp">링크 공유</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+// ENGINE START — 화면과 분리된 순수 규칙 엔진 (node 로 시험 가능)
+const SCORING = {
+  par11: { type: 'par', target: 11, label: 'PAR 11', note: '랠리 포인트 · 11점 선승 · 10:10부터 2점 차' },
+  par15: { type: 'par', target: 15, label: 'PAR 15', note: '랠리 포인트 · 15점 선승 · 14:14부터 2점 차' },
+  hiho9: { type: 'hiho', target: 9, label: '전통식 9', note: '서브권자만 득점 · 9점 선승 · 8:8에서 리시버가 9점/10점 선택' }
+};
+
+function newMatch(cfg, now) {
+  const s = {
+    cfg: { names: [cfg.names[0], cfg.names[1]], bestOf: cfg.bestOf, scoring: cfg.scoring },
+    games: [], server: 0, side: 'R', handStart: true, phase: 'play',
+    matchWinner: null, pending: null, lastHandout: false, startedAt: now || 0
+  };
+  startGame(s, cfg.firstServer);
+  return s;
+}
+
+function startGame(s, server) {
+  s.games.push({ pts: [0, 0], target: SCORING[s.cfg.scoring].target, winner: null, log: [], setChosen: false, lets: 0, t0: null, t1: null, firstServer: server });
+  s.server = server; s.side = 'R'; s.handStart = true; s.phase = 'play'; s.pending = null; s.lastHandout = false;
+}
+
+const cur = s => s.games[s.games.length - 1];
+const isPar = s => SCORING[s.cfg.scoring].type === 'par';
+const need = s => Math.ceil(s.cfg.bestOf / 2);
+function gamesWon(s) {
+  const w = [0, 0];
+  for (const g of s.games) if (g.winner != null) w[g.winner]++;
+  return w;
+}
+
+function gameWinnerOf(s, g) {
+  for (const p of [0, 1]) {
+    const o = 1 - p;
+    if (isPar(s)) { if (g.pts[p] >= g.target && g.pts[p] - g.pts[o] >= 2) return p; }
+    else if (g.pts[p] >= g.target) return p;
+  }
+  return null;
+}
+
+// 다음 한 점으로 게임을 끝낼 수 있는 선수 (없으면 null)
+function gamePointFor(s) {
+  if (s.phase !== 'play') return null;
+  const g = cur(s);
+  const cands = isPar(s) ? [0, 1] : [s.server];   // 전통식은 서브권자만 득점
+  for (const p of cands) {
+    const o = 1 - p, n = g.pts[p] + 1;
+    if (isPar(s) ? (n >= g.target && n - g.pts[o] >= 2) : n >= g.target) return p;
+  }
+  return null;
+}
+
+function rally(s, w, now) {
+  if (s.phase !== 'play' || (w !== 0 && w !== 1)) return null;
+  const g = cur(s);
+  if (g.t0 == null) g.t0 = now || 0;
+  const handout = w !== s.server;
+  const scored = isPar(s) || !handout;
+  if (scored) g.pts[w]++;
+  if (handout) { s.server = w; s.side = 'R'; s.handStart = true; }
+  else { s.side = s.side === 'R' ? 'L' : 'R'; s.handStart = false; }
+  s.lastHandout = handout;
+  g.log.push({ w, h: handout, p: [g.pts[0], g.pts[1]] });
+  const gw = gameWinnerOf(s, g);
+  if (gw != null) {
+    g.winner = gw; g.t1 = now || 0;
+    if (gamesWon(s)[gw] >= need(s)) { s.phase = 'matchEnd'; s.matchWinner = gw; }
+    else s.phase = 'gameEnd';
+  } else if (!isPar(s) && !g.setChosen && g.pts[0] === g.target - 1 && g.pts[1] === g.target - 1) {
+    s.phase = 'choose'; s.pending = 1 - s.server;   // 리시버가 선택
+  }
+  return { handout, scored, gameWinner: gw };
+}
+
+function chooseSet(s, two) {
+  if (s.phase !== 'choose') return;
+  const g = cur(s);
+  if (two) g.target += 1;
+  g.setChosen = true; s.phase = 'play'; s.pending = null;
+}
+
+// 렛: 점수·서버·박스 변화 없음. 같은 박스에서 다시 서브.
+function recordLet(s) {
+  if (s.phase !== 'play') return false;
+  cur(s).lets++;
+  cur(s).log.push({ let: true });
+  return true;
+}
+
+function nextGame(s) {
+  if (s.phase !== 'gameEnd') return;
+  startGame(s, cur(s).winner);
+}
+
+function setSide(s, side) {
+  if (s.phase === 'play' && s.handStart) s.side = side;
+}
+
+const word = n => (n === 0 ? 'love' : String(n));
+
+// 심판 콜 (서브권자 점수 먼저)
+function callOf(s) {
+  const g = cur(s), N = s.cfg.names;
+  if (s.phase === 'gameEnd' || s.phase === 'matchEnd') {
+    const w = g.winner, l = 1 - w;
+    let t = `Game to ${N[w]}, ${g.pts[w]}–${g.pts[l]}`;
+    if (s.phase === 'matchEnd') {
+      const gw = gamesWon(s);
+      t = `Match to ${N[w]}, ${gw[w]} game${gw[w] === 1 ? '' : 's'} to ${gw[l]}`;
+    }
+    return t;
+  }
+  const a = g.pts[s.server], b = g.pts[1 - s.server];
+  let t = a === b ? `${word(a)} all` : `${word(a)}–${word(b)}`;
+  if (s.lastHandout && g.log.some(e => !e.let)) t = `Hand-out, ${t}`;
+  const gp = gamePointFor(s);
+  if (gp != null) t += gamesWon(s)[gp] + 1 >= need(s) ? ', match ball' : ', game ball';
+  return t;
+}
+// ENGINE END
+
+const STORE = 'squash-scoreboard-v1';
+const $ = id => document.getElementById(id);
+const ui = { swapped: false, voice: false, theme: 'auto' };
+let S = null, stack = [], timer = null, lastTap = 0;
+let draft = { bestOf: 3, scoring: 'par11', first: 'r' };
+
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify({ S, stack: stack.slice(-300), ui, timer })); } catch (e) {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (d && d.S && d.S.games) { S = d.S; stack = d.stack || []; Object.assign(ui, d.ui || {}); timer = d.timer || null; return true; }
+  } catch (e) {}
+  return false;
+}
+
+function snapshot() { stack.push(JSON.stringify(S)); if (stack.length > 300) stack.shift(); }
+function undo() {
+  if (!stack.length) { toast('되돌릴 기록이 없습니다'); return; }
+  const names0 = S.cfg.names;
+  S = JSON.parse(stack.pop());
+  S.cfg.names = names0 || S.cfg.names;   // 이름 변경은 되돌리기 대상이 아님
+  if (timer && timer.kind === 'rest' && S.phase !== 'gameEnd') timer = null;
+  // 다음 게임 시작을 되돌리면 휴식 타이머를 게임 종료 시각 기준으로 복원
+  if (!timer && S.phase === 'gameEnd' && cur(S).t1) timer = { kind: 'rest', start: cur(S).t1, fired: [] };
+  closeAll(); afterChange(); toast('한 단계 되돌렸습니다');
+  if (S.phase !== 'play') openPhaseSheet();
+}
+
+function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+function say(text) {
+  if (!ui.voice) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}   // iOS 무음 스위치에도 들리게
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/–/g, ' '));
+    u.lang = 'en-GB'; u.rate = 0.95;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+let toastT;
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function applyTheme() {
+  if (ui.theme === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', ui.theme);
+  // 설치 앱 상태바 색도 고른 테마를 따르게 (자동이면 원래 media 조건으로 복구)
+  const tc = ui.theme === 'dark' ? '#0D1015' : ui.theme === 'light' ? '#EDEFF2' : null;
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    if (m.dataset.media == null) m.dataset.media = m.getAttribute('media') || '';
+    if (tc) { m.removeAttribute('media'); m.content = tc; }
+    else { m.setAttribute('media', m.dataset.media); m.content = m.dataset.media.includes('dark') ? '#0D1015' : '#EDEFF2'; }
+  });
+}
+
+// ── 득점 ──
+function score(p) {
+  const t = Date.now();
+  if (t - lastTap < 350 || t - sheetAt < 400) return;   // 두 번 눌림 방지
+  lastTap = t;
+  if (S.phase !== 'play') { openPhaseSheet(); return; }
+  snapshot();
+  const r = rally(S, p, t);
+  if (!r) { stack.pop(); return; }
+  vibrate(r.handout ? [20, 40, 20] : 25);
+  const el = $('panel' + slotOf(p)); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 220);
+  if (S.phase === 'gameEnd') startTimer('rest');
+  afterChange();
+  say(callOf(S));
+  openPhaseSheet();
+}
+function slotOf(p) { return ui.swapped ? 1 - p : p; }
+function playerAt(slot) { return ui.swapped ? 1 - slot : slot; }
+
+function afterChange() { render(); save(); }
+
+// ── 렌더 ──
+function render() {
+  const g = cur(S), N = S.cfg.names, won = gamesWon(S), sc = SCORING[S.cfg.scoring];
+  const gp = gamePointFor(S);
+  $('metaTitle').textContent = S.phase === 'matchEnd' ? '경기 종료' : `게임 ${S.games.length}`;
+  $('metaSub').textContent = `${S.cfg.bestOf === 1 ? '단판' : `${S.cfg.bestOf}게임 중 ${need(S)}선승`} · ${sc.label}` + (!isPar(S) && g.setChosen && g.target > sc.target ? ` · ${g.target}점까지` : '');
+
+  const hist = $('history'); hist.innerHTML = '';
+  S.games.forEach((x, i) => {
+    if (x.winner == null) return;
+    const c = document.createElement('span'); c.className = 'hchip';
+    const a = x.pts[playerAt(0)], b = x.pts[playerAt(1)];
+    c.innerHTML = `<i>G${i + 1}</i>${a}–${b}`;
+    hist.appendChild(c);
+  });
+
+  for (const slot of [0, 1]) {
+    const p = playerAt(slot), el = $('panel' + slot);
+    el.querySelector('.p-name').textContent = N[p];
+    el.setAttribute('aria-label', `${N[p]} 득점`);
+    const dots = el.querySelector('.p-games'); dots.innerHTML = '';
+    for (let i = 0; i < need(S); i++) { const d = document.createElement('i'); if (i < won[p]) d.className = 'on'; dots.appendChild(d); }
+    dots.setAttribute('aria-label', `${won[p]}게임 획득`);
+    el.querySelector('.p-score span').textContent = g.pts[p];
+    const serving = S.server === p && S.phase !== 'matchEnd' && S.phase !== 'gameEnd';
+    el.classList.toggle('serving', serving);
+    const bot = el.querySelector('.p-bot'); bot.innerHTML = '';
+    if (serving) {
+      const can = S.phase === 'play' && S.handStart;
+      // 박스를 바꿀 수 없을 때는 표시용 span — 눌러도 패널 득점으로 넘어가게
+      const b = document.createElement(can ? 'button' : 'span');
+      b.className = can ? 'serve-btn can' : 'serve-ind';
+      b.innerHTML = `<span class="ball" aria-hidden="true"></span><span class="box">${S.side}</span>${S.side === 'R' ? '오른쪽' : '왼쪽'} 박스${can ? ' · 바꾸기' : ''}`;
+      b.setAttribute('aria-label', `서브 ${S.side === 'R' ? '오른쪽' : '왼쪽'} 박스` + (can ? ', 누르면 반대쪽으로' : ''));
+      if (can) {
+        b.addEventListener('click', e => { e.stopPropagation(); setSide(S, S.side === 'R' ? 'L' : 'R'); afterChange(); });
+        b.addEventListener('keydown', e => e.stopPropagation());
+      }
+      bot.appendChild(b);
+    } else if (S.phase === 'play' || S.phase === 'choose') {
+      const r = document.createElement('span'); r.className = 'recv'; r.textContent = '리시브'; bot.appendChild(r);
+    } else if (g.winner === p) {
+      const r = document.createElement('span'); r.className = 'flag match'; r.textContent = S.phase === 'matchEnd' ? '경기 승리' : '게임 승리'; bot.appendChild(r);
+    }
+    if (gp === p) {
+      const f = document.createElement('span');
+      const mb = won[p] + 1 >= need(S);
+      f.className = 'flag' + (mb ? ' match' : ''); f.textContent = mb ? '매치볼' : '게임볼';
+      bot.appendChild(f);
+    }
+  }
+
+  $('callMain').textContent = callOf(S);
+  let sub;
+  if (S.phase === 'play') {
+    const tie = isPar(S) && g.pts[0] === g.pts[1] && g.pts[0] >= g.target - 1;
+    sub = `${N[S.server]} 서브 · ${S.side === 'R' ? '오른쪽' : '왼쪽'} 박스` +
+      (S.handStart && S.lastHandout && g.log.some(e => !e.let) ? ' (핸드아웃 — 박스 선택 가능)' : '') +
+      (tie ? ' · 듀스: 2점 차가 나야 끝' : '') + (g.lets ? ` · 렛 ${g.lets}` : '');
+  } else if (S.phase === 'choose') sub = `${N[S.pending]} 선수가 9점 또는 10점을 고릅니다`;
+  else if (S.phase === 'gameEnd') sub = `다음 게임은 ${N[g.winner]} 선수가 먼저 서브합니다`;
+  else sub = `${N[S.matchWinner]} 승리`;
+  $('callSub').textContent = sub;
+
+  $('btnUndo').disabled = !stack.length;
+  $('btnLet').disabled = S.phase !== 'play';
+  renderTimer();
+}
+
+// ── 단계별 시트 ──
+// 시트가 열리거나 닫힌 직후의 탭은 무시 — 더블탭의 두 번째 탭이 아래 패널이나 새 시트 버튼에 닿는 것을 막는다
+let sheetAt = 0;
+function show(id) { if ($(id).hidden) { $(id).hidden = false; sheetAt = Date.now(); backGuard(); } }
+function hide(id) { if (!$(id).hidden) { $(id).hidden = true; sheetAt = Date.now(); queueMicrotask(backRelease); } }
+const anySheet = () => !!document.querySelector('.scrim:not([hidden])');
+
+// 안드로이드 뒤로가기: 시트가 열려 있으면 앱을 나가지 않고 시트만 닫는다 (설치 앱 배포본에서만)
+let backing = false;
+function backGuard() {
+  if (window.SQUASH_PWA !== true) return;
+  try { if (!(history.state && history.state.squashSheet)) history.pushState({ squashSheet: 1 }, ''); } catch (e) {}
+}
+function backRelease() {   // 화면 버튼으로 시트를 모두 닫았으면 넣어 둔 기록 한 칸을 되돌린다
+  if (window.SQUASH_PWA !== true || anySheet() || backing) return;
+  try { if (history.state && history.state.squashSheet) { backing = true; history.back(); } } catch (e) { backing = false; }
+}
+window.addEventListener('popstate', () => {
+  if (backing) { backing = false; return; }
+  if (['sheetGame', 'sheetMatch', 'sheetChoose'].some(id => !$(id).hidden)) { backGuard(); return; }   // 결정이 필요한 시트는 유지
+  LIGHT_SHEETS.forEach(id => { $(id).hidden = true; });
+  sheetAt = Date.now();
+});
+document.addEventListener('click', e => {
+  if (Date.now() - sheetAt < 400 && e.target.closest('.panel, .sheet button, .act')) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+const LIGHT_SHEETS = ['sheetSetup', 'sheetTimer', 'sheetHelp', 'sheetInstall'];   // 바깥 탭·Esc 로 닫히는 시트
+function closeAll() { ['sheetGame', 'sheetMatch', 'sheetChoose', ...LIGHT_SHEETS].forEach(hide); }
+
+function openPhaseSheet() {
+  const g = cur(S), N = S.cfg.names;
+  if (S.phase === 'gameEnd') {
+    const w = g.winner, won = gamesWon(S);
+    $('gameTitle').textContent = `게임 ${S.games.length} — ${N[w]} 승`;
+    $('gameResult').innerHTML = `${g.pts[w]}<span>:</span>${g.pts[1 - w]}`;
+    $('gameTally').textContent = `게임 스코어 ${N[0]} ${won[0]} : ${won[1]} ${N[1]}`;
+    $('gameNext').textContent = `다음 게임 시작 · ${N[w]} 서브`;
+    show('sheetGame');
+  } else if (S.phase === 'matchEnd') {
+    renderMatchSheet(); show('sheetMatch');
+  } else if (S.phase === 'choose') {
+    $('chooseText').textContent = `${N[S.pending]} 선수(리시버)가 이 게임을 9점까지 할지, 10점까지 할지 고릅니다.`;
+    show('sheetChoose');
+  }
+}
+
+function fmtDur(ms) {
+  if (!(ms > 0)) return '—';
+  const m = Math.floor(ms / 60000), s = Math.floor(ms % 60000 / 1000);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+function renderMatchSheet() {
+  const N = S.cfg.names, won = gamesWon(S), w = S.matchWinner;
+  $('matchTitle').textContent = `${N[w]} 승리`;
+  $('matchResult').innerHTML = `${won[w]}<span>:</span>${won[1 - w]}`;
+  let rows = `<tr><th>게임</th><th>${esc(N[0])}</th><th>${esc(N[1])}</th><th>랠리</th><th>시간</th></tr>`;
+  let rallies = 0, lets = 0, total = 0;
+  S.games.forEach((g, i) => {
+    const r = g.log.filter(e => !e.let).length; rallies += r; lets += g.lets;
+    const d = g.t1 && g.t0 ? g.t1 - g.t0 : 0; total += d;
+    rows += `<tr><td>G${i + 1}</td><td class="num${g.winner === 0 ? ' win' : ''}">${g.pts[0]}</td><td class="num${g.winner === 1 ? ' win' : ''}">${g.pts[1]}</td><td>${r}</td><td>${fmtDur(d)}</td></tr>`;
+  });
+  $('matchTable').innerHTML = rows;
+  $('matchStats').textContent = `총 랠리 ${rallies}회 · 렛 ${lets}회 · 경기 시간 ${fmtDur(total)}`;
+}
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ── 타이머 ──
+const TIMERS = {
+  warmup: { dur: 300000, label: '워밍업', marks: [[150000, 'Half-time', '사이드 교체'], [300000, 'Time', '워밍업 종료']] },
+  rest: { dur: 90000, label: '게임 사이 휴식', marks: [[75000, 'Fifteen seconds', '15초 남음'], [90000, 'Time', '휴식 종료']] }
+};
+function startTimer(kind) { timer = { kind, start: Date.now(), fired: [] }; save(); renderTimer(); }
+function stopTimer() { timer = null; save(); renderTimer(); }
+function renderTimer() {
+  const pill = $('timerPill');
+  if (!timer) {
+    pill.hidden = true;
+    $('timerBig').innerHTML = '—<small>실행 중인 타이머 없음</small>';
+    $('restBig').innerHTML = '1:30<small>게임 사이 휴식 90초</small>';
+    return;
+  }
+  const def = TIMERS[timer.kind], el = Date.now() - timer.start;
+  const left = Math.max(0, def.dur - el);
+  const txt = fmtClock(left);
+  def.marks.forEach(([at, en, ko], i) => {
+    if (el >= at && !timer.fired.includes(i)) {
+      timer.fired.push(i);
+      if (el - at < 5000) { say(en); vibrate([60, 60, 60]); toast(`${def.label}: ${ko}`); }
+      save();
+    }
+  });
+  pill.hidden = false;
+  pill.textContent = left > 0 ? txt : 'Time';
+  pill.classList.toggle('warn', left <= 15000);
+  const note = left > 0 ? def.label : `${def.label} 끝 — Time`;
+  $('timerBig').innerHTML = `${left > 0 ? txt : '0:00'}<small>${note}</small>`;
+  if (timer.kind === 'rest') $('restBig').innerHTML = `${left > 0 ? txt : '0:00'}<small>${note}</small>`;
+}
+function fmtClock(ms) { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+setInterval(() => { if (timer) renderTimer(); }, 250);
+
+// ── 설정 시트 ──
+function segSet(id, v) { $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v)))); }
+function openSetup() {
+  $('nameA').value = S.cfg.names[0]; $('nameB').value = S.cfg.names[1];
+  draft.bestOf = S.cfg.bestOf; draft.scoring = S.cfg.scoring;
+  segSet('segBest', draft.bestOf); segSet('segScoring', draft.scoring); segSet('segFirst', draft.first); segSet('segTheme', ui.theme);
+  $('scoringNote').textContent = SCORING[draft.scoring].note;
+  $('swVoice').setAttribute('aria-checked', String(ui.voice));
+  $('voiceNote').hidden = !isIOS;
+  syncFirstLabels();
+  const inProgress = S.games.some(g => g.log.length) && S.phase !== 'matchEnd';
+  $('setupWarn').hidden = !inProgress;
+  show('sheetSetup');
+}
+function syncFirstLabels() {
+  $('firstA').textContent = $('nameA').value.trim() || '선수 1';
+  $('firstB').textContent = $('nameB').value.trim() || '선수 2';
+}
+function names() { return [$('nameA').value.trim() || '선수 1', $('nameB').value.trim() || '선수 2']; }
+function segBind(id, fn) {
+  $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; fn(b.dataset.v); });
+}
+segBind('segBest', v => { draft.bestOf = +v; segSet('segBest', v); });
+segBind('segScoring', v => { draft.scoring = v; segSet('segScoring', v); $('scoringNote').textContent = SCORING[v].note; });
+segBind('segFirst', v => { draft.first = v; segSet('segFirst', v); });
+segBind('segTheme', v => { ui.theme = v; segSet('segTheme', v); applyTheme(); save(); });
+$('swVoice').addEventListener('click', () => {
+  ui.voice = !ui.voice; $('swVoice').setAttribute('aria-checked', String(ui.voice)); save();
+  if (ui.voice) say('Love all');
+});
+$('nameA').addEventListener('input', syncFirstLabels);
+$('nameB').addEventListener('input', syncFirstLabels);
+$('setupClose').addEventListener('click', () => hide('sheetSetup'));
+$('setupNames').addEventListener('click', () => { S.cfg.names = names(); hide('sheetSetup'); afterChange(); toast('이름을 바꿨습니다'); });$('setupStart').addEventListener('click', () => {
+  let first = draft.first === 'r' ? (crypto.getRandomValues(new Uint8Array(1))[0] & 1) : +draft.first;
+  const nm = names();
+  S = newMatch({ names: nm, bestOf: draft.bestOf, scoring: draft.scoring, firstServer: first }, Date.now());
+  stack = []; ui.swapped = false;
+  if (timer && timer.kind === 'rest') timer = null;   // 진행 중인 워밍업은 유지
+  hide('sheetSetup'); afterChange();
+  toast(`${nm[first]} 선수가 먼저 서브합니다`);
+  say('Love all');
+});
+
+// ── 버튼 ──
+for (const slot of [0, 1]) {
+  const el = $('panel' + slot);
+  el.addEventListener('click', () => score(playerAt(slot)));
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); score(playerAt(slot)); } });
+}
+$('btnUndo').addEventListener('click', undo);
+$('btnLet').addEventListener('click', () => {
+  if (S.phase !== 'play') return;
+  const t = Date.now(); if (t - lastTap < 350) return; lastTap = t;
+  snapshot(); recordLet(S); afterChange();
+  toast('렛 — 같은 박스에서 다시 서브'); say('Yes let'); vibrate(15);
+});
+$('btnSwap').addEventListener('click', () => { ui.swapped = !ui.swapped; afterChange(); });
+$('btnSetup').addEventListener('click', openSetup);
+$('btnHelp').addEventListener('click', () => show('sheetHelp'));
+$('helpClose').addEventListener('click', () => hide('sheetHelp'));
+$('btnTimer').addEventListener('click', () => { renderTimer(); show('sheetTimer'); });
+$('timerPill').addEventListener('click', () => {
+  if (S.phase === 'gameEnd') { show('sheetGame'); return; }
+  renderTimer(); show('sheetTimer');
+});
+$('tWarm').addEventListener('click', () => { startTimer('warmup'); toast('워밍업 5분 시작'); });
+$('tRest').addEventListener('click', () => { startTimer('rest'); toast('휴식 90초 시작'); });
+$('tStop').addEventListener('click', () => { stopTimer(); toast('타이머를 껐습니다'); });
+$('tClose').addEventListener('click', () => hide('sheetTimer'));
+// 전체 화면: 아이폰 Safari 는 API 자체가 없으므로 버튼을 숨기고, 홈 화면 앱으로 쓰도록 안내한다
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+const canFull = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+if (!canFull || matchMedia('(display-mode: fullscreen)').matches) $('btnFull').hidden = true;
+$('btnFull').addEventListener('click', async () => {
+  const de = document.documentElement;
+  try {
+    if (fsEl()) await (document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen());
+    else await (de.requestFullscreen ? de.requestFullscreen({ navigationUI: 'hide' }) : de.webkitRequestFullscreen());
+  } catch (e) { toast('이 기기에서는 전체 화면을 지원하지 않습니다'); }
+});
+function isStandalone() {
+  try { return matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true; }
+  catch (e) { return false; }
+}
+// iOS Safari 는 touchstart 리스너가 있어야 :active 눌림 효과가 보인다
+document.addEventListener('touchstart', () => {}, { passive: true });
+
+$('gameNext').addEventListener('click', () => {
+  snapshot(); nextGame(S); stopTimer(); hide('sheetGame'); afterChange(); say(callOf(S));
+});
+$('gameUndo').addEventListener('click', undo);
+$('matchUndo').addEventListener('click', undo);
+$('matchClose').addEventListener('click', () => hide('sheetMatch'));
+$('matchNew').addEventListener('click', () => { hide('sheetMatch'); openSetup(); });
+$('chooseOne').addEventListener('click', () => { snapshot(); chooseSet(S, false); hide('sheetChoose'); afterChange(); say('No set, game to nine'); });
+$('chooseTwo').addEventListener('click', () => { snapshot(); chooseSet(S, true); hide('sheetChoose'); afterChange(); say('Set two, game to ten'); });
+$('chooseUndo').addEventListener('click', undo);
+
+// 시트 바깥 누르면 닫기 (게임/경기 종료·8:8 선택은 결정이 필요하므로 제외)
+LIGHT_SHEETS.forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) hide(id); }));
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (anySheet()) {   // 시트가 열려 있으면 뒤에서 점수가 바뀌지 않도록 Esc 만 처리
+    if (e.key === 'Escape') LIGHT_SHEETS.forEach(hide);
+    return;
+  }
+  if (e.key === 'ArrowLeft') score(playerAt(0));
+  else if (e.key === 'ArrowRight') score(playerAt(1));
+  else if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') { e.preventDefault(); undo(); }
+  else if (e.key === 'l' || e.key === 'L') $('btnLet').click();
+});
+
+// 화면 꺼짐 방지
+let wakeLock = null;
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && !wakeLock && document.visibilityState === 'visible') { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
+// 아이폰 홈 화면 앱은 iOS 18.4 전까지 화면 꺼짐 방지가 동작하지 않는다 → 자동 잠금 설정을 한 번 안내
+(function wakeHint() {
+  const v = /OS (\d+)_(\d+)/.exec(navigator.userAgent);
+  const ver = v ? +v[1] + +v[2] / 100 : 99;
+  const broken = /iP(hone|od|ad)/.test(navigator.userAgent) && (!('wakeLock' in navigator) || (isStandalone() && ver < 18.04));
+  if (!broken) return;
+  let seen = false;
+  try { seen = localStorage.getItem('squash-wake-hint') === '1'; localStorage.setItem('squash-wake-hint', '1'); } catch (e) {}
+  if (!seen) setTimeout(() => toastLong('이 아이폰에서는 화면이 자동으로 꺼질 수 있습니다 — 설정 › 디스플레이 및 밝기 › 자동 잠금 › 안 함'), 1500);
+})();
+function toastLong(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show', 'long');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show', 'long'), 7000);
+}
+document.addEventListener('pointerdown', keepAwake, { once: false, passive: true });
+
+// ── 설치형 앱(PWA) — make.js 로 만든 배포본에서만 켜진다 ──
+const PWA = window.SQUASH_PWA === true;
+const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let installEvt = null;
+function openInstall() {
+  $('appUrl').value = location.href.split('#')[0].split('?')[0];
+  $('stepsIos').hidden = !isIOS && /Android/.test(navigator.userAgent);
+  $('stepsAndroid').hidden = isIOS;
+  show('sheetInstall');
+}
+if (PWA) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw && nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) toast('새 버전을 받았습니다. 앱을 다시 열면 적용됩니다');
+        });
+      });
+    }).catch(() => {});
+  }
+  if (!isStandalone()) $('setupApp').hidden = false;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
+  window.addEventListener('appinstalled', () => { installEvt = null; $('btnInstall').hidden = true; $('setupApp').hidden = true; toast('홈 화면에 설치했습니다'); });
+  // 아이폰 Safari 는 설치 버튼 이벤트가 없으므로 처음 한 번 안내 시트를 띄운다
+  if (isIOS && !isStandalone()) {
+    $('btnInstall').hidden = false;
+    let seen = false;
+    try { seen = localStorage.getItem('squash-ios-hint') === '1'; localStorage.setItem('squash-ios-hint', '1'); } catch (e) {}
+    if (!seen) setTimeout(openInstall, 600);
+  }
+}
+$('btnInstall').addEventListener('click', async () => {
+  if (installEvt) {
+    installEvt.prompt();
+    try { await installEvt.userChoice; } catch (e) {}
+    installEvt = null; $('btnInstall').hidden = true;
+  } else openInstall();
+});
+$('setupApp').addEventListener('click', () => { hide('sheetSetup'); openInstall(); });
+$('installClose').addEventListener('click', () => hide('sheetInstall'));
+$('copyUrl').addEventListener('click', async () => {
+  const u = $('appUrl').value;
+  try { await navigator.clipboard.writeText(u); toast('링크를 복사했습니다'); }
+  catch (e) { $('appUrl').focus(); $('appUrl').select(); toast('링크를 길게 눌러 복사하세요'); }
+});
+$('shareApp').addEventListener('click', async () => {
+  const url = $('appUrl').value;
+  if (navigator.share) {
+    try { await navigator.share({ title: '스쿼시 점수판', text: '스쿼시 점수판 — 홈 화면에 추가해서 앱처럼 쓰세요', url }); } catch (e) {}
+  } else $('copyUrl').click();
+});
+
+// ── 시작 ──
+if (!load()) {
+  S = newMatch({ names: ['선수 1', '선수 2'], bestOf: 3, scoring: 'par11', firstServer: 0 }, Date.now());
+}
+applyTheme();
+render();
+if (S.phase !== 'play') openPhaseSheet();
+keepAwake();
+</script>
+</body>
+</html>
