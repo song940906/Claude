@@ -1594,6 +1594,22 @@ td.go { color: var(--hl-text); font-weight: 700; white-space: nowrap; }
 .flow-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--sub); }
 .flow-legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 .share-img { display: block; width: 100%; max-width: 340px; align-self: center; border-radius: 14px; border: 1px solid var(--line); }
+/* 메인 화면: 점수판을 덮는 첫 화면 (바탕은 테마 배경색, 타일은 각 테마의 .btn 모양을 그대로 쓴다) */
+/* 바탕은 body 배경을 그대로 물려받는다 — 글래스 테마는 이 그라데이션 위에서 반투명 카드가 비쳐 보여야 한다 */
+#sheetHome { background: inherit; background-color: var(--bg); }
+.home-card { gap: 14px; }
+.home-card h2 { font-size: 24px; }
+.home-head { text-align: center; }
+#homeResume { align-items: center; text-align: center; }
+.home-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 560px) { .home-grid { grid-template-columns: repeat(3, 1fr); } }
+.btn.mode { height: auto; min-height: 72px; width: 100%; padding: 14px 18px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; text-align: left; }
+.btn.mode b { font-size: 19px; }
+.btn.mode span { font-size: 13px; font-weight: 500; opacity: .78; }
+.btn.primary.mode span { opacity: 1; }
+.home-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 560px) { .home-links { grid-template-columns: repeat(4, 1fr); } }
+.home-links .btn { min-width: 0; padding: 0 8px; font-size: 14px; }
 a.btn, a.btn:visited { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; }
 @media (max-width: 520px) { #btnInstall .lbl { display: none; } #btnInstall { padding: 0 8px; } }
 @media (max-width: 400px) { .tools { gap: 3px; } .tools .icon-btn { min-width: 38px; padding: 0 6px; } }   /* 기록 버튼이 늘어 좁은 폰에서 머리줄이 넘치지 않게 */
@@ -1613,8 +1629,8 @@ a.btn, a.btn:visited { display: inline-flex; align-items: center; justify-conten
     <button class="icon-btn" id="btnFull" aria-label="전체 화면">
       <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
     </button>
-    <button class="icon-btn" id="btnRecords" aria-label="기록 · 전적 · 리그전">
-      <svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4"/></svg>
+    <button class="icon-btn" id="btnHome" aria-label="메인 화면">
+      <svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 9.5V20h12V9.5M10 20v-5h4v5"/></svg>
     </button>
     <button class="icon-btn" id="btnHelp" aria-label="룰 요약">?</button>
     <button class="icon-btn" id="btnSetup" aria-label="경기 설정">
@@ -1653,6 +1669,25 @@ a.btn, a.btn:visited { display: inline-flex; align-items: center; justify-conten
     </button>
   </div>
 </footer>
+
+<!-- 메인 화면: 앱을 켜면 먼저 보인다 -->
+<div class="scrim" id="sheetHome" hidden>
+  <div class="sheet home-card" role="dialog" aria-modal="true" aria-labelledby="homeTitle">
+    <div class="home-head"><h2 id="homeTitle">🎾 Squash 🎾</h2><p>어떤 경기를 할까요?</p></div>
+    <button class="btn primary mode" id="homeResume" hidden><b>이어서 하기</b><span id="homeResumeSub"></span></button>
+    <div class="home-grid">
+      <button class="btn mode" id="homeSingle"><b>단식</b><span>1 대 1 경기</span></button>
+      <button class="btn mode" id="homeDouble"><b>복식</b><span>2 대 2 · 서브 순서 자동</span></button>
+      <button class="btn mode" id="homeLeague"><b>리그전</b><span id="homeLeagueSub">여럿이 돌아가며 · 순위표</span></button>
+    </div>
+    <div class="home-links">
+      <button class="btn" id="homeRecords">기록 · 전적</button>
+      <button class="btn" id="homeSettings">설정</button>
+      <button class="btn" id="homeTimer">타이머</button>
+      <button class="btn" id="homeHelp">룰 요약</button>
+    </div>
+  </div>
+</div>
 
 <!-- 경기 설정 -->
 <div class="scrim" id="sheetSetup" hidden>
@@ -2268,6 +2303,7 @@ try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', sync
 
 // ── 득점 ──
 function score(p) {
+  if (!$('sheetHome').hidden) return;
   const t = Date.now();
   if (t - lastTap < 350 || t - sheetAt < 400) return;   // 두 번 눌림 방지
   lastTap = t;
@@ -2363,7 +2399,10 @@ function render() {
 // 시트가 열리거나 닫힌 직후의 탭은 무시 — 더블탭의 두 번째 탭이 아래 패널이나 새 시트 버튼에 닿는 것을 막는다
 let sheetAt = 0;
 function show(id) { if ($(id).hidden) { $(id).hidden = false; sheetAt = Date.now(); backGuard(); } }
-function hide(id) { if (!$(id).hidden) { $(id).hidden = true; sheetAt = Date.now(); queueMicrotask(backRelease); } }
+function hide(id) {
+  if (!$(id).hidden) { $(id).hidden = true; sheetAt = Date.now(); queueMicrotask(backRelease); }
+  if (id !== 'sheetHome' && !$('sheetHome').hidden) refreshHome();
+}
 const anySheet = () => !!document.querySelector('.scrim:not([hidden])');
 
 // 안드로이드 뒤로가기: 시트가 열려 있으면 앱을 나가지 않고 시트만 닫는다 (설치 앱 배포본에서만)
@@ -2373,7 +2412,7 @@ function backGuard() {
   try { if (!(history.state && history.state.squashSheet)) history.pushState({ squashSheet: 1 }, ''); } catch (e) {}
 }
 function backRelease() {   // 화면 버튼으로 시트를 모두 닫았으면 넣어 둔 기록 한 칸을 되돌린다
-  if (window.SQUASH_PWA !== true || anySheet() || backing) return;
+  if (window.SQUASH_PWA !== true || document.querySelector('.scrim:not([hidden]):not(#sheetHome)') || backing) return;
   try { if (history.state && history.state.squashSheet) { backing = true; history.back(); } } catch (e) { backing = false; }
 }
 window.addEventListener('popstate', () => {
@@ -2386,7 +2425,7 @@ document.addEventListener('click', e => {
   if (Date.now() - sheetAt < 400 && e.target.closest('.panel, .sheet button, .act')) { e.stopPropagation(); e.preventDefault(); }
 }, true);
 const LIGHT_SHEETS = ['sheetSetup', 'sheetTimer', 'sheetHelp', 'sheetInstall', 'sheetRecords', 'sheetRecord', 'sheetLeague', 'sheetShare'];   // 바깥 탭·Esc 로 닫히는 시트
-function closeAll() { ['sheetGame', 'sheetMatch', 'sheetChoose', ...LIGHT_SHEETS].forEach(hide); }
+function closeAll() { ['sheetHome', 'sheetGame', 'sheetMatch', 'sheetChoose', ...LIGHT_SHEETS].forEach(hide); setBoardInert(false); }
 
 function openPhaseSheet() {
   const g = cur(S), N = S.cfg.names;
@@ -2458,7 +2497,7 @@ setInterval(() => { if (timer) renderTimer(); }, 250);
 
 // ── 설정 시트 ──
 function segSet(id, v) { $(id).querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(v)))); }
-function openSetup() {
+function openSetup(mode) {
   const t = S.cfg.team;
   $('nameA').value = t ? t[0][0] : S.cfg.names[0]; $('nameB').value = t ? t[1][0] : S.cfg.names[1];
   $('nameA2').value = t ? t[0][1] : ''; $('nameB2').value = t ? t[1][1] : '';
@@ -2473,6 +2512,9 @@ function openSetup() {
   syncFirstLabels();
   const inProgress = S.games.some(g => g.log.length) && S.phase !== 'matchEnd';
   $('setupWarn').hidden = !inProgress;
+  if (mode === 'single' || mode === 'double') { draft.mode = mode; syncMode(); }
+  $('setupTitle').textContent = mode === 'double' ? '복식 경기' : mode === 'single' ? '단식 경기' : '경기 설정';
+  $('setupNames').hidden = !!mode;   // 새 경기를 고르고 들어왔으면 '이름만 바꾸기'는 감춘다
   show('sheetSetup');
 }
 function syncFirstLabels() {
@@ -2580,7 +2622,7 @@ $('btnLet').addEventListener('click', () => {
   toast('렛 — 같은 박스에서 다시 서브'); say('Yes let', '렛. 다시 서브'); vibrate(15);
 });
 $('btnSwap').addEventListener('click', () => { ui.swapped = !ui.swapped; afterChange(); });
-$('btnSetup').addEventListener('click', openSetup);
+$('btnSetup').addEventListener('click', () => openSetup());
 $('btnHelp').addEventListener('click', () => show('sheetHelp'));
 $('helpClose').addEventListener('click', () => hide('sheetHelp'));
 $('btnTimer').addEventListener('click', () => { renderTimer(); show('sheetTimer'); });
@@ -2616,7 +2658,7 @@ $('gameNext').addEventListener('click', () => {
 $('gameUndo').addEventListener('click', undo);
 $('matchUndo').addEventListener('click', undo);
 $('matchClose').addEventListener('click', () => hide('sheetMatch'));
-$('matchNew').addEventListener('click', () => { hide('sheetMatch'); openSetup(); });
+$('matchNew').addEventListener('click', showHome);
 $('chooseOne').addEventListener('click', () => { snapshot(); chooseSet(S, false); hide('sheetChoose'); afterChange();   const ball = koBall(S);   // 9점이면 서버가 바로 게임(매치)볼
   say('No set, game to nine' + (ball ? (ball === '매치볼' ? ', match ball' : ', game ball') : ''), ball ? `9점 게임. ${ball}` : '9점 게임');
 });
@@ -2874,7 +2916,7 @@ function renderLeague() {
     (others.length ? `<div class="sec-title">이전 리그</div><div class="row-actions">${others.map(l => `<button class="btn" data-lg="${esc(l.id)}">${esc(l.name)}</button>`).join('')}</div>` : '');
 }
 segBind('segRec', v => { recTab = v; renderRecords(); });
-$('btnRecords').addEventListener('click', () => openRecords());
+$('btnHome').addEventListener('click', showHome);
 $('recClose').addEventListener('click', () => hide('sheetRecords'));
 $('recRecent').addEventListener('click', e => {
   if (e.target.id === 'recWipe') {
@@ -2898,7 +2940,7 @@ $('recLeague').addEventListener('click', e => {
   if (!row) return;
   const L = curLeague(), i = +row.dataset.fx, done = leagueTable(L, REC.matches).results[i];
   if (done) { openRecord(done.id); return; }
-  if (S.league && S.league.id === L.id && S.league.fx === i && S.phase !== 'matchEnd') { hide('sheetRecords'); return; }   // 진행 중인 그 경기로 돌아가기
+  if (S.league && S.league.id === L.id && S.league.fx === i && S.phase !== 'matchEnd') { goBoard(); return; }   // 진행 중인 그 경기로 돌아가기
   const busy = S.games.some(g => g.log.length) && S.phase !== 'matchEnd';
   if (busy && lgArmed !== i) { lgArmed = i; $('lgBusy').hidden = false; return; }
   const fx = L.fixtures[i];
@@ -2926,7 +2968,7 @@ $('lgCreate').addEventListener('click', () => {
   while (REC.leagues.some(l => l.name === name)) name = `리그 ${fmtDate(Date.now())} (${k++})`;
   const L = { id: newId(), name, at: Date.now(), players, fixtures: roundRobin(players), bestOf: lgDraft.bestOf, scoring: lgDraft.scoring, deuce: lgDraft.deuce };
   REC.leagues.unshift(L); lgSel = L.id; saveRec();
-  hide('sheetLeague'); recTab = 'league'; renderRecords();
+  hide('sheetLeague'); openRecords('league');
   toast(`대진 ${L.fixtures.length}경기를 만들었습니다`);
 });
 
@@ -3044,6 +3086,48 @@ $('shCopy').addEventListener('click', async () => {
 });
 $('shClose').addEventListener('click', () => hide('sheetShare'));
 
+// ── 메인 화면 ──
+function refreshHome() {
+  const g = cur(S), N = S.cfg.names, played = S.games.some(x => x.log.length);
+  const live = played && S.phase !== 'matchEnd', b = $('homeResume');
+  b.classList.toggle('primary', live);
+  b.querySelector('b').textContent = live ? '이어서 하기' : S.phase === 'matchEnd' ? '지난 경기 결과' : '점수판 열기';
+  const won = gamesWon(S);
+  $('homeResumeSub').textContent = S.phase === 'matchEnd'
+    ? `${N[0]} ${won[0]} : ${won[1]} ${N[1]} · ${N[S.matchWinner]} 승`
+    : `${N[0]} ${g.pts[0]} : ${g.pts[1]} ${N[1]} · 게임 ${S.games.length}` + (S.league ? ' · 리그' : '') + (played ? '' : ' · 시작 전');
+  b.hidden = false;
+  const L = curLeague(), left = L ? leagueTable(L, REC.matches).results.filter(x => !x).length : 0;
+  $('homeLeagueSub').textContent = left ? `${L.name} · 남은 경기 ${left}` : '여럿이 돌아가며 · 순위표';
+}
+// 메인이 떠 있는 동안 뒤의 점수판은 키보드·스크린리더에서도 막는다
+function setBoardInert(on) {
+  for (const el of [document.querySelector('.top'), $('courts'), document.querySelector('.bottom')]) {
+    if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert');
+  }
+}
+function showHome() {
+  closeAll();
+  refreshHome();
+  // show() 를 쓰지 않는다: 뒤로가기 기록을 넣지 않아야 메인에서 뒤로 = 앱 나가기
+  $('sheetHome').hidden = false; sheetAt = Date.now();
+  setBoardInert(true);
+}
+// 메인을 닫고 점수판으로 (진행 중이던 단계 시트가 있으면 다시 띄운다)
+function goBoard() {
+  closeAll();
+  render();
+  if (S.phase !== 'play') openPhaseSheet();
+}
+$('homeResume').addEventListener('click', goBoard);
+$('homeTimer').addEventListener('click', () => { renderTimer(); show('sheetTimer'); });
+$('homeSingle').addEventListener('click', () => openSetup('single'));
+$('homeDouble').addEventListener('click', () => openSetup('double'));
+$('homeLeague').addEventListener('click', () => { if (REC.leagues.length) openRecords('league'); else openLeagueNew(); });
+$('homeRecords').addEventListener('click', () => openRecords('recent'));
+$('homeSettings').addEventListener('click', () => openSetup());
+$('homeHelp').addEventListener('click', () => show('sheetHelp'));
+
 // ── 시작 ──
 if (!load()) {
   S = newMatch({ names: ['선수 1', '선수 2'], bestOf: 3, scoring: 'par11', firstServer: 0 }, Date.now());
@@ -3054,7 +3138,7 @@ if (!S.league) S.league = null;
 applySkin();
 applyTheme();
 render();
-if (S.phase !== 'play') openPhaseSheet();
+showHome();
 keepAwake();
 </script>
 </body>
