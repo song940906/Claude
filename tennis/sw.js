@@ -1,5 +1,5 @@
 // node make.js 가 생성 — 직접 고치지 말 것
-const CACHE = 'tennis-a09cdda37b';
+const CACHE = 'tennis-3fb1a4c5f8';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

@@ -2432,12 +2432,15 @@ function load() {
 }
 
 // 되돌리기 한 칸: 점수와 함께 화면 좌우(코트 체인지 자동 바꿈)·휴식 타이머도 저장
+const AUTO_TIMERS = ['change', 'setbreak'];
 function snapshot() { stack.push(JSON.stringify({ S, sw: ui.swapped, timer })); if (stack.length > 300) stack.shift(); }
 function undo() {
   if (!stack.length) { toast('되돌릴 기록이 없습니다'); return; }
   const names0 = S.cfg.names, team0 = S.cfg.team, id0 = S.id, league0 = S.league, cup0 = S.cup, was = S.phase;
   const snap = JSON.parse(stack.pop());
-  S = snap.S; ui.swapped = !!snap.sw; timer = snap.timer || null;
+  S = snap.S; ui.swapped = !!snap.sw;
+  // 점수가 저절로 켠 쉬는 시간 타이머만 되돌린다 (워밍업처럼 직접 켠 타이머는 그대로)
+  if (!timer || AUTO_TIMERS.includes(timer.kind)) timer = snap.timer && AUTO_TIMERS.includes(snap.timer.kind) ? snap.timer : null;
   S.cfg.names = names0 || S.cfg.names;   // 이름 변경은 되돌리기 대상이 아님
   if (team0 && S.cfg.team) S.cfg.team = team0;
   S.id = id0; S.league = league0 || null; S.cup = cup0 || null;
@@ -2497,6 +2500,7 @@ function score(p) {
   const t = Date.now();
   if (t - lastTap < 350 || t - sheetAt < 400) return;   // 두 번 눌림 방지
   lastTap = t;
+  if (timer && ['change'].includes(timer.kind) && S.phase === 'play') timer = null;   // 쉬는 시간이 끝나고 경기를 다시 시작
   if (S.phase !== 'play') { openPhaseSheet(); return; }
   snapshot();
   const ev = point(S, p, t);
@@ -2835,7 +2839,12 @@ $('btnFault').addEventListener('click', () => {
   if (r.fault) { afterChange(); toast('폴트 — 두 번째 서브'); say('Fault', '폴트'); vibrate(15); }
   else afterPoint(r);   // 더블 폴트: 리시버 포인트
 });
-$('btnSwap').addEventListener('click', () => { ui.swapped = !ui.swapped; afterChange(); });
+$('btnSwap').addEventListener('click', () => {
+  ui.swapped = !ui.swapped;
+  // 손으로 바꾼 좌우는 되돌리기 뒤에도 남게, 마지막 되돌리기 칸의 좌우 값도 함께 뒤집는다
+  if (stack.length) { const top = JSON.parse(stack[stack.length - 1]); top.sw = !top.sw; stack[stack.length - 1] = JSON.stringify(top); }
+  afterChange();
+});
 $('btnSetup').addEventListener('click', () => openSetup());
 $('btnHelp').addEventListener('click', () => show('sheetHelp'));
 $('helpClose').addEventListener('click', () => hide('sheetHelp'));
