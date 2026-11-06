@@ -1,5 +1,5 @@
 // node make.js 가 생성 — 직접 고치지 말 것
-const CACHE = 'kongstar-03651e9a37';
+const CACHE = 'kongstar-d00fccfaed';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

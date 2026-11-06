@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '03651e9a37';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = 'd00fccfaed';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -74,6 +74,16 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
 }
 .round svg { width: 20px; height: 20px; }
 .round:active { transform: scale(.94); }
+/* 차 안 배경에서만 보이는 창문 단추 (상단 줄 아래 오른쪽) */
+.winbtn {
+  position: fixed; right: max(14px, env(safe-area-inset-right, 0px)); top: calc(env(safe-area-inset-top, 0px) + 66px);
+  display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px 0 11px; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--glass-line); color: #E9ECF8; font-size: 13.5px; font-weight: 600; letter-spacing: -.2px;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.winbtn[hidden] { display: none; }
+.winbtn svg { width: 18px; height: 18px; }
+.winbtn:active { transform: scale(.96); }
 .badge { position: absolute; right: 7px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: #FF8A65; box-shadow: 0 0 0 2px #1B2150; }
 
 /* ── 하단 버튼 줄 ── */
@@ -294,6 +304,9 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
       <span class="badge" id="menuBadge" hidden></span>
     </button>
   </div>
+  <button class="winbtn" id="btnWin" hidden aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V9.5L9 5h11v13z"/><path id="winArrow" d="M14 9v6M11.5 12.5 14 15l2.5-2.5"/></svg>
+    <span id="winLabel">창문 열기</span></button>
 </header>
 
 <nav class="dock" aria-label="콩이와 놀기">
@@ -1153,25 +1166,36 @@ let OBJ = OBJ_STAR;   // 지금 배경의 물건 (실내 배경이면 그 방의
 // ═══════════════ 실내 배경 (거실·침실) ═══════════════
 // 사용자 집 사진을 참고해 그린 그림이다 — 사진 자체는 앱에 넣지 않는다(저장소가 공개, 사진에 사람·집 안이 보인다).
 // 실내는 바닥이 평평하고 카메라가 고정돼 콩이는 방 안(roomLim)에서만 다닌다. 물건 자리는 화면 폭 비율(fx)
-const SCENES = [['star', '별나라', '🌙'], ['living', '거실', '🛋️'], ['bedroom', '침실', '🛏️']];
-const indoor = () => S.scene === 'living' || S.scene === 'bedroom';
+// 지하주차장(아파트 104동 공동현관 앞)·차 안(싼타페 DM 운전석에서 본 보조석)은 사진 없이 그린 그림 (2026-11-06 사용자 요청 — 이름·동 번호 표시도 사용자가 골랐다)
+const SCENES = [['star', '별나라', '🌙'], ['living', '거실', '🛋️'], ['bedroom', '침실', '🛏️'], ['parking', '지하주차장', '🅿️'], ['car', '차 안', '🚗']];
 const ROOM_OBJ = {
   // 큰 가구를 먼저(뒤에) 그리고, 바닥 물건(집·바구니·밥그릇)은 그 앞에 — 가구가 커서 조금 겹친다
   living: [['sofa', 0.15], ['house', -0.35], ['basket', -0.2], ['bowl', -0.06]],
-  bedroom: [['bed', 0.15], ['house', -0.35], ['basket', -0.2], ['bowl', -0.06]]
+  bedroom: [['bed', 0.15], ['house', -0.35], ['basket', -0.2], ['bowl', -0.06]],
+  parking: [['basket', -0.25], ['bowl', -0.1], ['cone', 0.36]],   // 주차장엔 콩이 집을 두지 않는다 (사용자 요청)
+  car: []   // 차 안은 보조석 위 — 물건 없이 콩이만 (하우스는 의자 뒤로 숨기)
 };
+const indoor = () => !!ROOM_OBJ[S.scene];
+const inCar = () => S.scene === 'car';
 const FURN_K = { sofa: 1.3, bed: 1.28 };   // 거실 쇼파·침대 크기 (사용자: 좀 더 크게)
 const SEATS = { bench: () => SOFA_SEAT, sofa: () => 72 * FURN_K.sofa, bed: () => 84 * FURN_K.bed };   // 올라앉는 물건과 앉는 면 높이(k 단위)
 const SEAT_HALF = { bench: 96, sofa: 186 * FURN_K.sofa, bed: 196 * FURN_K.bed };   // 앉는 면 반폭(k 단위) — 가장자리에서 뛰어오른다
-function setSceneObjects() { OBJ = indoor() ? ROOM_OBJ[S.scene].map(([kind, fx]) => ({ kind, th: fx * W / R })) : OBJ_STAR; }
-const roomLim = () => Math.max(0.05, (W / 2 - SZ * 0.3) / R);
+function setSceneObjects() {
+  OBJ = indoor() ? ROOM_OBJ[S.scene].map(([kind, fx]) => ({ kind, th: fx * W / R })) : OBJ_STAR;
+  $('btnWin').hidden = !inCar();   // 창문 단추는 차 안에서만
+}
+const roomHalf = () => inCar() ? carSeatHalf() : W / 2;   // 다닐 수 있는 반폭(px) — 차 안은 보조석 방석 폭
+const roomLim = () => Math.max(0.05, (roomHalf() - SZ * 0.3) / R);
 const roomWall = () => GY - Math.min(H * 0.17, SZ * 0.62);   // 벽과 바닥이 만나는 선
 let ROOMC = null;
 function paintRoom(col) {
   if (!ROOMC) ROOMC = document.createElement('canvas');
   ROOMC.width = Math.round(W * DPR); ROOMC.height = Math.round(H * DPR);
   const g = ROOMC.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (S.scene === 'living') paintLiving(g); else paintBedroom(g, col);
+  if (S.scene === 'living') paintLiving(g);
+  else if (S.scene === 'parking') paintParking(g);
+  else if (S.scene === 'car') paintCar(g, col);
+  else paintBedroom(g, col);
 }
 // 원근 바닥: 벽 아래(wb)부터 화면 끝까지, 소실점으로 모이는 세로 줄 + 아래로 갈수록 벌어지는 가로 줄
 function floorLines(g, wb, col, n, gap) {
@@ -1272,6 +1296,324 @@ function paintBedroom(g, col) {
   g.fillStyle = '#3A302A'; g.fillRect(0, wb - 3, W, 3);
   if (night) { g.fillStyle = 'rgba(8,10,28,.28)'; g.fillRect(0, 0, W, H); }
 }
+// ── 지하주차장: 104동 공동현관 앞 — 형광등 줄 · 콘크리트 천장 · 초록 띠 벽 · 기둥 · 세워 둔 차 · 초록 에폭시 바닥과 흰 주차선 ──
+function paintParking(g) {
+  const wb = roomWall(), cy = Math.max(H * 0.1, SAFE_T + 46), wt = cy + (wb - cy) * 0.3, wh = wb - wt;   // wt: 천장과 벽이 만나는 선
+  const vx = W * 0.5, vy = wt + wh * 0.35;   // 소실점
+  // 천장 (어두운 콘크리트 · 소실점으로 모이는 보 · 가로 보)
+  const cg = g.createLinearGradient(0, 0, 0, wt); cg.addColorStop(0, '#383C3F'); cg.addColorStop(1, '#575C5F');
+  g.fillStyle = cg; g.fillRect(0, 0, W, wt);
+  g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2; g.beginPath();
+  for (let i = -5; i <= 5; i++) { const tx = vx + i * W * 0.3; g.moveTo(tx, 0); g.lineTo(tx + (vx - tx) * wt / vy, wt); }
+  for (const f of [0.3, 0.58, 0.8]) { g.moveTo(0, wt * f); g.lineTo(W, wt * f); }
+  g.stroke();
+  // 형광등: 가까운 줄(위)일수록 크게, 둘레는 은은하게 번진다
+  for (const f of [0.14, 0.45, 0.7, 0.9]) {
+    const y = wt * f, s = (vy - y) / vy;
+    for (const i of [-1, 0, 1]) {
+      const x = vx + i * W * 0.42 * s, lw = Math.max(18, W * 0.17 * s), lh = Math.max(2, 7 * s);
+      const gl = g.createRadialGradient(x, y, 2, x, y, lw * 0.9); gl.addColorStop(0, 'rgba(225,240,255,.45)'); gl.addColorStop(1, 'rgba(225,240,255,0)');
+      g.fillStyle = gl; g.fillRect(x - lw, y - lw, lw * 2, lw * 2);
+      g.fillStyle = '#F4FBFF'; g.fillRect(x - lw / 2, y - lh / 2, lw, lh);
+    }
+  }
+  // 덕트(회색) · 스프링클러 배관(빨강)
+  g.fillStyle = '#7A7F83'; g.fillRect(0, wt - 30, W * 0.42, 13); g.fillStyle = 'rgba(255,255,255,.15)'; g.fillRect(0, wt - 30, W * 0.42, 3);
+  g.strokeStyle = '#C0392B'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, wt - 9); g.lineTo(W, wt - 9); g.stroke();
+  g.fillStyle = '#C0392B'; for (let x = W * 0.08; x < W; x += W * 0.19) g.fillRect(x - 2, wt - 9, 4, 8);
+  // 벽: 위는 밝은 회색 콘크리트, 아래는 초록 띠 + 노란 줄
+  g.fillStyle = '#B4B9BB'; g.fillRect(0, wt, W, wh);
+  const rnd = mulberry32(21);
+  for (let i = 0; i < 60; i++) { g.fillStyle = rnd() < 0.5 ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.06)'; g.fillRect(rnd() * W, wt + rnd() * wh, 2 + rnd() * 10, 1 + rnd() * 3); }
+  const bt = wb - wh * 0.3;
+  g.fillStyle = '#2F7A59'; g.fillRect(0, bt, W, wb - bt);
+  g.fillStyle = '#F2C230'; g.fillRect(0, bt - 4, W, 4);
+  // 세워 둔 차 두 대 (뒷모습, 벽 앞)
+  const fb = wb + (GY - wb) * 0.16;
+  const cw1 = Math.min(W * 0.2, wh * 0.8);
+  for (const [x0, w, body, glass] of [[W * 0.17, cw1, '#ECEDEE', '#3C4650'], [W * 0.17 + cw1 * 1.12, cw1 * 0.92, '#4B5157', '#2A3036']]) {
+    const h = Math.min(w * 0.82, wh * 0.62);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x0 + w / 2, fb, w * 0.56, 6, 0, 0, TAU); g.fill();
+    g.fillStyle = body; roundRect(g, x0, fb - h, w, h * 0.97, w * 0.12); g.fill();
+    g.fillStyle = glass; roundRect(g, x0 + w * 0.12, fb - h * 0.9, w * 0.76, h * 0.33, w * 0.06); g.fill();
+    g.fillStyle = '#D9342B'; roundRect(g, x0 + w * 0.02, fb - h * 0.5, w * 0.17, h * 0.1, 3); g.fill(); roundRect(g, x0 + w * 0.81, fb - h * 0.5, w * 0.17, h * 0.1, 3); g.fill();
+    g.fillStyle = '#F5F5F2'; g.fillRect(x0 + w * 0.36, fb - h * 0.34, w * 0.28, h * 0.09);   // 번호판 자리 (글자는 넣지 않는다)
+    g.fillStyle = '#1D1F21'; g.fillRect(x0 + w * 0.04, fb - h * 0.16, w * 0.92, h * 0.13);   // 범퍼 아래
+  }
+  // 104동 공동현관: 따뜻한 불빛의 유리문 + 위에 단지 이름·동 표지판
+  const dwd = Math.min(W * 0.35, wh * 1.3), dx1 = W * 0.95, dx0 = dx1 - dwd, dtp = wt + wh * 0.38;
+  g.fillStyle = '#2B2F33'; g.fillRect(dx0 - 6, dtp - 6, dx1 - dx0 + 12, wb - dtp + 6);
+  const ig = g.createLinearGradient(0, dtp, 0, wb); ig.addColorStop(0, '#FFF6DE'); ig.addColorStop(1, '#EAD9B4');
+  g.fillStyle = ig; g.fillRect(dx0, dtp, dx1 - dx0, wb - dtp);
+  g.fillStyle = '#B9BCC0'; g.fillRect(dx0 + (dx1 - dx0) * 0.36, dtp + (wb - dtp) * 0.18, (dx1 - dx0) * 0.28, (wb - dtp) * 0.82);   // 안쪽 엘리베이터 문
+  g.fillStyle = '#9EA2A6'; g.fillRect(dx0 + (dx1 - dx0) * 0.5 - 1, dtp + (wb - dtp) * 0.18, 2, (wb - dtp) * 0.82);
+  g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.moveTo(dx0 + 6, wb); g.lineTo(dx0 + (dx1 - dx0) * 0.22, dtp); g.lineTo(dx0 + (dx1 - dx0) * 0.3, dtp); g.lineTo(dx0 + 16, wb); g.closePath(); g.fill();   // 유리 반사
+  g.strokeStyle = '#2B2F33'; g.lineWidth = 4; g.beginPath(); g.moveTo((dx0 + dx1) / 2, dtp); g.lineTo((dx0 + dx1) / 2, wb); g.stroke();
+  g.fillStyle = '#C9CED3'; g.fillRect((dx0 + dx1) / 2 - 9, dtp + (wb - dtp) * 0.45, 3, (wb - dtp) * 0.25); g.fillRect((dx0 + dx1) / 2 + 6, dtp + (wb - dtp) * 0.45, 3, (wb - dtp) * 0.25);   // 손잡이
+  const sy0 = wt + wh * 0.05, sh = wh * 0.27, swd = Math.min(W * 0.43, sh * 3.4), sx1 = Math.min(W - 4, (dx0 + dx1) / 2 + swd / 2), sx0 = sx1 - swd;
+  g.fillStyle = '#1E5641'; roundRect(g, sx0, sy0, sx1 - sx0, sh, 6); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.5; roundRect(g, sx0 + 3, sy0 + 3, sx1 - sx0 - 6, sh - 6, 4); g.stroke();
+  g.fillStyle = '#FFFFFF'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const sw = (sx1 - sx0) * 0.86, fitPx = (txt, px, wt8) => { g.font = `${wt8} ${px}px ${FONT}`; const m = g.measureText(txt).width; return m > sw ? px * sw / m : px; };
+  let p1 = fitPx('덕산아내에코캐슬', sh * 0.24, 600); g.font = `600 ${p1}px ${FONT}`; g.fillText('덕산아내에코캐슬', (sx0 + sx1) / 2, sy0 + sh * 0.3);
+  let p2 = fitPx('104동', sh * 0.46, 800); g.font = `800 ${p2}px ${FONT}`; g.fillText('104동', (sx0 + sx1) / 2, sy0 + sh * 0.68);
+  // 기둥 (왼쪽): 흰 바탕 · 아래 초록 띠 · 모서리 노랑·검정 줄 · 'B1 / 104동'
+  const cx0 = W * 0.03, cw = Math.max(34, Math.min(W * 0.11, 84)), cb = wb + (GY - wb) * 0.22;
+  g.fillStyle = '#E8EAEA'; g.fillRect(cx0, 0, cw, cb);
+  g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(cx0 + cw * 0.7, 0, cw * 0.3, cb);
+  g.fillStyle = '#2F7A59'; g.fillRect(cx0, cb - (cb - wt) * 0.32, cw, (cb - wt) * 0.32);
+  for (let y = cb - (cb - wt) * 0.32 - 4; y < cb; y += 10) { g.fillStyle = '#F2C230'; g.fillRect(cx0, y, 4, 5); g.fillStyle = '#222'; g.fillRect(cx0, y + 5, 4, 5); }
+  g.fillStyle = '#1E5641'; g.font = `800 ${Math.round(cw * 0.42)}px ${FONT}`; g.fillText('B1', cx0 + cw / 2, wt + wh * 0.2);
+  g.font = `700 ${Math.round(cw * 0.26)}px ${FONT}`; g.fillText('104동', cx0 + cw / 2, wt + wh * 0.38);
+  // 바닥: 초록 에폭시 + 등 반사 + 흰 주차선 + 노란 보행로
+  const fg = g.createLinearGradient(0, wb, 0, H); fg.addColorStop(0, '#3A6E59'); fg.addColorStop(1, '#4A846C');
+  g.fillStyle = fg; g.fillRect(0, wb, W, H - wb);
+  for (const x of [W * 0.22, W * 0.5, W * 0.78]) { const rg = g.createRadialGradient(x, wb + (H - wb) * 0.3, 2, x, wb + (H - wb) * 0.3, W * 0.2); rg.addColorStop(0, 'rgba(230,245,255,.18)'); rg.addColorStop(1, 'rgba(230,245,255,0)'); g.fillStyle = rg; g.fillRect(0, wb, W, H - wb); }
+  g.fillStyle = '#2B2F33'; g.fillRect(0, wb - 3, W, 3);
+  const ly = wb + (GY - wb) * 0.42;
+  g.strokeStyle = 'rgba(245,245,240,.85)'; g.lineWidth = 2.5; g.beginPath();
+  for (let x = W * 0.14; x < W * 0.6; x += W * 0.22) { g.moveTo(x, wb + 2); g.lineTo(x + (x - vx) * (ly - wb) / (wb - vy) * 0.6, ly); }
+  g.moveTo(0, ly); g.lineTo(W * 0.62, ly); g.stroke();
+  g.strokeStyle = '#F2C230'; g.lineWidth = 3; g.beginPath();
+  g.moveTo(dx0 + 4, wb + 2); g.lineTo(dx0 - (dx1 - dx0) * 0.25, H); g.moveTo(dx1 - 4, wb + 2); g.lineTo(dx1 + (dx1 - dx0) * 0.25, H); g.stroke();
+  g.fillStyle = 'rgba(242,194,48,.18)'; g.beginPath(); g.moveTo(dx0 + 4, wb + 2); g.lineTo(dx1 - 4, wb + 2); g.lineTo(dx1 + (dx1 - dx0) * 0.25, H); g.lineTo(dx0 - (dx1 - dx0) * 0.25, H); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(245,245,240,.75)'; g.beginPath();   // 바닥 화살표 (출입구 쪽)
+  const ax = W * 0.2, ay = wb + (H - wb) * 0.75, as = Math.min(W * 0.06, 30);
+  g.moveTo(ax + as * 2, ay - as * 0.25); g.lineTo(ax + as * 3, ay); g.lineTo(ax + as * 2, ay + as * 0.25); g.closePath(); g.fill();
+  g.fillRect(ax, ay - as * 0.09, as * 2, as * 0.18);
+  g.fillStyle = 'rgba(160,190,230,.05)'; g.fillRect(0, 0, W, H);   // 형광등의 푸른 기운
+}
+function drawCone(c, k) {   // 주차장 라바콘
+  c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, 1 * k, 30 * k, 6 * k, 0, 0, TAU); c.fill();
+  c.fillStyle = '#222'; roundRect(c, -26 * k, -7 * k, 52 * k, 8 * k, 2 * k); c.fill();
+  c.fillStyle = '#FF7A1A'; c.beginPath(); c.moveTo(-18 * k, -7 * k); c.lineTo(-5 * k, -70 * k); c.quadraticCurveTo(0, -74 * k, 5 * k, -70 * k); c.lineTo(18 * k, -7 * k); c.closePath(); c.fill();
+  c.fillStyle = '#F7F7F7';
+  for (const [y0, y1] of [[-24, -34], [-46, -55]]) {
+    const w0 = 18 - 13 * (-y0 - 7) / 63, w1 = 18 - 13 * (-y1 - 7) / 63;
+    c.beginPath(); c.moveTo(-w0 * k, y0 * k); c.lineTo(w0 * k, y0 * k); c.lineTo(w1 * k, y1 * k); c.lineTo(-w1 * k, y1 * k); c.closePath(); c.fill();
+  }
+  c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.moveTo(4 * k, -70 * k); c.lineTo(18 * k, -7 * k); c.lineTo(8 * k, -7 * k); c.closePath(); c.fill();
+}
+
+// ── 차 안: 싼타페 DM 운전석에서 본 보조석 — 콩이는 보조석 방석 위. 옆 창 밖 풍경은 매 프레임 흘러간다(달리는 차) ──
+// 실내 그림(ROOMC)은 창 자리를 비워 두고, drawCarWindow 가 그 뒤에 하늘·산·아파트·나무·가드레일 층과 유리를 그린다
+let CARG = null;   // 차 안 치수 (paintCar 가 정한다)
+const CAR = { win: 0, winT: 0, off: 0, wind: [], layers: null };   // win: 0 닫힘 ~ 1 다 내림
+const CARA = { src: null, flt: null, gain: null, lastW: -1 };       // 달리는 소리 (창을 내리면 바람 소리로 커진다)
+function carSeatHalf() { return Math.max(SZ * 0.45, Math.min(SZ * 0.78, W / 2 - SZ * 0.36)); }   // 오른쪽 등받이가 화면에 들어오게
+function carWinPath(g) {
+  const G = CARG; g.beginPath();
+  g.moveTo(G.xFb, G.yb); g.lineTo(G.xFt, G.yt); g.lineTo(G.xR - G.rr, G.yR);
+  g.quadraticCurveTo(G.xR, G.yR, G.xR, G.yR + G.rr); g.lineTo(G.xR, G.yb); g.closePath();
+}
+function paintCar(g, col) {
+  const night = (col.stars || 0) > 0.6, L = carSeatHalf();
+  const yb = GY - SZ * 0.5, yt = Math.max(SAFE_T + 118, yb - Math.max(SZ * 1.15, H * 0.42));   // 창은 창문 단추 아래부터 크게
+  const xFb = Math.max(W * 0.1, CX - L - SZ * 0.2), xFt = xFb + (yb - yt) * 0.42;
+  const xR = W - Math.max(8, W * 0.025), yR = yt + (yb - yt) * 0.07, rr = (yb - yt) * 0.3, pw = Math.max(14, W * 0.035);
+  CARG = { yb, yt, xFb, xFt, xR, yR, rr, L, night, wh: yb - yt };
+  // 천장 내장재 (밝은 회베이지)
+  const hg = g.createLinearGradient(0, 0, 0, yb); hg.addColorStop(0, '#BDB7AE'); hg.addColorStop(1, '#D3CDC4');
+  g.fillStyle = hg; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(0,0,0,.08)'; g.fillRect(0, yt - 22, W, 3);
+  g.fillStyle = '#A9A399'; roundRect(g, xFt + (xR - xFt) * 0.35, yt - 18, Math.max(40, (xR - xFt) * 0.22), 9, 4); g.fill();   // 손잡이
+  // 앞유리 (A필러 왼쪽): 하늘 · 도로가 앞으로 뻗는다 (정지 그림)
+  const wsx = xFt - pw * 1.2, wy0 = yt - 14, wy1 = yb + SZ * 0.06, hz = wy0 + (wy1 - wy0) * 0.55;
+  g.save(); g.beginPath(); g.moveTo(0, wy0); g.lineTo(wsx, wy0); g.lineTo(xFb - pw * 1.2, wy1); g.lineTo(0, wy1); g.closePath(); g.clip();
+  const sg = g.createLinearGradient(0, wy0, 0, hz); sg.addColorStop(0, col.top); sg.addColorStop(1, col.hor);
+  g.fillStyle = sg; g.fillRect(0, wy0, W, hz - wy0);
+  g.fillStyle = night ? '#1F2433' : '#6E7472'; g.fillRect(0, hz, W, wy1 - hz);
+  g.fillStyle = night ? '#2B3A30' : '#7E9A6E'; g.beginPath(); g.moveTo(0, hz); g.lineTo(wsx, hz); g.lineTo(wsx, hz + 6); g.lineTo(0, hz + (wy1 - hz) * 0.7); g.closePath(); g.fill();
+  g.strokeStyle = '#F3E9C8'; g.lineWidth = 2; g.setLineDash([8, 10]); g.beginPath(); g.moveTo(wsx * 0.7, hz + 2); g.lineTo(wsx * 0.35, wy1); g.stroke(); g.setLineDash([]);
+  g.fillStyle = 'rgba(160,190,210,.18)'; g.fillRect(0, wy0, W, wy1 - wy0);   // 유리 빛
+  g.restore();
+  g.fillStyle = '#2A2B2E'; roundRect(g, Math.max(4, wsx * 0.2), wy0 + 2, Math.max(36, wsx * 0.5), 14, 5); g.fill();   // 룸미러
+  // A필러
+  g.fillStyle = '#B3ACA2'; g.beginPath(); g.moveTo(xFb - pw * 1.2, yb + 6); g.lineTo(wsx, yt - 16); g.lineTo(xFt + 3, yt - 16); g.lineTo(xFb + 3, yb + 6); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.1)'; g.beginPath(); g.moveTo(xFb - 2, yb + 6); g.lineTo(xFt - 2, yt - 16); g.lineTo(xFt + 3, yt - 16); g.lineTo(xFb + 3, yb + 6); g.closePath(); g.fill();
+  // 문 (벨트라인 아래): 검정 몰딩 · 은색 줄 · 베이지 가죽 · 손잡이 · 스피커
+  g.fillStyle = '#2E2F33'; g.fillRect(xFb - pw * 1.2, yb, W, H - yb);
+  g.fillStyle = '#1C1D20'; g.fillRect(xFb - pw * 1.2, yb - 3, W, 14);
+  g.fillStyle = '#A3A8AD'; g.fillRect(xFb - pw * 1.2, yb + 12, W, 2);
+  g.fillStyle = '#B7A891'; g.fillRect(xFb, yb + (GY - yb) * 0.45, W, (GY - yb) * 0.35);
+  g.fillStyle = '#26272A'; roundRect(g, xFb + 4, yb + (GY - yb) * 0.86, W, Math.max(10, SZ * 0.07), 5); g.fill();   // 팔걸이
+  g.fillStyle = '#C3C8CD'; roundRect(g, xFb + 10, yb + (GY - yb) * 0.22, Math.max(22, SZ * 0.14), 7, 3); g.fill();   // 문 손잡이
+  g.fillStyle = '#1E1F22'; g.beginPath(); g.arc(W - SZ * 0.3, H - SZ * 0.22, SZ * 0.13, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1; for (let r = SZ * 0.03; r < SZ * 0.13; r += SZ * 0.025) { g.beginPath(); g.arc(W - SZ * 0.3, H - SZ * 0.22, r, 0, TAU); g.stroke(); }
+  // 대시보드 (왼쪽 앞): 검은 윗면 · 송풍구 · 글로브박스
+  const dTop = yb - SZ * 0.06, dx1 = Math.max(xFb + pw, CX - L + SZ * 0.05);
+  g.fillStyle = '#26272A'; g.beginPath(); g.moveTo(0, dTop - SZ * 0.08); g.quadraticCurveTo(dx1 * 0.6, dTop - SZ * 0.06, dx1, dTop + SZ * 0.06); g.lineTo(dx1 - SZ * 0.06, H); g.lineTo(0, H); g.closePath(); g.fill();
+  g.fillStyle = '#3A3B40'; g.beginPath(); g.moveTo(0, dTop + SZ * 0.04); g.quadraticCurveTo(dx1 * 0.6, dTop + SZ * 0.06, dx1 - 2, dTop + SZ * 0.14); g.lineTo(dx1 - SZ * 0.05, GY); g.lineTo(0, GY); g.closePath(); g.fill();
+  const vw = Math.min(dx1 * 0.5, SZ * 0.28);
+  g.fillStyle = '#17181A'; roundRect(g, dx1 * 0.18, dTop + SZ * 0.1, vw, SZ * 0.09, 4); g.fill();   // 송풍구
+  g.strokeStyle = '#4C4E53'; g.lineWidth = 1.5; g.beginPath(); for (let i = 1; i < 4; i++) { const yy = dTop + SZ * 0.1 + SZ * 0.09 * i / 4; g.moveTo(dx1 * 0.18 + 3, yy); g.lineTo(dx1 * 0.18 + vw - 3, yy); } g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1.5; roundRect(g, 6, dTop + SZ * 0.26, Math.max(10, dx1 - SZ * 0.14), SZ * 0.2, 6); g.stroke();   // 글로브박스
+  // 바닥 매트 (발치 · 의자 밑)
+  g.fillStyle = '#18191B'; g.fillRect(0, GY + SZ * 0.26, W, H);
+  g.strokeStyle = 'rgba(255,255,255,.04)'; g.lineWidth = 1; g.beginPath(); for (let y = GY + SZ * 0.34; y < H; y += 7) { g.moveTo(0, y); g.lineTo(W, y); } g.stroke();   // 매트 결
+  // 창 자리를 비운다 → drawCarWindow 가 그 뒤에 풍경을 그린다
+  g.save(); g.globalCompositeOperation = 'destination-out'; carWinPath(g); g.fill(); g.restore();
+  g.strokeStyle = '#141416'; g.lineWidth = 4; carWinPath(g); g.stroke();   // 창 고무 테두리
+  // 보조석 등받이 (오른쪽 — 옆에서 본 모습, 뒤로 살짝 누움) + 머리받침
+  const bx = CX + L - SZ * 0.06;
+  const sgr = g.createLinearGradient(bx, 0, bx + SZ * 0.5, 0); sgr.addColorStop(0, '#D6C8B3'); sgr.addColorStop(1, '#B4A48C');
+  g.fillStyle = sgr; g.beginPath();
+  g.moveTo(bx - SZ * 0.04, GY + SZ * 0.04);
+  g.quadraticCurveTo(bx + SZ * 0.06, GY - SZ * 0.24, bx + SZ * 0.12, yb - SZ * 0.3);
+  g.quadraticCurveTo(bx + SZ * 0.32, yb - SZ * 0.46, bx + SZ * 0.56, yb - SZ * 0.3);
+  g.quadraticCurveTo(bx + SZ * 0.6, GY - SZ * 0.08, bx + SZ * 0.5, GY + SZ * 0.26);
+  g.lineTo(bx + SZ * 0.1, GY + SZ * 0.26);
+  g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(90,70,50,.3)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(bx + SZ * 0.08, GY - SZ * 0.05); g.quadraticCurveTo(bx + SZ * 0.2, GY - SZ * 0.3, bx + SZ * 0.24, yb - SZ * 0.32); g.stroke();
+  g.strokeStyle = '#8D9196'; g.lineWidth = 3; g.beginPath(); g.moveTo(bx + SZ * 0.27, yb - SZ * 0.4); g.lineTo(bx + SZ * 0.29, yb - SZ * 0.5); g.moveTo(bx + SZ * 0.37, yb - SZ * 0.38); g.lineTo(bx + SZ * 0.39, yb - SZ * 0.48); g.stroke();
+  g.fillStyle = '#CDBEA8'; roundRect(g, bx + SZ * 0.18, yb - SZ * 0.68, SZ * 0.32, SZ * 0.2, SZ * 0.07); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.08)'; roundRect(g, bx + SZ * 0.38, yb - SZ * 0.68, SZ * 0.12, SZ * 0.2, SZ * 0.06); g.fill();
+  // 보조석 방석 (콩이가 앉는 곳 — 윗면 가운데가 땅 높이 GY)
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(CX - L + SZ * 0.04, GY + SZ * 0.24, 2 * L - SZ * 0.04, SZ * 0.05);
+  g.fillStyle = '#B5A48C'; roundRect(g, CX - L - SZ * 0.02, GY + SZ * 0.02, 2 * L + SZ * 0.06, SZ * 0.24, SZ * 0.06); g.fill();
+  const tg = g.createLinearGradient(0, GY - SZ * 0.08, 0, GY + SZ * 0.07); tg.addColorStop(0, '#CBBCA5'); tg.addColorStop(1, '#DED1BC');
+  g.fillStyle = tg; roundRect(g, CX - L, GY - SZ * 0.08, 2 * L + SZ * 0.04, SZ * 0.15, SZ * 0.06); g.fill();
+  g.fillStyle = 'rgba(120,100,75,.12)'; roundRect(g, CX - L * 0.62, GY - SZ * 0.06, L * 1.3, SZ * 0.11, SZ * 0.03); g.fill();   // 가운데 통풍 가죽 판
+  g.strokeStyle = 'rgba(120,100,75,.25)'; g.lineWidth = 1; g.beginPath();
+  for (let x = CX - L * 0.5; x < CX + L * 0.66; x += Math.max(10, L * 0.16)) { g.moveTo(x, GY - SZ * 0.05); g.lineTo(x - 2, GY + SZ * 0.045); }
+  g.stroke();
+  if (night) { g.save(); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(8,10,28,.38)'; g.fillRect(0, 0, W, H); g.restore(); }   // 밤: 실내만 어둡게 (비운 창 자리는 그대로)
+  buildCarLayers(col, night);
+}
+// 창밖 풍경 층: 이어 붙여도 끊기지 않는 띠(폭 span)를 미리 그려 두고, 층마다 다른 속도로 흘린다 (먼 산은 느리게, 가드레일은 빠르게)
+function buildCarLayers(col, night) {
+  const G = CARG, wh = G.wh, span = Math.ceil(Math.max(W, 520) * 1.3), yh = wh * 0.6;
+  const mk = (sp, draw) => {
+    const cv = document.createElement('canvas'); cv.width = Math.round(span * DPR); cv.height = Math.max(1, Math.round(wh * DPR));
+    const g = cv.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0); draw(g);
+    return { cv, sp, span };
+  };
+  const wrap = (g, x, w, fn) => { fn(x); if (x + w > span) fn(x - span); if (x < 0) fn(x + span); };
+  const rnd = mulberry32(31);
+  CAR.layers = [
+    mk(8, g => {   // 먼 산
+      g.fillStyle = night ? '#252B42' : '#8FA2A4'; g.beginPath(); g.moveTo(0, wh);
+      for (let x = 0; x <= span; x += 4) { const u = x / span * TAU; g.lineTo(x, yh - wh * (0.16 + 0.07 * Math.sin(u * 2 + 1) + 0.04 * Math.sin(u * 5 + 2) + 0.02 * Math.sin(u * 11))); }
+      g.lineTo(span, wh); g.closePath(); g.fill();
+    }),
+    mk(42, g => {   // 아파트 단지
+      for (let x = 6; x < span - 10;) {
+        const bw = 22 + rnd() * 22, bh = wh * (0.2 + rnd() * 0.2), by = yh + wh * 0.06 - bh, lit = rnd();
+        wrap(g, x, bw, X => {
+          g.fillStyle = night ? '#363C54' : (lit < 0.5 ? '#E6E8E8' : '#D9DCDD'); g.fillRect(X, by, bw, bh);
+          g.fillStyle = night ? '#2A2F44' : '#B9BEC2'; g.fillRect(X, by, bw, 3);
+          const r2 = mulberry32(Math.floor(x));
+          for (let yy = by + 6; yy < by + bh - 3; yy += 6) for (let xx = X + 3; xx < X + bw - 3; xx += 5) {
+            if (night) { if (r2() < 0.35) { g.fillStyle = 'rgba(255,214,140,.85)'; g.fillRect(xx, yy, 2.6, 2.2); } }
+            else { g.fillStyle = 'rgba(110,125,140,.35)'; g.fillRect(xx, yy, 2.6, 2.2); }
+          }
+        });
+        x += bw + 6 + rnd() * 26;
+      }
+    }),
+    mk(230, g => {   // 길가 나무 · 가로등
+      const base = yh + wh * 0.24;
+      for (let x = 10; x < span - 10;) {
+        const r = wh * (0.07 + rnd() * 0.05), tone = rnd();
+        wrap(g, x, r * 2, X => {
+          g.fillStyle = night ? '#2A2420' : '#6B5A48'; g.fillRect(X - 2, base - r * 1.2, 4, r * 1.2);
+          g.fillStyle = night ? '#1B2A24' : (tone < 0.5 ? '#4E7F4A' : '#5E8F55');
+          g.beginPath(); g.arc(X, base - r * 1.5, r, 0, TAU); g.arc(X - r * 0.6, base - r * 1.2, r * 0.7, 0, TAU); g.arc(X + r * 0.6, base - r * 1.2, r * 0.7, 0, TAU); g.fill();
+        });
+        x += r * 2.4 + rnd() * wh * 0.25;
+      }
+      for (let i = 0; i < 2; i++) {
+        const X = span * (0.25 + i * 0.5), top = yh - wh * 0.32;
+        g.strokeStyle = night ? '#4A4F5A' : '#8A9096'; g.lineWidth = 3; g.beginPath(); g.moveTo(X, base + 4); g.lineTo(X, top); g.lineTo(X + wh * 0.12, top - 4); g.stroke();
+        g.fillStyle = night ? '#FFE7A8' : '#D8DCE0'; g.fillRect(X + wh * 0.1, top - 6, wh * 0.06, 4);
+        if (night) { const gl = g.createRadialGradient(X + wh * 0.13, top, 1, X + wh * 0.13, top, wh * 0.22); gl.addColorStop(0, 'rgba(255,225,160,.5)'); gl.addColorStop(1, 'rgba(255,225,160,0)'); g.fillStyle = gl; g.fillRect(X - wh * 0.1, top - wh * 0.22, wh * 0.46, wh * 0.44); }
+      }
+    }),
+    mk(560, g => {   // 길가 풀밭 · 가드레일 (가장 빠름)
+      const gy = yh + wh * 0.22;
+      g.fillStyle = night ? '#18201C' : '#7D9468'; g.fillRect(0, gy, span, wh - gy);
+      g.fillStyle = night ? 'rgba(255,255,255,.03)' : 'rgba(255,255,255,.08)';
+      for (let i = 0; i < 40; i++) g.fillRect(rnd() * span, gy + rnd() * (wh - gy), 18 + rnd() * 30, 1.5);
+      const ry = gy + (wh - gy) * 0.18, rh = Math.max(5, wh * 0.045), n = Math.max(6, Math.round(span / 48));
+      g.fillStyle = night ? '#5A5F66' : '#6F757B'; for (let i = 0; i < n; i++) g.fillRect(i * span / n, ry, 4, wh - ry);
+      g.fillStyle = night ? '#8A9098' : '#D2D6DA'; g.fillRect(0, ry, span, rh);
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, ry + rh * 0.6, span, rh * 0.4);
+    })
+  ];
+}
+function drawCarWindow(c, t, dt) {
+  const G = CARG; if (!CAR.layers) return;
+  const sp = dt / 1.6;   // 창문은 1.6초에 끝까지
+  CAR.win = CAR.win < CAR.winT ? Math.min(CAR.winT, CAR.win + sp) : Math.max(CAR.winT, CAR.win - sp);
+  if (!reduceMotion) CAR.off += dt;
+  c.save(); carWinPath(c); c.clip();
+  const col = skyCol, sg = c.createLinearGradient(0, G.yt, 0, G.yt + G.wh * 0.6);
+  sg.addColorStop(0, col.top); sg.addColorStop(0.7, col.mid); sg.addColorStop(1, col.hor);
+  c.fillStyle = sg; c.fillRect(G.xFb, G.yt, G.xR - G.xFb, G.wh);
+  for (const ly of CAR.layers) {   // 차가 앞(왼쪽)으로 가니 바깥 풍경은 오른쪽으로 흐른다
+    let x = G.xFb + (CAR.off * ly.sp) % ly.span - ly.span;
+    for (; x < G.xR; x += ly.span) c.drawImage(ly.cv, x, G.yt, ly.span, G.wh);
+  }
+  // 창을 내리면 바람: 흰 줄이 빠르게 스친다
+  if (CAR.win > 0.05 && !reduceMotion && Math.random() < CAR.win * dt * 14) CAR.wind.push({ x: G.xFb - 40, y: G.yt + Math.random() * G.wh * 0.8, v: 600 + Math.random() * 400, l: 24 + Math.random() * 40 });
+  c.lineWidth = 1.5; c.lineCap = 'round';
+  for (let i = CAR.wind.length - 1; i >= 0; i--) {
+    const w = CAR.wind[i]; w.x += w.v * dt;
+    if (w.x - w.l > G.xR) { CAR.wind.splice(i, 1); continue; }
+    c.strokeStyle = `rgba(255,255,255,${0.35 * CAR.win})`; c.beginPath(); c.moveTo(w.x - w.l, w.y); c.lineTo(w.x, w.y + 1); c.stroke();
+  }
+  // 유리: 위 가장자리가 내려간 만큼만 남는다
+  const gy = G.yt + CAR.win * (G.wh + 6);
+  if (gy < G.yb) {
+    c.fillStyle = 'rgba(60,85,100,.22)'; c.fillRect(G.xFb - 4, gy, G.xR - G.xFb + 8, G.yb - gy);
+    c.fillStyle = 'rgba(255,255,255,.10)'; c.beginPath();
+    const rx = G.xFb + (G.xR - G.xFb) * 0.55;
+    c.moveTo(rx, G.yb); c.lineTo(rx + G.wh * 0.5, gy); c.lineTo(rx + G.wh * 0.5 + 26, gy); c.lineTo(rx + 26, G.yb); c.closePath(); c.fill();
+    if (CAR.win > 0.01) { c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.beginPath(); c.moveTo(G.xFb - 4, gy); c.lineTo(G.xR + 4, gy); c.stroke(); }
+  }
+  c.restore();
+  carAudio();
+}
+function carAudio() {
+  const ctx = AU.ctx;
+  if (!(S.sound && ctx && ctx.state === 'running' && !document.hidden)) { if (CARA.src) stopCarAudio(); return; }
+  if (!CARA.src) {
+    try {
+      const n = ctx.sampleRate * 2, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = b; s.loop = true; f.type = 'lowpass'; f.Q.value = 0.4; f.frequency.value = 260; g.gain.value = 0;
+      s.connect(f); f.connect(g); g.connect(AU.out); s.start();
+      Object.assign(CARA, { src: s, flt: f, gain: g, lastW: -1 });
+    } catch (e) { return; }
+  }
+  const w = CAR.win; if (Math.abs(w - CARA.lastW) < 0.02) return;
+  CARA.lastW = w; const now = ctx.currentTime;
+  CARA.flt.frequency.setTargetAtTime(260 + 1500 * w, now, 0.15);   // 닫으면 낮게 웅웅, 내리면 쏴아
+  CARA.gain.gain.setTargetAtTime(0.05 + 0.13 * w, now, 0.2);
+}
+function stopCarAudio() { try { CARA.src.stop(); CARA.gain.disconnect(); } catch (e) {} CARA.src = CARA.flt = CARA.gain = null; CARA.lastW = -1; }
+const carFlap = t => inCar() && CAR.win > 0.05 && !reduceMotion ? CAR.win * (5 + 4 * Math.sin(t * 22) + 2.5 * Math.sin(t * 35 + 1)) : 0;   // 바람에 귀가 펄럭
+function setCarWindow(open, quiet) {
+  CAR.winT = open ? 1 : 0;
+  $('winLabel').textContent = open ? '창문 닫기' : '창문 열기';
+  $('btnWin').setAttribute('aria-pressed', String(open));
+  $('winArrow').setAttribute('d', open ? 'M14 15V9M11.5 11.5 14 9l2.5 2.5' : 'M14 9v6M11.5 12.5 14 15l2.5-2.5');
+  if (quiet) return;
+  K.lastTouch = performance.now() / 1000;
+  sfx('winmotor');
+  if (open) act(async s => {   // 창밖으로 고개 내밀기: 일어나 → 뒤돌아 창밖을 본다(뒷모습) → 바람 맞고 좋아하기
+    calm(); await standUp(s); WANT.earLift = 8; WANT.tailAmp = 16; WANT.tailRate = 4;
+    await sleep(800, s);
+    if (hasPose('rear')) setPose('rear'); else { WANT.look = [0.7, -0.8]; WANT.tilt = 8; }
+    const p = surf(K.th, 0); emit('text', p.x, p.y - SZ * 1.02, { text: '바람이 시원해!', vy: -36, max: 1.8, size: 15, col: '#FFFFFF' });
+    await sleep(3800, s);
+    setPose('sit'); WANT.look = [0, 0]; WANT.tilt = 0; WANT.eyes = 'happy'; WANT.mouth = 'open'; WANT.tailAmp = 20; await sleep(1400, s); calm();
+  });
+  else act(async s => { calm(); await standUp(s); if (K.pose === 'stand') setPose('sit'); WANT.look = [0.5, -0.3]; await sleep(900, s); WANT.look = [0, 0]; WANT.tailAmp = 10; await sleep(700, s); calm(); });
+}
+$('btnWin').addEventListener('click', () => { unlockAudio(); setCarWindow(CAR.winT < 0.5); });
+
 // 거실 쇼파(크림색 패브릭, 등쿠션 셋·담요) · 침실 침대(흰 프레임·매트리스·이불) — 원점 = 바닥 위 가운데, 위쪽 = -y
 function drawSofa2(c, k) {
   c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.ellipse(0, 2 * k, 196 * k, 10 * k, 0, 0, TAU); c.fill();
@@ -1430,7 +1772,11 @@ const LANTERNS = [];
 function drawSkyFrame(t, dt) {
   const mNow = Math.floor(Date.now() / 60000);
   if (mNow !== skyMinute) { skyMinute = mNow; paintSkyCache(); }
-  const c = sc; c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(indoor() && ROOMC ? ROOMC : SKYC, 0, 0); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const c = sc;
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);   // layout() 이 캔버스 크기를 바꾸면 변환이 풀린다 — 창밖 풍경도 DPR 배율로
+  if (inCar() && CARG) drawCarWindow(c, t, dt);   // 창밖 풍경·유리는 실내 그림 뒤에 (실내 그림의 창 자리는 비어 있다)
+  else if (CARA.src) stopCarAudio();
+  c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(indoor() && ROOMC ? ROOMC : SKYC, 0, 0); c.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (indoor()) { drawStarsOf(c, t, dt); drawRoomObjects(t); return; }   // 방: 달·하늘 별·행성 대신 방 그림 — 편지·추억 별은 야광별처럼 그대로
   const sa = skyCol.stars;
   // 별 (카메라를 따라 아주 천천히 흐름)
@@ -1481,6 +1827,7 @@ function drawRoomObjects(t) {
     else if (o.kind === 'sofa') onSurface(o.th, g => drawSofa2(g, k * FURN_K.sofa));
     else if (o.kind === 'bed') onSurface(o.th, g => drawBed(g, k * FURN_K.bed));
     else if (o.kind === 'pond') onSurface(o.th, g => drawPond(g, k, t));
+    else if (o.kind === 'cone') onSurface(o.th, g => drawCone(g, k));
   }
   if (DAY.birthday) onSurface(indoor() ? 0.06 * W / R : 0.24, g => drawCake(g, k * 1.2, t));   // 바구니와 가로등 사이 — 집 자리 콩이 몸에 가리지 않게
 }
@@ -1716,7 +2063,7 @@ function dropFromMouth(vh, v) {
 function updateBall(dt) {
   if (!ball.out || ball.st === 'held' || ball.st === 'none') return;
   // 방 안: 벽에 맞으면 튕겨 돌아온다
-  if (indoor()) { const lim = (W / 2 - ballR() - 6) / R; if (Math.abs(ball.th) > lim) { ball.th = Math.sign(ball.th) * lim; if (Math.sign(ball.v) === Math.sign(ball.th)) { ball.v = -ball.v * 0.55; sfx('bounce'); } } }
+  if (indoor()) { const lim = (roomHalf() - ballR() - 6) / R; if (Math.abs(ball.th) > lim) { ball.th = Math.sign(ball.th) * lim; if (Math.sign(ball.v) === Math.sign(ball.th)) { ball.v = -ball.v * 0.55; sfx('bounce'); } } }
   const g = SZ * 4.4;
   if (ball.st === 'air') {
     ball.vh -= g * dt; ball.h += ball.vh * dt; ball.th += ball.v * dt / R; ball.rot += ball.v * dt / ballR();
@@ -1935,6 +2282,13 @@ function doTrick(key, word) {
       await sleep(200, s); await proud(s); calm();
     } else if (key === 'house') {
       const h = OBJ.find(o => o.kind === 'house');
+      if (!h) {   // 집이 없는 배경(차 안·주차장): 그 자리에서 쏙 숨었다 나온다
+        await standUp(s); setPose(hasPose('rear') ? 'rear' : 'sit'); await sleep(450, s);
+        K.alphaT = 0; WANT.zoom = 0.9;
+        const d = surf(K.th, 60 * U); emit('text', d.x, d.y, { text: '쏙!', vy: -30, max: 1.2, size: 16, col: '#FFE6C0' });
+        await sleep(3000, s);
+        setPose('sit'); K.alphaT = 1; WANT.zoom = 1; hop(200); await sleep(500, s); await proud(s); calm(); return;
+      }
       await standUp(s); WANT.tailAmp = 12; WANT.tailRate = 3;
       await walkTo(h.th, farSpd(h.th), s);
       setPose(hasPose('rear') ? 'rear' : 'sit'); await sleep(hasPose('rear') ? 450 : 0, s);   // 뒷모습으로 돌아서
@@ -1992,8 +2346,10 @@ function setScene(key, label) {
   if ((S.scene || 'star') === key) return;
   S.scene = key; saveSettings();
   K.seat = K.seatT = 0; K.move = null;
-  if (indoor()) { K.th = 0; cam = 0; if (ball.out) { ball.th = 0.12; ball.h = 0; ball.v = 0; if (ball.st !== 'held') ball.st = 'ground'; } }
+  if (indoor()) { K.th = 0; cam = 0; if (ball.out) { ball.th = inCar() ? 0.05 : 0.12; ball.h = 0; ball.v = 0; if (ball.st !== 'held') ball.st = 'ground'; } }
+  CAR.win = CAR.winT = 0; CAR.wind.length = 0; setCarWindow(false, true); if (CARA.src) stopCarAudio();   // 차에 탈 때마다 창문은 닫힌 채로
   setSceneObjects(); skyMinute = -1;
+  if (key === 'car') setTimeout(() => inCar() && hintOnce('carwin', '오른쪽 위 창문 단추나 옆 창을 누르면 창문을 내렸다 올려요'), 1600);
   toast(key === 'star' ? '별나라로 돌아왔어요' : J(label, '으로/로') + ' 왔어요');
   act(async s => { calm(); await standUp(s); if (K.pose === 'stand') setPose('sit'); hop(260); await sleep(300, s); WANT.look = [0.6, -0.4]; await sleep(700, s); WANT.look = [-0.6, -0.4]; await sleep(700, s); await proud(s); calm(); });   // 두리번거리다 좋아하기
 }
@@ -2402,8 +2758,8 @@ function tapAt(x, y) {
   for (const o of [...OBJ].reverse()) {
     const a = angDiff(o.th, cam); if (Math.abs(a) > visibleA()) continue;
     const p = surf(o.th, 0), up = { x: Math.sin(a), y: -Math.cos(a) };
-    const hgt = { house: 170, mailbox: 110, lamp: 210, tree: 200, basket: 50, bowl: 20, bench: 104, pond: 16, sofa: 150 * FURN_K.sofa, bed: 110 * FURN_K.bed }[o.kind] * U;
-    const wid = { house: 90, mailbox: 30, lamp: 26, tree: 64, basket: 34, bowl: 26, bench: 112, pond: 70, sofa: 206 * FURN_K.sofa, bed: 206 * FURN_K.bed }[o.kind] * U;
+    const hgt = { house: 170, mailbox: 110, lamp: 210, tree: 200, basket: 50, bowl: 20, bench: 104, pond: 16, sofa: 150 * FURN_K.sofa, bed: 110 * FURN_K.bed, cone: 74 }[o.kind] * U;
+    const wid = { house: 90, mailbox: 30, lamp: 26, tree: 64, basket: 34, bowl: 26, bench: 112, pond: 70, sofa: 206 * FURN_K.sofa, bed: 206 * FURN_K.bed, cone: 22 }[o.kind] * U;
     const rx = x - p.x, ry = y - p.y, along = rx * up.x + ry * up.y, side = rx * up.y - ry * up.x;
     if (along > -8 && along < hgt && Math.abs(side) < wid) {
       if (o.kind === 'mailbox') { renderLetterList(); openSheet('sheetLetters'); return; }
@@ -2427,6 +2783,8 @@ function tapAt(x, y) {
       break;
     }
   }
+  // 차 안: 옆 창을 누르면 창문을 내리고 올린다 (콩이 몸 위는 콩이 누르기가 먼저 잡는다)
+  if (inCar() && CARG && y > CARG.yt && y < CARG.yb && x > CARG.xFb && x < CARG.xR) { unlockAudio(); setCarWindow(CAR.winT < 0.5); return; }
   // 땅 → 콩이가 그쪽으로 걸어간다
   if (y > GY - SZ * 0.15) {
     const dx = clamp((x - CX) / R, -0.95, 0.95), th = indoor() ? clamp((x - CX) / R, -roomLim(), roomLim()) : cam + Math.asin(dx);
@@ -2930,6 +3288,7 @@ function sfx(name) {
     case 'rise': [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.5, 'triangle', 0.05, i * 0.18)); break;
     case 'chime': tone(1568, 0.6, 'sine', 0.06); tone(2093, 0.7, 'sine', 0.04, 0.05); break;
     case 'whoosh': noise(0.9, 0.06, 400, 2200); break;
+    case 'winmotor': tone(92, 1.5, 'sawtooth', 0.012, 0, false); noise(1.5, 0.03, 520, 430); break;   // 차 창문 모터 윙
     case 'dingdong':   // 초인종: 높은 '띵'(미) → 낮은 '동'(도), 종소리처럼 배음을 얹고 길게 울린다
       for (const [f, d] of [[659.25, 0], [523.25, 0.62]]) { tone(f, 1.6, 'sine', 0.2, d, false); tone(f * 2, 0.9, 'sine', 0.05, d, false); tone(f * 3, 0.5, 'triangle', 0.025, d, false); }
       break;
@@ -3062,7 +3421,7 @@ function placeKong(t) {
     t, facing: K.pose === 'stand' && !NOFLIP ? K.facing : 1, hop: K.hopY, squash: clamp(K.sq, -1, 1),
     turnX: K.turnA != null && K.pose === 'stand' ? Math.cos(K.turnA) * K.facing : null, roll: K.roll, rollPivot: ROLL_PV, sleep: K.sleeping, frame: K.pose === 'stand' ? K.frame : null,
     breath: CUR.breath, breathRate: CUR.breathRate, tilt: CUR.tilt, nod: CUR.nod,
-    earLift: CUR.earLift, tailAmp: CUR.tailAmp, tailRate: CUR.tailRate,
+    earLift: CUR.earLift + carFlap(t), tailAmp: CUR.tailAmp, tailRate: CUR.tailRate,
     walk: CUR.walk, phase: K.phase, look: [CUR.lx, CUR.ly],
     eyes: blinking ? 'closed' : WANT.eyes, mouth: WANT.mouth, blush: WANT.blush, sniff: CUR.sniff, ribbon: S.ribbon, outfit: S.outfit
   });
