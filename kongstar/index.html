@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = 'a98d27bb0b';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = '604afe85ec';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -614,6 +614,11 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
     return [r[0] * hx + r[2] * hy + r[4], r[1] * hx + r[3] * hy + r[5]];
   };
   KongRig.prototype.mouthPoint = function () { return this.headPoint(this.mouthPt[0], this.mouthPt[1]); };
+  // 몸(머리 밖)의 점을 그림 전체 좌표로 — 좌우 뒤집기·뛰기·흔들림을 따라간다 (산책 목줄 고리)
+  KongRig.prototype.bodyPoint = function (x, y) {
+    const r = this._m && this._m.root;
+    return r ? [r[0] * x + r[2] * y + r[4], r[1] * x + r[3] * y + r[5]] : [x, y];
+  };
   KongRig.prototype.headCenter = function () { return this.headPoint(this.headPv[0], this.headPv[1] - 60); };
 
   KongRig.prototype._set = function (el, key, val) {
@@ -1203,7 +1208,7 @@ const ROOM_OBJ = {
   // 큰 가구를 먼저(뒤에) 그리고, 바닥 물건(집·바구니·밥그릇)은 그 앞에 — 가구가 커서 조금 겹친다
   living: [['sofa', 0.15], ['house', -0.35], ['basket', -0.2], ['bowl', -0.06]],
   bedroom: [['bed', 0.15], ['house', -0.35], ['basket', -0.2], ['bowl', -0.06]],
-  parking: [['basket', -0.25], ['bowl', -0.1], ['cone', 0.36]],   // 주차장엔 콩이 집을 두지 않는다 (사용자 요청)
+  parking: [['cone', 0.36]],   // 주차장엔 콩이 집·장난감 바구니·밥그릇을 두지 않는다 (사용자 요청)
   walk: [],   // 산책: 공원 길을 걷는다 (풍경이 흐른다)
   car: []   // 차 안은 보조석 위 — 물건 없이 콩이만 (하우스는 의자 뒤로 숨기)
 };
@@ -1826,13 +1831,19 @@ function drawWalkScene(c, t, dt) {
     for (; x < W; x += ly.span) c.drawImage(ly.cv, x, ly.y0, ly.span, ly.h);
   }
 }
-// 목줄: 콩이 목에서 화면 왼쪽 위(함께 걷는 가족의 손)로
+// 목줄: 콩이 목 뒤에서 화면 왼쪽 위(함께 걷는 가족의 손)로
+const LEASH_NAPE = [219, 208];   // 옆모습(서기) 그림의 목 뒤 — 귀 뒤로 목걸이 줄이 시작하는 자리 (그림 좌표, 화면에서 실측)
 function drawLeash(c) {
-  const hc = rig.headCenter(), n = kongToScreen(hc[0], hc[1] + 70), hx = -12, hy = GY - SZ * 1.45;
-  const d = Math.hypot(n.x - hx, n.y - hy), sag = Math.max(8, SZ * 0.25 - d * 0.05) + (WALK.v < 0.5 ? SZ * 0.12 : 0);   // 멈추면 느슨하게
+  let n;
+  if (rig.pose === 'stand') n = kongToScreen(...rig.bodyPoint(...LEASH_NAPE));
+  else { const hc = rig.headCenter(); n = kongToScreen(hc[0], hc[1] + 70); }   // 앞모습 자세는 목걸이(턱 밑)
+  const hx = -12, hy = GY - SZ * 1.45;
+  // 조절점을 손 쪽에 두어 줄이 목 뒤로 위에서 내려온다 (등을 가로지르지 않게) · 멈추면 느슨하게
+  const d = Math.hypot(n.x - hx, n.y - hy), sag = Math.max(6, SZ * 0.16 - d * 0.04) + (WALK.v < 0.5 ? SZ * 0.1 : 0);
+  const cx = Math.max(hx + (n.x - hx) * 0.4, n.x - SZ * 0.9), cy = Math.min(n.y - SZ * 0.42, Math.max(n.y, hy) + sag - SZ * 0.12);
   c.save(); c.lineCap = 'round';
-  c.strokeStyle = 'rgba(0,0,0,.18)'; c.lineWidth = Math.max(3, SZ * 0.018); c.beginPath(); c.moveTo(n.x + 2, n.y + 3); c.quadraticCurveTo((n.x + hx) / 2 + 2, Math.max(n.y, hy) + sag + 3, hx + 2, hy + 3); c.stroke();
-  c.strokeStyle = '#D9534F'; c.lineWidth = Math.max(3, SZ * 0.018); c.beginPath(); c.moveTo(n.x, n.y); c.quadraticCurveTo((n.x + hx) / 2, Math.max(n.y, hy) + sag, hx, hy); c.stroke();
+  c.strokeStyle = 'rgba(0,0,0,.18)'; c.lineWidth = Math.max(3, SZ * 0.018); c.beginPath(); c.moveTo(n.x + 2, n.y + 3); c.quadraticCurveTo(cx + 2, cy + 3, hx + 2, hy + 3); c.stroke();
+  c.strokeStyle = '#F5C518'; c.lineWidth = Math.max(3, SZ * 0.018); c.beginPath(); c.moveTo(n.x, n.y); c.quadraticCurveTo(cx, cy, hx, hy); c.stroke();   // 노란 목줄
   c.fillStyle = '#B8B8BE'; c.beginPath(); c.arc(n.x, n.y, Math.max(3, SZ * 0.018), 0, TAU); c.fill();   // 고리
   c.restore();
 }
