@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '4b2730efed';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = 'ad89654d22';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -174,6 +174,15 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
 .btn:disabled { opacity: .45; }
 .row-actions { display: flex; gap: 8px; margin-top: 14px; }
 .row-actions .btn { flex: 1; }
+/* 개인기 따라 하기: 하단 줄 위에 뜨는 단추판 */
+.simon { position: fixed; left: 50%; transform: translateX(-50%); z-index: 6; width: min(92vw, 380px); background: rgba(255,255,255,.96); border-radius: 20px; padding: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.22); }
+.simon-msg { font-size: 14px; font-weight: 600; color: #333D4B; text-align: center; margin: 2px 0 8px; min-height: 18px; }
+.simon-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.simon-keys button { border: 0; background: var(--soft); border-radius: 12px; padding: 7px 2px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; color: #333D4B; }
+.simon-keys button span { font-size: 22px; line-height: 1; }
+.simon-keys button:active { background: #E9ECF1; }
+.simon-keys button.quit { background: #FDEDEC; color: #B03A2E; }
+.simon.wait .simon-keys button:not(.quit) { opacity: .4; pointer-events: none; }
 .linkish { border: 0; background: none; color: var(--pri); font-weight: 600; font-size: 14px; padding: 6px 2px; }
 
 .list { border-radius: 18px; background: var(--soft); overflow: hidden; }
@@ -355,6 +364,7 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
   <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="8" width="26" height="10" rx="5" fill="rgba(255,240,215,.25)"/><path d="M13 18v12M17.5 18v14M22 18v13M26.5 18v14M31 18v11"/></svg>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="simon" id="simonBar" hidden><div class="simon-msg" id="simonMsg" role="status" aria-live="polite"></div><div class="simon-keys" id="simonKeys"></div></div>
 
 <!-- 시작 카드 -->
 <div class="scrim" id="sheetWelcome" hidden>
@@ -381,6 +391,7 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
     <p id="tLead">뭘 줄까요? 골라서 살짝 던져 주면 콩이가 받아먹어요.</p>
     <div class="treats" id="treats"></div>
     <div class="row-actions"><button class="btn small" id="cupKong">🥤 콩이가 간식 찾기</button><button class="btn small" id="cupMe">🥤 내가 간식 찾기</button></div>
+    <div class="row-actions"><button class="btn small" id="catchGo">🦴 간식 받아먹기 놀이</button></div>
     <div class="custom-treat"><input type="text" id="treatCustom" maxlength="14" placeholder="좋아하는 간식 직접 적기" aria-label="간식 이름"><button class="btn small pri" id="treatCustomGo">주기</button></div>
   </div>
 </div>
@@ -391,6 +402,7 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
     <div class="sheet-head"><h2 id="kTitle">개인기</h2><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <p id="kLead">말을 고르면 해 봐요.</p>
     <div class="treats tricks" id="tricks"></div>
+    <div class="row-actions"><button class="btn small" id="simonGo">🧠 개인기 따라 하기 (순서 기억)</button></div>
   </div>
 </div>
 
@@ -418,6 +430,8 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
     <div class="sheet-head"><h2 id="toyTitle">장난감</h2><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <p id="toyLead">무엇으로 놀까요?</p>
     <div class="treats closet" id="toys"></div>
+    <div class="row-actions"><button class="btn small" id="hideKong">🙈 콩이가 숨기</button><button class="btn small" id="hideMe">🫣 내가 숨기</button></div>
+    <div class="row-actions"><button class="btn small" id="tiltGo">📱 폰 기울여 공 굴리기</button></div>
   </div>
 </div>
 
@@ -427,6 +441,7 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
     <div class="sheet-head"><h2 id="rtTitle">드라이브 코스</h2><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
     <p id="rtLead">어디로 달릴까요?</p>
     <div class="treats closet" id="routes"></div>
+    <div class="row-actions"><button class="btn small" id="restGo">🍦 휴게소 들르기</button></div>
   </div>
 </div>
 
@@ -892,7 +907,7 @@ const DB = (() => {
 const notKept = () => DB.memOnly ? ' (이 기기에 저장되지는 않아요)' : '';
 
 const DEF = {
-  name: '콩이', birthday: '', familyDay: '', starDay: '', showDays: true, ribbon: false, outfit: 'none', scene: 'star', carRoute: 'city', toy: 'ball',
+  name: '콩이', birthday: '', familyDay: '', starDay: '', showDays: true, ribbon: false, outfit: 'none', scene: 'star', carRoute: 'city', toy: 'ball', tilt: false,
   meteorOn: true, meteorTime: '21:00', sound: false, showCount: true, favTreat: '',
   welcomed: false, hints: {}, lastBackupAt: 0, newSinceBackup: 0, backupNagAt: 0, meteorToastDay: ''
 };
@@ -942,6 +957,13 @@ function layout() {
   FONT = getComputedStyle(document.body).fontFamily;
   if (GAME && GAME.cups.length) { GAME = null; setTimeout(() => { act(async s => { calm(); }); toast('화면이 바뀌어 간식 찾기를 멈췄어요'); }, 0); }   // 컵 자리·크기가 맞지 않게 된다
   buildSky(); buildPlanet(); buildSurface(); setSceneObjects();
+  if (SIMON.on) simonBar(true, $('simonBar').classList.contains('wait'));   // 단추판을 새 하단 줄 위로
+  if (HIDE && HIDE.who === 'kong' && HIDE.spot && (HIDE.phase === 'count' || HIDE.phase === 'hidden')) {   // 숨은 콩이를 새 가구 자리로 (꼬리가 화면 밖이면 반대쪽)
+    const g = HIDE, o = g.spot;
+    if (g.side && (() => { const x = surf(o.th + g.side * (HIDE_W[o.kind] * U + 40 * U) / R, 0).x; return x < 24 || x > W - 24; })()) g.side = -g.side;
+    K.th = o.kind === 'house' ? o.th : o.th + g.side * (HIDE_W[o.kind] * U + 30 * U) / R;
+  }
+  CATCH.treats.length = 0;
   if (K.seatT && indoor() && !K.jump) {   // 가구 자리·크기가 화면 폭을 따라 바뀌었다
     const o = OBJ.filter(o => SEATS[o.kind]).sort((a, b) => Math.abs(angDiff(K.th, a.th)) - Math.abs(angDiff(K.th, b.th)))[0];
     if (o) { K.seat = K.seatT = (SEATS[o.kind]() - 2) * U; if (Math.abs(angDiff(K.th, o.th)) > SEAT_HALF[o.kind] * U / R * 0.9) K.th = o.th; } else K.seat = K.seatT = 0;
@@ -1218,7 +1240,9 @@ const FURN_K = { sofa: 1.3, bed: 1.28 };   // 거실 쇼파·침대 크기 (사�
 const SEATS = { bench: () => SOFA_SEAT, sofa: () => 72 * FURN_K.sofa, bed: () => 84 * FURN_K.bed };   // 올라앉는 물건과 앉는 면 높이(k 단위)
 const SEAT_HALF = { bench: 96, sofa: 186 * FURN_K.sofa, bed: 196 * FURN_K.bed };   // 앉는 면 반폭(k 단위) — 가장자리에서 뛰어오른다
 function setSceneObjects() {
-  OBJ = indoor() ? ROOM_OBJ[S.scene].map(([kind, fx]) => ({ kind, th: fx * W / R })) : OBJ_STAR;
+  const src = ROOM_OBJ[S.scene];
+  if (src && OBJ !== OBJ_STAR && OBJ.length === src.length && OBJ.every((o, i) => o.kind === src[i][0])) OBJ.forEach((o, i) => { o.th = src[i][1] * W / R; });   // 같은 방이면 자리만 고친다 (숨바꼭질이 잡아 둔 가구가 그대로 같은 물건이게)
+  else OBJ = src ? src.map(([kind, fx]) => ({ kind, th: fx * W / R })) : OBJ_STAR;
   $('btnWin').hidden = $('btnRoute').hidden = !inCar();
   $('btnWalk').hidden = S.scene !== 'walk';   // 창문·코스 단추는 차 안에서만
   $('routeLabel').textContent = ROUTES.find(r => r[0] === carRoute())[1];
@@ -1637,6 +1661,8 @@ function buildCarLayers(col, night) {
 function carTraffic(dt) {
   const now = performance.now() / 1000;
   if (!CAR.nextStop) CAR.nextStop = now + rand(30, 55);
+  if (CAR.rest) { CAR.v += (CAR.vT - CAR.v) * (1 - Math.exp(-dt * 1.3)); return; }   // 휴게소에 서 있는 동안
+  if (CAR.vT > 0 && now > CAR.nextStop && Math.random() < 0.3 && !K.busy && !petting && !mode && !pointer.down && !K.held && !openStack.length && $('viewer').hidden) { restStop(); return; }   // 시트·사진을 보고 있으면 저절로 들르지 않는다 (닫아 버리지 않게)   // 가끔은 신호 대신 휴게소
   if (CAR.vT > 0 && now > CAR.nextStop) {
     CAR.vT = 0; CAR.goAt = now + rand(4, 6);
     if (!K.busy && !petting && !mode && !pointer.down && !K.held) act(async s => {   // 차가 서면 두리번 (놀이·빗질·문 것이 있으면 끼어들지 않는다) — 왜 멈췄지?
@@ -1664,6 +1690,7 @@ function drawCarWindow(c, t, dt) {
     let x = G.xFb + (CAR.off * ly.sp) % ly.span - ly.span;
     for (; x < G.xR; x += ly.span) c.drawImage(ly.cv, x, G.yt, ly.span, G.wh);
   }
+  if (CAR.sign) drawRestSign(c);   // 휴게소 표지판
   // 벚꽃길: 꽃잎이 흩날린다 (달리면 오른쪽으로 쓸려 가고, 서 있으면 천천히 떨어진다)
   if (carRoute() === 'blossom' && !reduceMotion) {
     if (CAR.petals.length < 40 && Math.random() < dt * 9) CAR.petals.push({ x: G.xFb + Math.random() * (G.xR - G.xFb), y: G.yt - 6, vx: 0, ph: Math.random() * TAU, s: 2 + Math.random() * 2 });
@@ -2154,7 +2181,7 @@ const K = {
 const ROLL = (kongRootEl.getAttribute('data-roll') || '172 208 247').split(/\s+/).map(Number), ROLL_PV = [ROLL[1], ROLL[2]];
 const NOFLIP = kongRootEl.hasAttribute('data-noflip');   // 앞을 본 그림 한 장이면 왼쪽으로 걸어도 뒤집지 않는다 (이름표 글자)
 // 개인기 중 다른 행동이 끼어들면 뒤집기·돌기·투명을 푼다
-function unTrick() { K.rollT = 0; K.roll = 0; K.turnA = null; K.alphaT = 1; if (!K.jump) K.frame = null; if (ONE_SHOT.has(K.pose) && !K.keepPose) setPose('sit'); K.keepPose = false; }   // keepPose: 다음 행동이 지금 자세를 이어 쓴다 (배 긁기 뒤)
+function unTrick() { K.stretch = 0; K.shakeUntil = 0; K.rollT = 0; K.roll = 0; K.turnA = null; K.alphaT = 1; if (!K.jump) K.frame = null; if (ONE_SHOT.has(K.pose) && !K.keepPose) setPose('sit'); K.keepPose = false; }   // keepPose: 다음 행동이 지금 자세를 이어 쓴다 (배 긁기 뒤)
 // 그림판에 따로 있는 동작 그림(포즈 시트): 있으면 그 그림으로, 없으면 옛 방식(돌리기·눕히기)으로 흉내 낸다
 const hasPose = n => !!rig.poses[n];
 const ONE_SHOT = new Set(['belly', 'wave', 'eat', 'rear', 'paw']);   // 그 동작 동안만 쓰는 그림 — 다른 행동이 끼어들면 앉기로
@@ -2198,6 +2225,7 @@ function releaseHeld() {
 }
 function act(fn) {
   GAME = null;   // 새 행동이 시작되면 하던 컵 게임은 곧바로 치운다 (게임 자신은 시작한 뒤에 GAME 을 만든다)
+  HIDE = null;   // 숨바꼭질도 같다
   releaseHeld(); unTrick();
   const s = ++SEQ; K.busy = true; K.move = null;
   Promise.resolve().then(() => fn(s)).catch(e => { if (e !== CANCEL) console.error(e); })
@@ -2220,13 +2248,17 @@ const farSpd = th => Math.abs(angDiff(th, K.th)) * R > SZ * 1.2 ? runSpd() * 0.7
 function idleDirector(now) {
   if (K.busy || mode === 'brush' || pointer.down) return;
   if (mode === 'bubble') { if (BUBBLES.length && !petting) act(chaseBubbles); return; }   // 비눗방울 놀이: 방울이 있으면 쫓고, 없으면 기다린다
+  if (mode === 'catch') { if (CATCH.treats.some(t => t.state === 'air') && !petting) CATCH.seq = act(chaseTreats); return; }   // 간식 받아먹기: 던질 때까지 기다린다
+  if (mode === 'ball' && S.tilt && ball.out && ball.st === 'roll' && tiltLive() && Math.abs(angDiff(ball.th, K.th)) * R > SZ * 0.45) { act(followBall); return; }   // 기울여 굴린 공을 따라간다
   if (S.scene === 'walk' && WALK.going && !mode) { if (now - K.idleAt > 1.2) act(walkLoop); return; }   // 산책 중이면 곧 다시 걷는다
   if (now - K.idleAt < K.nextIdle) return;
   const h = new Date().getHours(), night = h >= 23 || h < 6;
   const longIdle = now - K.lastTouch > 150;
   const opts = [
     [lookAround, 3], [wander, K.seatT ? 1 : 3], [sniffAround, K.seatT ? 0.5 : 2], [watchSky, 2], [wagAtYou, 2],   // 쇼파 위면 좀 더 머문다
-    [lieDown, K.pose === 'lie' ? 0 : 2], [nap, night ? 0 : longIdle ? 5 : 0.6], [bellyUp, hasPose('belly') && !night && !K.seatT ? 1 : 0]
+    [lieDown, K.pose === 'lie' ? 0 : 2], [nap, night ? 0 : longIdle ? 5 : 0.6], [bellyUp, hasPose('belly') && !night && !K.seatT ? 1 : 0],
+    // 버릇들 (2026-11-17): 꼬리 잡기는 바닥에서만(쇼파·차 안·산책 빼고), 하품·몸 털기·기지개
+    [chaseTail, !night && !K.seatT && !inCar() && S.scene !== 'walk' ? 0.8 : 0], [yawn, night ? 0.4 : 1], [shakeOff, night ? 0 : K.seatT ? 0.3 : 0.8], [stretch, night || K.seatT ? 0 : 0.7]
   ];
   if (isNight() && S.scene !== 'walk') opts.push([nightSleep, 8]);   // 밤이면 거의 잠자리로
   if (K.pose === 'lie' && !K.sleeping) opts.push([getUp, 3]);
@@ -2300,7 +2332,7 @@ async function nap(s) {
     await sleep(1500, s);
   }
   K.sleeping = false; WANT.eyes = 'open'; WANT.nod = 0; WANT.breath = 1; WANT.breathRate = 0.32;
-  await sleep(1500, s); setPose('sit'); calm();
+  await sleep(1000, s); setPose('sit'); await sleep(300, s); await wakeUp(s); calm();   // 낮잠에서 깨면 기지개·하품·부르르
 }
 // 밤(23~6시): 잠자리로 가서 이불을 덮고 잔다 — 침실·거실이면 침대·쇼파 위, 아니면 바구니 옆, 차 안이면 방석 위
 const isNight = () => { const d = new Date(), h = isFinite(HOUR_TEST) ? HOUR_TEST : d.getHours(); return h >= 23 || h < 6; };
@@ -2327,7 +2359,7 @@ async function nightSleep(s, instant) {
   }
   // 아침: 기지개 펴고 일어난다
   K.sleeping = false; WANT.eyes = 'open'; WANT.nod = 0; WANT.breath = 1; WANT.breathRate = 0.32;
-  await sleep(1200, s); K.blanket = false; setPose('sit'); await sleep(300, s); await proud(s); calm();
+  await sleep(1200, s); K.blanket = false; setPose('sit'); await sleep(300, s); await wakeUp(s); await proud(s); calm();
 }
 // 이불: 누운 콩이의 몸통을 덮는 별무늬 이불 (콩이 그림 위 fx 캔버스에 그린다 — 머리는 밖에)
 function drawBlanket(c) {
@@ -2390,6 +2422,7 @@ function dropFromMouth(vh, v) {
 }
 function updateBall(dt) {
   if (!ball.out || ball.st === 'held' || ball.st === 'none') return;
+  tiltBall(dt);   // 폰을 기울이면 굴러간다
   // 방 안: 벽에 맞으면 튕겨 돌아온다
   if (indoor()) { const lim = (roomHalf() - ballR() - 6) / R; if (Math.abs(ball.th) > lim) { ball.th = Math.sign(ball.th) * lim; if (Math.sign(ball.v) === Math.sign(ball.th)) { ball.v = -ball.v * 0.55; sfx('bounce'); } } }
   const g = SZ * 4.4;
@@ -2403,7 +2436,7 @@ function updateBall(dt) {
     }
   } else if (ball.st === 'roll') {
     ball.th += ball.v * dt / R; ball.rot += ball.v * dt / ballR() * (S.toy === 'doll' ? 0.35 : 1); ball.v *= Math.exp((S.toy === 'doll' ? -7 : -2.4) * dt);   // 인형은 데굴데굴 덜 구른다
-    if (Math.abs(ball.v) < SZ * 0.04) { ball.v = 0; ball.st = 'ground'; }
+    if (Math.abs(ball.v) < SZ * 0.04 && !(mode === 'ball' && tiltLive())) { ball.v = 0; ball.st = 'ground'; }   // 기울이고 있으면 멈추지 않는다
   }
 }
 async function chaseBall(s) {   // (이름이 fetch 면 window.fetch 를 덮는다)
@@ -2504,6 +2537,8 @@ function startToy(key) {
 function renderToys() {
   const box = $('toys'); box.innerHTML = '';
   $('toyLead').textContent = '무엇으로 놀까요? ' + J(S.name, '이/가') + ' 신나서 기다려요.';
+  $('hideKong').textContent = '🙈 ' + J(S.name, '이/가') + ' 숨기';
+  $('tiltGo').textContent = S.tilt ? '📱 폰 기울이기 끄기' : '📱 폰 기울여 공 굴리기';
   for (const [key, label, emo] of TOYS) {
     const b = document.createElement('button'); b.innerHTML = `<span>${emo}</span>${label}`;
     const on = (S.toy || 'ball') === key; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
@@ -2714,6 +2749,536 @@ function startCupGame(who) {   // who: 'kong' 콩이가 찾기 · 'me' 내가 �
       await sleep(1300, s); for (const cp of g.cups) cp.liftT = 0; await sleep(400, s); calm();
     } finally { if (GAME === g) GAME = null; }
   });
+}
+
+// ═══════════════ 놀이 더하기 (2026-11-17): 간식 받아먹기 · 숨바꼭질 · 개인기 따라 하기 · 버릇들 · 부위별 쓰다듬기 · 폰 기울이기 · 휴게소 ═══════════════
+// 화면 좌표 → 콩이 그림 좌표 (kongToScreen 의 반대 — 기울어진 행성 위에서도)
+function screenToKong(x, y) {
+  const z = CUR.zoom || 1, ca = Math.cos(kongPose.a), sa = Math.sin(kongPose.a), X = x - kongPose.x, Y = y - kongPose.y;
+  return [((X * ca + Y * sa) / z + SZ / 2) / U, ((-X * sa + Y * ca) / z + SZ * 0.95) / U];
+}
+const floorY = x => indoor() ? GY : CY - Math.sqrt(Math.max(0, R * R - (x - CX) * (x - CX)));   // 그 화면 x 의 땅 높이
+
+// ── 1) 간식 공중 캐치: 화면을 누르면 간식이 위로 날아가고, 콩이가 달려가 폴짝 받아먹는다 (가끔 놓쳐 머리에 콩) ──
+const CATCH = { treats: [], streak: 0, lastAt: 0, seq: -1, bonkAt: 0, seenBonk: 0 };
+function tossTreat(x, y, svx, svy) {
+  if (CATCH.treats.filter(t => t.state === 'air').length >= 2) return;   // 한 번에 둘까지
+  CATCH.lastAt = performance.now();
+  const g = SZ * 3, top = Math.max(SAFE_T + 40, GY - SZ * 1.75), y0 = clamp(y, top + SZ * 0.3, GY + SZ * 0.25);
+  const need = -Math.sqrt(2 * g * Math.max(SZ * 0.45, y0 - (GY - SZ * 1.45)));   // 콩이 머리 위까지는 오르게
+  const vy = svy < -400 ? Math.max(Math.min(svy * 0.9, need), -Math.sqrt(2 * g * Math.max(SZ * 0.4, y0 - top))) : need;
+  let vx = clamp((svx || 0) * 0.3, -SZ * 0.8, SZ * 0.8) + rand(-SZ * 0.12, SZ * 0.12);
+  // 콩이가 닿을 수 있는 곳(방·차 방석 폭)에 떨어지도록 옆으로 휘게 한다
+  const x0 = clamp(x, 16, W - 16), T = (-vy + Math.sqrt(vy * vy + 2 * g * Math.max(0, GY - SZ * 0.5 - y0))) / g, reach = indoor() ? roomLim() * R + 86 * U : W;
+  vx = (clamp(x0 + vx * T, Math.max(20, CX - reach), Math.min(W - 20, CX + reach)) - x0) / Math.max(0.3, T);
+  CATCH.treats.push({ x: x0, y: y0, vx, vy, g, emo: pick(TREATS)[0], rot: 0, vr: rand(-7, 7), state: 'air', age: 0,
+    miss: CATCH.streak >= 2 && Math.random() < 0.2, bonked: false, jumped: false });   // 몇 번 받은 뒤 가끔 놓친다
+  sfx('toss');
+  if (CATCH.seq !== SEQ || !K.busy) CATCH.seq = act(chaseTreats);
+}
+// 떨어지는 간식이 높이 yc 에 닿기까지 남은 시간 (내려오는 쪽 근) — 못 닿으면 땅까지
+function treatTime(t, yc) {
+  const d = t.vy * t.vy + 2 * t.g * (yc - t.y);
+  if (d >= 0) { const tt = (-t.vy + Math.sqrt(d)) / t.g; if (tt >= 0) return tt; }
+  const df = t.vy * t.vy + 2 * t.g * (floorY(t.x) - t.y); return df >= 0 ? Math.max(0, (-t.vy + Math.sqrt(df)) / t.g) : 0;
+}
+function catchStreakText() {
+  ST.catchBest = Math.max(ST.catchBest || 0, CATCH.streak); saveStats();
+  const c = $('counter'); c.textContent = '연속 ' + CATCH.streak + '번 · 최고 ' + (ST.catchBest || 0) + '번'; c.hidden = false; c.style.opacity = 1;
+  clearTimeout(counterT); counterT = setTimeout(() => { c.style.opacity = 0; }, 2400);
+}
+function updateCatch(dt) {
+  const now = performance.now();
+  for (let i = CATCH.treats.length - 1; i >= 0; i--) {
+    const t = CATCH.treats[i]; t.age += dt;
+    if (t.state === 'ground') { if (t.age > 1.4) CATCH.treats.splice(i, 1); continue; }
+    t.vy += t.g * dt; t.x += t.vx * dt; t.y += t.vy * dt; t.rot += t.vr * dt;
+    if (t.x < 12 && t.vx < 0 || t.x > W - 12 && t.vx > 0) t.vx = -t.vx * 0.6;   // 화면 끝에서 튕긴다
+    if (t.vy > -SZ * 0.4 && !t.miss) {   // 내려오는 간식이 입에 닿으면 냠
+      const m = kongToScreen(...rig.mouthPoint());
+      if (K.alpha > 0.5 && Math.hypot(t.x - m.x, t.y - m.y) < SZ * 0.15 + 6) {
+        CATCH.treats.splice(i, 1); CATCH.streak++; bumpStat('catch'); sfx('pick'); sfx('munch');
+        emit('text', m.x, m.y - SZ * 0.3, { text: CATCH.streak > 1 ? CATCH.streak + '연속!' : '냠!', vy: -40, max: 1.2, size: 17, col: '#FFFFFF' });
+        if (CATCH.streak % 5 === 0) emitHearts(4); else emit('heart', m.x, m.y - 8, { vx: rand(-20, 20), vy: -70, max: 1, size: 10, col: '#FF8FA8' });
+        if (!K.held) { rig.hold('<text x="0" y="8" font-size="30" text-anchor="middle">' + t.emo + '</text>'); K.held = 'treat'; const sq = SEQ; setTimeout(() => { if (K.held === 'treat' && SEQ === sq) { rig.hold(null); K.held = null; sfx('munch'); } }, 520); }
+        catchStreakText(); continue;
+      }
+    }
+    if (t.miss && !t.bonked && t.vy > 0) {   // 놓친 간식은 머리에 콩 맞고 튕긴다
+      const hc = kongToScreen(...rig.headCenter());
+      if (K.alpha > 0.5 && Math.hypot(t.x - hc.x, t.y - hc.y) < SZ * 0.22) {
+        t.bonked = true; t.vy = -Math.abs(t.vy) * 0.45; t.vx = (t.x >= hc.x ? 1 : -1) * SZ * 0.55;
+        emit('text', hc.x, hc.y - SZ * 0.32, { text: '콩!', vy: -40, max: 1.1, size: 20, col: '#FFE6C0' }); sfx('boop');
+        CATCH.streak = 0; CATCH.bonkAt = now; catchStreakText();
+      }
+    }
+    const fy = floorY(t.x);
+    if (t.y >= fy - 4 && t.vy > 0) {   // 땅에 떨어졌다
+      t.y = fy - 4; t.state = 'ground'; t.age = 0;
+      if (!t.bonked) { if (CATCH.streak) { CATCH.streak = 0; catchStreakText(); } emit('text', t.x, fy - SZ * 0.15, { text: '아깝다', vy: -24, max: 1, size: 13, col: '#FFE6C0' }); }
+      sfx('bounce');
+    }
+  }
+}
+function drawCatch(c) {
+  c.font = Math.round(SZ * 0.12) + 'px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (const t of CATCH.treats) {
+    c.globalAlpha = t.state === 'ground' ? clamp(1.4 - t.age, 0, 1) : 1;
+    c.save(); c.translate(t.x, t.y); c.rotate(t.rot); c.fillText(t.emo, 0, 0); c.restore();
+  }
+  c.globalAlpha = 1;
+}
+async function chaseTreats(s) {
+  calm(); await standUp(s); if (K.seatT) { await jumpTo(K.th + 60 * U / R, 0, s); }
+  WANT.earLift = 10; WANT.tailAmp = 22; WANT.tailRate = 5; WANT.look = [0, -0.8];
+  let idleSince = performance.now();
+  for (;;) {
+    if (mode !== 'catch') break;
+    if (CATCH.bonkAt > CATCH.seenBonk) {   // 머리에 맞았다: 질끈 → 갸웃
+      CATCH.seenBonk = CATCH.bonkAt; K.move = null; WANT.eyes = 'closed'; WANT.tilt = 14; K.sqV += 6; await sleep(450, s); WANT.eyes = 'open'; WANT.tilt = -8; await sleep(250, s); WANT.tilt = 0;
+    }
+    const air = CATCH.treats.filter(t => t.state === 'air' && !t.bonked);
+    if (!air.length) {
+      K.move = null;
+      if (performance.now() - idleSince > 1200) break;
+      await sleep(80, s); continue;
+    }
+    idleSince = performance.now();
+    const m = kongToScreen(...rig.mouthPoint()), body = surf(K.th, 0);
+    const yc = m.y + (K.hopY > 0 ? K.hopY * U : 0) - SZ * 0.22;   // 폴짝 뛰었을 때 입 높이
+    const t = air.map(t => ({ t, tt: treatTime(t, yc) })).sort((a, b) => a.tt - b.tt)[0];
+    // 입이 떨어질 자리(xa)에 오도록 몸을 옮긴다. 옆모습은 입이 몸보다 앞(얼굴 쪽)에 있어서, 바라볼 쪽(t.f)을 간식마다 한 번 정해 두고
+    // 그쪽을 보고 섰을 때 입이 xa 에 오게 한다 — 매번 다시 정하면 돌아설 때마다 입이 반대로 가서 왔다 갔다 한다
+    const xa = clamp(t.t.x + t.t.vx * t.tt, 20, W - 20), OFF = 86 * U;   // 옆모습 입은 몸 가운데서 86 (그림 실측)
+    if (!t.t.f || (Math.sign(xa - body.x) !== t.t.f && Math.abs(xa - body.x) > OFF * 1.2)) t.t.f = Math.sign(xa - body.x) || K.facing || 1;
+    const th = screenTh(xa - t.t.f * OFF), d = angDiff(th, K.th) * R;
+    WANT.look = [clamp((t.t.x - m.x) / (SZ * 0.6), -1, 1), -0.9];
+    if (Math.abs(d) > SZ * 0.04 && t.tt > 0.12) { K.move = null; walkTo(th, runSpd() * 1.15, s, 18).catch(() => {}); }
+    else { K.move = null; if (K.pose !== 'stand') setPose('stand'); K.facing = t.t.f; }
+    if (!t.t.miss && !t.t.jumped && t.tt < 0.3 && t.tt > 0.04 && K.hopY <= 0.5) {   // 닿기 직전 폴짝
+      t.t.jumped = true; K.move = null; setPose('stand'); K.frame = 'jump'; hop(760); WANT.mouth = 'open';
+      setTimeout(() => { if (K.frame === 'jump' && !K.jump) K.frame = null; WANT.mouth = 'closed'; }, 600);
+    }
+    await sleep(40, s);
+  }
+  K.move = null; setPose('sit'); WANT.look = [0, -0.4]; WANT.tailAmp = 18; WANT.tailRate = 4; WANT.mouth = 'open';   // 또 던져 줘!
+  for (const t0 = performance.now(); performance.now() - t0 < 900;) {   // 앉아 기다리는 사이 또 던지면 곧바로 다시 쫓는다
+    if (mode === 'catch' && CATCH.treats.some(t => t.state === 'air' && !t.bonked)) { WANT.mouth = 'closed'; return chaseTreats(s); }
+    await sleep(60, s);
+  }
+  WANT.mouth = 'closed'; WANT.look = [0, 0];
+}
+
+// ── 2) 숨바꼭질: 콩이가 숨으면 꼬리만 보이고 눌러서 찾는다 · 내가 숨으면 콩이가 킁킁 찾아온다 ──
+let HIDE = null;
+const HIDE_W = { house: 90, mailbox: 30, tree: 64, bench: 112, sofa: 206 * FURN_K.sofa, bed: 206 * FURN_K.bed };   // 숨을 곳 반폭(k) — 누르기(tapAt)와 같은 값
+const hideSpots = () => OBJ.filter(o => HIDE_W[o.kind] && Math.abs(angDiff(o.th, cam)) < visibleA() * (indoor() ? 1 : 0.8) && Math.abs(surf(o.th, 0).x - CX) < W / 2 - 10);
+function spotAt(x, y, pad) {   // 누른 곳의 숨을 곳 (조금 넉넉하게)
+  let best = null, bd = 1e9;
+  for (const o of hideSpots()) {
+    const p = surf(o.th, 0), a = angDiff(o.th, cam), up = indoor() ? { x: 0, y: -1 } : { x: Math.sin(a), y: -Math.cos(a) };
+    const hgt = ({ house: 170, mailbox: 110, tree: 200, bench: 104, sofa: 150 * FURN_K.sofa, bed: 110 * FURN_K.bed })[o.kind] * U;
+    const rx = x - p.x, ry = y - p.y, along = rx * up.x + ry * up.y, side = rx * up.y - ry * up.x, w = HIDE_W[o.kind] * U + (pad || 0);
+    if (along > -30 && along < hgt + 20 && Math.abs(side) < w) { const d = Math.abs(side); if (d < bd) { bd = d; best = o; } }
+  }
+  return best;
+}
+function tailSpot(g) {   // 숨은 콩이 꼬리가 보이는 자리 (물건 가장자리 바깥)
+  const o = g.spot;
+  if (o.kind === 'house') return surf(o.th, 10 * U);
+  return surf(o.th + g.side * (HIDE_W[o.kind] * U + 14 * U) / R, 22 * U);
+}
+function drawPeekTail(c, p, side, t, eager) {   // 복슬복슬 갈색 꼬리가 살랑 (eager: 빨리 흔든다)
+  const s = SZ * 0.06, wag = Math.sin(t * (eager ? 15 : 6)) * (eager ? 0.5 : 0.32);
+  c.save(); c.translate(p.x, p.y); c.rotate((p.a || 0) + wag + (side ? side * 0.35 : 0));
+  if (side < 0) c.scale(-1, 1);
+  c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(0, 4, s * 1.2, s * 0.35, 0, 0, TAU); c.fill();
+  const pts = [[0, 0, 0.75], [s * 0.35, -s * 0.9, 0.85], [s * 0.55, -s * 1.9, 1], [s * 0.4, -s * 2.8, 0.95]];
+  for (const [i, [x, y, r]] of pts.entries()) { c.fillStyle = i % 2 ? '#A8552E' : '#B9673A'; circ(c, x, y, s * r); c.fill(); }
+  c.fillStyle = 'rgba(255,220,180,.35)'; circ(c, s * 0.25, -s * 2.95, s * 0.35); c.fill();
+  c.restore();
+}
+function drawHide(c, t) {
+  const g = HIDE; if (!g) return;
+  if (g.who === 'kong' && g.phase === 'count') {   // 가림막: 눈 감고 셋까지
+    c.fillStyle = 'rgba(16,20,46,.93)'; c.fillRect(0, 0, W, H);
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#FFFFFF';
+    c.font = '700 ' + Math.round(Math.min(W, H) * 0.12) + 'px ' + FONT; c.fillText(g.count || '', W / 2, H * 0.42);
+    c.font = '600 16px ' + FONT; c.fillStyle = '#C9D1F2'; c.fillText('눈 감고 기다려요. ' + J(S.name, '이/가') + ' 숨는 중…', W / 2, H * 0.42 + Math.min(W, H) * 0.1);
+    return;
+  }
+  if (g.who === 'kong' && g.phase === 'hidden' && g.spot) {
+    const p = tailSpot(g);
+    if (g.spot.kind === 'house') drawPeekTail(c, { x: p.x + HIDE_W.house * U * 0.32, y: p.y, a: (p.a || 0) + 1.25 }, 0, t, g.wrong >= 2);   // 집: 문 옆으로 꼬리만 삐죽 (이름표를 가리지 않게)
+    else drawPeekTail(c, p, g.side, t, g.wrong >= 2);
+  }
+  if (g.who === 'me' && g.mine && g.phase !== 'done') {   // 내가 숨은 자리: 빼꼼
+    const o = g.mine, p = o.kind === 'house' ? surf(o.th, 40 * U) : surf(o.th + g.mineSide * (HIDE_W[o.kind] * U + 6 * U) / R, 30 * U);
+    c.font = Math.round(SZ * 0.16) + 'px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(g.phase === 'found' ? '😆' : '🫣', p.x, p.y + Math.sin(t * 3) * 2);
+  }
+}
+function startHide(who) {
+  closeSheets(); if (mode) setMode(null);
+  const spots = hideSpots();
+  if (!spots.length) { toast('여기는 숨을 곳이 없어요. 거실·침실·별나라에서 해 보세요', 3200); return; }
+  bumpStat('hide');
+  act(async s => {
+    const g = HIDE = { who, phase: who === 'kong' ? 'count' : 'pick', wrong: 0, spot: null, side: 1, mine: null, mineSide: 1, t0: performance.now() };
+    try {
+      calm(); K.sleeping = false;
+      if (who === 'kong') {
+        await sleep(350, s);
+        const o = pick(spots);
+        let side = 0;
+        if (o.kind !== 'house') {   // 화면 안에 꼬리가 보이는 쪽으로
+          const ok = [-1, 1].filter(sd => { const x = surf(o.th + sd * (HIDE_W[o.kind] * U + 40 * U) / R, 0).x; return x > 24 && x < W - 24; });
+          side = ok.length ? pick(ok) : 1;
+        }
+        g.spot = o; g.side = side;
+        K.jump = null; K.frame = null; K.move = null;   // 뛰어오르던 중이면 점프가 순간이동을 덮어쓰지 않게
+        K.alphaT = 0; K.alpha = 0; K.seat = K.seatT = 0; setPose('sit');   // 가림막 뒤에서 숨는다
+        K.th = o.kind === 'house' ? o.th : o.th + side * (HIDE_W[o.kind] * U + 30 * U) / R;
+        for (const n of ['하나', '둘', '셋!']) { g.count = n; sfx('tap'); await sleep(850, s); }
+        g.phase = 'hidden'; g.t0 = performance.now();
+        toast(J(S.name, '이/가') + ' 어디 숨었을까요? 숨은 곳을 눌러 주세요', 3200);
+        while (g.phase === 'hidden' && performance.now() - g.t0 < 45000) await sleep(100, s);
+        const timedOut = g.phase === 'hidden'; g.phase = 'found';
+        K.alphaT = 1; hop(340); WANT.eyes = 'happy'; WANT.mouth = 'open'; WANT.tailAmp = 26; WANT.tailRate = 5; WANT.blush = true; sfx('boop');
+        const hc = kongToScreen(...rig.headCenter());
+        emit('text', hc.x, hc.y - SZ * 0.4, { text: timedOut ? '여기 있었지롱!' : '들켰다!', vy: -30, max: 1.8, size: 17, col: '#FFFFFF' });
+        if (!timedOut) { emitHearts(3); bumpStat('hideFound'); }
+        await sleep(1600, s); calm();
+      } else {
+        // 콩이가 엎드려 눈을 가리고 세는 동안 숨을 곳을 고른다
+        setPose('lie'); WANT.eyes = 'closed'; WANT.nod = 10; WANT.tailAmp = 8; K.sleeping = true;   // 눈 감은 그림으로 (세는 동안)
+        toast('숨을 곳(가구·집·나무)을 눌러 주세요. ' + J(S.name, '이/가') + ' 세는 중이에요', 3600);
+        const nums = ['하나', '둘', '셋', '넷', '다섯', '여섯', '일곱', '여덟', '아홉', '열'];
+        let i = 0; const until = performance.now() + 25000;
+        while (!g.mine && performance.now() < until) {
+          const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.3, { text: nums[i % 10] + '…', vy: -20, max: 1.1, size: 15, col: '#FFE6C0' }); i++;
+          await sleep(1000, s);
+        }
+        K.sleeping = false;
+        if (!g.mine) { setPose('sit'); WANT.eyes = 'open'; WANT.nod = 0; WANT.tilt = 14; toast('숨지 않았네요. 다음에 또 해요'); await sleep(1200, s); calm(); return; }
+        g.phase = 'seek'; await sleep(600, s);
+        setPose('sit'); WANT.eyes = 'open'; WANT.nod = 0; WANT.earLift = 12;
+        let hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.35, { text: '찾는다!', vy: -30, max: 1.4, size: 17, col: '#FFFFFF' });
+        await sleep(900, s); await standUp(s);
+        const others = hideSpots().filter(o => o !== g.mine).sort(() => Math.random() - 0.5).slice(0, Math.min(2, hideSpots().length - 1));
+        for (const o of [...others, g.mine]) {   // 틀린 곳 한두 군데를 킁킁 → 마지막에 진짜
+          const side = o.kind === 'house' ? 0 : o === g.mine ? g.mineSide : (Math.sign(angDiff(K.th, o.th)) || 1);
+          const th = o.kind === 'house' ? o.th + 60 * U / R : o.th + side * (HIDE_W[o.kind] * U + 50 * U) / R;
+          WANT.tailAmp = 12; WANT.tailRate = 3; await walkTo(indoor() ? clamp(th, -roomLim(), roomLim()) : th, farSpd(th), s);
+          K.facing = -(side || 1); WANT.nod = 24; WANT.look = [0, 0.9]; WANT.sniff = 1; sfx('sniff');
+          const p = surf(K.th, 0); emit('text', p.x, p.y - SZ * 0.75, { text: '킁킁', vy: -24, max: 1.1, size: 14, col: '#FFE6C0' });
+          await sleep(1100, s); WANT.sniff = 0; WANT.nod = 0; WANT.look = [0, 0];
+          if (o !== g.mine) { setPose('sit'); WANT.tilt = 14; emit('text', p.x, p.y - SZ * 0.85, { text: '여긴 없네?', vy: -24, max: 1.1, size: 14, col: '#FFE6C0' }); await sleep(800, s); WANT.tilt = 0; await standUp(s); }
+        }
+        g.phase = 'found'; setPose('sit'); hop(340); WANT.eyes = 'happy'; WANT.mouth = 'open'; WANT.tailAmp = 26; WANT.tailRate = 5; WANT.blush = true; sfx('boop');
+        hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.4, { text: '찾았다!', vy: -30, max: 1.8, size: 18, col: '#FFFFFF' }); emitHearts(3);
+        await sleep(1700, s); g.phase = 'done'; calm();
+      }
+    } finally { if (HIDE === g) HIDE = null; K.alphaT = 1; }
+  });
+}
+function hideTap(x, y) {
+  const g = HIDE; if (!g) return false;
+  if (g.who === 'kong' && g.phase === 'hidden') {
+    const tp = tailSpot(g), o = spotAt(x, y, 10 * U);
+    if (o === g.spot || Math.hypot(x - tp.x, y - tp.y) < SZ * 0.22) { g.phase = 'gotcha'; return true; }
+    g.wrong++; sfx('tap');
+    emit('text', x, y - 16, { text: pick(['여기 없네', '여긴 아니야', '어디 갔지?']), vy: -26, max: 1, size: 14, col: '#FFE6C0' });
+    if (g.wrong === 3) toast('꼬리가 살랑살랑… 잘 보면 보여요', 2600);
+    return true;
+  }
+  if (g.who === 'me' && g.phase === 'pick') {
+    const o = spotAt(x, y, 10 * U);
+    if (!o) { toast('가구나 집, 나무를 눌러 숨어 주세요', 2200); return true; }
+    g.mine = o; g.mineSide = o.kind === 'house' ? 0 : (x >= surf(o.th, 0).x ? 1 : -1);
+    if (g.mineSide && (() => { const px = surf(o.th + g.mineSide * (HIDE_W[o.kind] * U + 6 * U) / R, 0).x; return px < 16 || px > W - 16; })()) g.mineSide = -g.mineSide;
+    sfx('tap'); toast('쉿! 잘 숨었어요', 1600); return true;
+  }
+  return g.phase === 'count' || g.phase === 'hidden';   // 세는 중·숨은 동안 다른 곳 누르기는 무시
+}
+
+// ── 3) 개인기 따라 하기: 콩이가 보여 준 순서대로 단추를 누른다 (맞힐수록 하나씩 길어진다) ──
+const SIMON = { on: false, seq: [], step: 0, phase: 'off', g: 0, flashT: 0, next: false };
+const TRICK_WORD = k => (TRICKS.find(t => t[0] === k) || [k, k])[1];
+function simonBar(show, wait) {
+  const b = $('simonBar'); b.hidden = !show; b.classList.toggle('wait', !!wait);
+  if (show) { const dt = document.querySelector('.dock').getBoundingClientRect().top || H; b.style.bottom = Math.max(8, H - dt + 8) + 'px'; }
+}
+function simonMsg(t) { $('simonMsg').textContent = t; }
+function renderSimon() {
+  const box = $('simonKeys'); box.innerHTML = '';
+  for (const [key, word, emo] of TRICKS) {
+    const b = document.createElement('button'); b.innerHTML = '<span>' + emo + '</span>' + word; b.dataset.k = key;
+    b.addEventListener('click', () => simonPress(key)); box.appendChild(b);
+  }
+  const q = document.createElement('button'); q.className = 'quit'; q.innerHTML = '<span>✋</span>그만'; q.addEventListener('click', () => { SIMON.phase = 'quit'; act(async s => { calm(); }); }); box.appendChild(q);
+}
+async function quickTrick(key, s) {   // 따라 하기용 짧은 개인기 (가족 목소리와 함께)
+  const hc = kongToScreen(...rig.headCenter());
+  emit('text', hc.x, hc.y - SZ * 0.42, { text: TRICK_WORD(key), vy: -22, max: 1.1, size: 18, col: '#FFFFFF' });
+  if (!voice(key)) sfx('call');
+  WANT.eyes = 'open'; WANT.earLift = 8;
+  if (key === 'sit') { setPose('sit'); hop(220); await sleep(220, s); K.sqV += 8; await sleep(560, s); }
+  else if (key === 'paw') { setPose(hasPose('paw') ? 'paw' : hasPose('wave') ? 'wave' : 'sit'); K.sqV += 5; await sleep(880, s); }
+  else if (key === 'down') { setPose('lie'); await sleep(880, s); }
+  else if (key === 'bang') { hop(200); setPose(hasPose('belly') ? 'belly' : 'lie'); await sleep(960, s); }
+  else if (key === 'house') { setPose(hasPose('rear') ? 'rear' : 'sit'); K.alphaT = 0.2; await sleep(820, s); K.alphaT = 1; }
+  else if (key === 'spin') { for (const [p, fc] of [['stand', 1], ['rear', 1], ['stand', -1]]) { setPose(hasPose(p) ? p : 'stand'); K.facing = fc; hop(140); await sleep(240, s); } K.facing = 1; }
+  setPose('sit'); await sleep(220, s);
+}
+function flashTrick(key) {   // 내가 누를 때: 그 자세를 잠깐 (진행 중인 행동은 끊지 않는다)
+  const p = { sit: 'sit', paw: hasPose('paw') ? 'paw' : 'sit', down: 'lie', bang: hasPose('belly') ? 'belly' : 'lie', house: hasPose('rear') ? 'rear' : 'sit', spin: hasPose('rear') ? 'rear' : 'stand' }[key];
+  setPose(p); if (key === 'sit') hop(160); K.sqV += 4;
+  clearTimeout(SIMON.flashT); SIMON.flashT = setTimeout(() => { if (SIMON.on) setPose('sit'); }, 480);
+}
+function simonPress(key) {
+  const g = SIMON; if (!g.on || g.phase !== 'input') return;
+  unlockAudio(); if (!voice(key)) sfx('tap'); flashTrick(key); g.pressAt = performance.now();
+  if (key !== g.seq[g.step]) { g.phase = 'lose'; g.wrongKey = key; return; }
+  g.step++; simonMsg('같은 순서로 눌러요 (' + g.step + '/' + g.seq.length + ')');
+  if (g.step >= g.seq.length) g.phase = 'win';
+}
+function startSimon() {
+  closeSheets(); if (mode) setMode(null);
+  bumpStat('simon'); SIMON.seq = []; SIMON.started = false; SIMON.cleared = 0; renderSimon(); simonRound();   // 판마다 2단계부터 · 맞힌 단계는 새로 센다
+}
+function simonRound() {
+  const g = SIMON; g.next = false;
+  act(async s => {
+    g.run = s; g.on = true; g.phase = 'show'; simonBar(true, true);   // g.run: 늦게 끝난 옛 판의 finally 가 새 판을 끄지 않게
+    try {
+      calm(); K.sleeping = false; await standUp(s); if (K.seatT) await jumpTo(K.th + 60 * U / R, 0, s); if (K.pose === 'stand') setPose('sit');
+      const keys = TRICKS.map(t => t[0]);
+      while (g.seq.length < 2) g.seq.push(pick(keys));
+      if (g.started) g.seq.push(pick(keys)); g.started = true;
+      simonMsg(g.seq.length + '단계 · ' + J(S.name, '을/를') + ' 잘 보세요');
+      await sleep(800, s);
+      for (const k of g.seq) { await quickTrick(k, s); await sleep(260, s); }
+      g.phase = 'input'; g.step = 0; g.pressAt = performance.now(); simonBar(true, false);
+      simonMsg('같은 순서로 눌러요 (0/' + g.seq.length + ')');
+      WANT.look = [0, 0.3]; WANT.tailAmp = 14; WANT.tailRate = 3; WANT.earLift = 8;
+      while (g.phase === 'input' && performance.now() - g.pressAt < 20000) await sleep(100, s);
+      if (g.phase === 'input') g.phase = 'timeout';
+      simonBar(true, true);
+      await sleep(350, s); setPose('sit');
+      if (g.phase === 'win') {
+        g.cleared = g.seq.length; ST.simonBest = Math.max(ST.simonBest || 0, g.seq.length); saveStats();
+        simonMsg(g.seq.length + '단계 성공! 다음은 하나 더 길어져요');
+        const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.42, { text: '정답!', vy: -30, max: 1.4, size: 18, col: '#FFFFFF' });
+        await proud(s); await sleep(500, s);
+        g.next = true; setTimeout(() => { if (g.next && g.run === s) simonRound(); }, 0);
+        return;
+      }
+      if (g.phase === 'quit') { simonMsg('그만할게요'); return; }
+      const best = Math.max(ST.simonBest || 0, g.cleared || 0); ST.simonBest = best; saveStats();   // 이번 판에서 실제로 맞힌 단계만
+      WANT.tilt = 14; const hc = kongToScreen(...rig.headCenter());
+      emit('text', hc.x + SZ * 0.28, hc.y - SZ * 0.22, { text: '?', vy: -30, max: 1.5, size: 24, col: '#FFE6C0' });
+      simonMsg((g.phase === 'timeout' ? '시간이 다 됐어요. ' : '아쉬워요! ') + '정답: ' + g.seq.map(TRICK_WORD).join(' → '));
+      await sleep(2600, s); WANT.tilt = 0;
+      toast((g.cleared ? g.cleared + '단계까지 성공' : '이번엔 아쉬워요') + ' · 최고 ' + best + '단계', 3000);
+      calm();
+    } finally {
+      if (!g.next && g.run === s) {
+        if (s !== SEQ && g.phase !== 'quit' && g.phase !== 'lose' && g.phase !== 'timeout') toast('따라 하기를 멈췄어요');   // 다른 행동에 끊겼을 때 말없이 사라지지 않게
+        g.on = false; g.phase = 'off'; simonBar(false);
+      }
+    }
+  });
+}
+
+// ── 4·9) 저절로 하는 버릇: 꼬리 잡기 빙글빙글 · 하품 · 몸 털기 · 기지개 ──
+async function chaseTail(s) {
+  calm(); await standUp(s);
+  WANT.earLift = 10; WANT.tailAmp = 28; WANT.tailRate = 6; WANT.mouth = 'open';
+  const p = surf(K.th, 0); emit('text', p.x, p.y - SZ * 0.95, { text: '내 꼬리다!', vy: -24, max: 1.4, size: 14, col: '#FFE6C0' });
+  const n = 3 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < n; i++) {   // 빙글빙글: 옆 → 뒤 → 반대 옆 → 앞 (점점 빨라진다)
+    const d = Math.max(90, 170 - i * 22);
+    for (const [ps, fc] of [['stand', 1], ['rear', 1], ['stand', -1], ['sit', 1]]) { setPose(hasPose(ps) ? ps : 'stand'); K.facing = fc; if (ps === 'rear') K.sqV += 3; await sleep(d, s); }
+  }
+  // 어지러워 비틀비틀
+  setPose('sit'); K.facing = 1; WANT.eyes = 'closed'; WANT.mouth = 'open'; WANT.tailAmp = 8;
+  const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.4, { text: '어질어질~', vy: -20, max: 1.6, size: 15, col: '#FFFFFF' });
+  K.dizzyUntil = performance.now() + 1500;
+  for (let i = 0; i < 8; i++) {
+    WANT.tilt = (i % 2 ? 1 : -1) * 15; K.sqV += 2;
+    const h2 = kongToScreen(...rig.headCenter()), a = i * 0.8; emit('spark', h2.x + Math.cos(a) * SZ * 0.22, h2.y - SZ * 0.18 + Math.sin(a) * SZ * 0.05, { vx: 0, vy: -8, max: 0.6, size: 4, col: '#FFE7A8' });
+    await sleep(190, s);
+  }
+  WANT.tilt = 0; WANT.eyes = 'open'; WANT.mouth = 'closed'; await sleep(400, s); WANT.tilt = 9; await sleep(600, s); calm();
+}
+async function yawn(s) {   // 하~암
+  calm(); if (K.pose === 'stand') setPose('sit');
+  await sleep(150, s);
+  WANT.eyes = 'closed'; WANT.nod = -10; WANT.mouth = 'open'; WANT.tilt = rand(-7, 7); WANT.zoom = 1.02; WANT.earLift = -4; K.sqV -= 3; sfx('yawn');
+  const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x + SZ * 0.15, hc.y - SZ * 0.32, { text: '하~암', vy: -18, max: 1.6, size: 15, col: '#FFE6C0' });
+  await sleep(1300, s);
+  WANT.mouth = 'closed'; WANT.nod = 0; WANT.zoom = 1; WANT.earLift = 0; await sleep(250, s);
+  WANT.eyes = 'open'; await sleep(500, s); calm();
+}
+async function shakeOff(s) {   // 부르르 몸 털기 (털이 날린다)
+  calm(); await standUp(s); if (K.pose === 'sit' && !K.seatT) setPose('stand');
+  WANT.earLift = 8; WANT.eyes = 'closed'; sfx('shake');
+  K.shakeUntil = performance.now() + 900;
+  for (let i = 0; i < 18; i++) {
+    WANT.tilt = (i % 2 ? 1 : -1) * 14;
+    if (i % 2 === 0) { const b = kongToScreen(200, 270); for (let j = 0; j < 2; j++) emit('crumb', b.x + rand(-SZ * 0.28, SZ * 0.28), b.y + rand(-SZ * 0.2, SZ * 0.15), { vx: rand(-170, 170), vy: rand(-150, -40), g: 520, max: 0.7, size: rand(2, 4), col: 'rgba(196,128,86,.85)' }); }
+    await sleep(50, s);
+  }
+  K.shakeUntil = 0; WANT.tilt = 0; WANT.eyes = 'happy'; if (K.pose === 'stand') setPose('sit');
+  await sleep(700, s); calm();
+}
+async function stretch(s) {   // 쭈욱 기지개: 앞으로 몸을 낮추고 길게
+  calm(); await standUp(s); setPose('stand'); if (Math.random() < 0.5) K.facing = -K.facing || 1;
+  await sleep(200, s);
+  WANT.nod = 22; WANT.eyes = 'closed'; WANT.tailAmp = 14; WANT.tailRate = 2; K.stretch = 1; K.rollT = 9 * (K.facing || 1);   // 앞쪽(얼굴 쪽)을 낮춘다 — 선 그림은 머리째 한 장이라 몸을 기울여 보인다
+  const p = surf(K.th, K.seat); emit('text', p.x, p.y - SZ * 0.85, { text: '쭈욱~', vy: -18, max: 1.4, size: 15, col: '#FFE6C0' });
+  await sleep(1300, s);
+  K.stretch = 0; K.rollT = 0; WANT.nod = 0; await sleep(300, s); WANT.eyes = 'open'; setPose('sit'); await sleep(400, s); calm();
+}
+async function wakeUp(s) {   // 자고 일어나면: 기지개 → 하품 → 부르르
+  if (!K.seatT) await stretch(s);   // 침대·쇼파 위에서는 기지개(선 자세로 기울이기)는 빼고
+  await yawn(s); await shakeOff(s);
+}
+
+// ── 5) 쓰다듬는 곳마다 다른 반응: 코(재채기) · 턱 밑(고개 들고 눈 감기) · 귀 뒤(뒷발 탕탕) · 엉덩이(꼬리 붕붕) ──
+// 자리(그림 좌표)는 앉은 앞모습·선 옆모습 그림에서 실측 (2026-11-17)
+function petZone(x, y) {
+  if (K.pose !== 'sit' && K.pose !== 'stand') return 'body';
+  const [vx, vy] = screenToKong(x, y), hc = rig.headCenter(), mp = rig.mouthPoint(), sit = K.pose === 'sit', f = sit ? 0 : (K.facing || 1);
+  if (Math.hypot(vx - mp[0], vy - (mp[1] - (sit ? 30 : 24))) < Math.max(16, 13 / (U * (CUR.zoom || 1)))) return 'nose';   // 화면에서 반지름 13px 은 되게 (작은 폰에서도 누를 수 있게 — 더 크면 턱·눈까지 코가 된다)
+  if (vy > mp[1] + 2 && vy < mp[1] + (sit ? 42 : 30) && Math.abs(vx - mp[0]) < 34) return 'chin';
+  const ex = Math.abs(vx - hc[0]);
+  if (ex > (sit ? 55 : 40) && ex < 118 && vy > hc[1] - 55 && vy < hc[1] + 55) return 'ear';
+  if (sit ? vy > 292 : (vx - 200) * f < -60) return 'butt';
+  return 'body';
+}
+async function sneeze(s) {   // 에취!
+  calm(); WANT.eyes = 'closed'; WANT.nod = -10; K.sqV -= 4; await sleep(380, s);
+  WANT.nod = 14; WANT.mouth = 'open'; hop(220); sfx('sneeze');
+  const m = kongToScreen(...rig.mouthPoint()); emit('text', m.x, m.y - SZ * 0.45, { text: '에취!', vy: -40, max: 1.2, size: 19, col: '#FFFFFF' });
+  for (let i = 0; i < 6; i++) emit('spark', m.x + rand(-10, 10), m.y - SZ * 0.06, { vx: rand(-90, 90), vy: rand(-60, 10), max: 0.5, size: 2.5, col: '#DDEEFF' });
+  await sleep(420, s); WANT.mouth = 'closed'; WANT.nod = 0; WANT.eyes = 'open'; WANT.tilt = 12; await sleep(700, s);
+  WANT.tilt = 0; WANT.tailAmp = 16; await sleep(500, s); calm();
+}
+async function buttWag(s) {   // 엉덩이 톡톡 → 꼬리가 붕붕, 신나서 폴짝
+  calm(); WANT.tailAmp = 34; WANT.tailRate = 7; WANT.mouth = 'open'; WANT.eyes = 'happy'; WANT.blush = true; WANT.earLift = 8;
+  const p = surf(K.th, K.seat); emit('text', p.x, p.y - SZ * 0.9, { text: '헤헤', vy: -26, max: 1.2, size: 15, col: '#FFE6C0' });
+  hop(260); await sleep(500, s); hop(200); await sleep(900, s); WANT.mouth = 'closed'; await sleep(400, s); calm();
+}
+
+function petZoneMove(x, y, d) {   // petMove 가 부른다 — 그 부위에 맞는 표정·몸짓 (처리했으면 true)
+  const p = petting; p.zrub += d;
+  const say = (text) => { if (p.said || p.zrub < 120) return; p.said = true; const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.42, { text, vy: -24, max: 1.5, size: 15, col: '#FFFFFF' }); };
+  const heart = () => { if (pointer.petAcc > 75) { pointer.petAcc = 0; emit('heart', x + rand(-10, 10), y - 10, { vx: rand(-25, 25), vy: rand(-80, -50), max: 1.2, size: rand(8, 12), col: pick(['#FF8FA8', '#FFB3C1']) }); sfx('pet'); } };
+  if (p.zone === 'nose') { WANT.eyes = 'closed'; WANT.nod = -6; WANT.tilt = 0; WANT.tailAmp = 10; return true; }   // 간질간질 → 손을 떼면 에취
+  if (p.zone === 'chin') {   // 턱 밑: 고개를 들고 눈을 감는다
+    WANT.nod = -12; WANT.look = [0, -1]; WANT.tilt = 0; WANT.eyes = 'closed'; WANT.blush = true; WANT.tailAmp = 18; WANT.tailRate = 3.5; WANT.mouth = 'closed';
+    say('거기 좋아~'); heart(); return true;
+  }
+  if (p.zone === 'ear') {   // 귀 뒤: 그쪽으로 고개를 기울이고 뒷발로 탕탕
+    const side = p.side;
+    WANT.tilt = side * 16; WANT.eyes = 'happy'; WANT.mouth = 'open'; WANT.blush = true; WANT.tailAmp = 20; WANT.tailRate = 4.5;
+    p.thump = (p.thump || 0) + d;
+    if (p.thump > 85 && !reduceMotion) { p.thump = 0; K.sqV += 6; sfx('thump'); const f = surf(K.th + side * SZ * 0.16 / R, K.seat); emit('dust', f.x, f.y - 4, { vx: rand(-30, 30), vy: rand(-30, -10), max: 0.5, size: 3 }); }
+    say('거기거기!'); heart(); return true;
+  }
+  if (p.zone === 'butt') {   // 엉덩이: 꼬리가 붕붕
+    WANT.tailAmp = 34; WANT.tailRate = 7; WANT.mouth = 'open'; WANT.eyes = 'happy'; WANT.blush = true;
+    say('헤헤'); heart(); return true;
+  }
+  return false;
+}
+
+// ── 6) 폰 기울이기: 공이 기운 쪽으로 굴러가고 콩이가 따라 달린다 ──
+const TILT = { g: 0, at: 0, want: false };
+window.addEventListener('deviceorientation', e => {
+  if (e.gamma == null && e.beta == null) return;
+  const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+  const v = ang === 90 ? e.beta : ang === -90 || ang === 270 ? -e.beta : ang === 180 ? -e.gamma : e.gamma;
+  TILT.g = clamp(v || 0, -45, 45); TILT.at = performance.now();
+});
+const tiltLive = () => S.tilt && performance.now() - TILT.at < 600 && Math.abs(TILT.g) > 5;
+async function toggleTilt() {
+  if (S.tilt) { S.tilt = false; saveSettings(); renderToys(); toast('기울이기를 껐어요'); return; }
+  const DOE = window.DeviceOrientationEvent;
+  if (!DOE || !('ontouchstart' in window || navigator.maxTouchPoints > 0)) { toast('기울기 센서가 있는 폰에서만 돼요', 2600); return; }
+  if (typeof DOE.requestPermission === 'function') {   // 아이폰: 처음 한 번 허락
+    try { if ((await DOE.requestPermission()) !== 'granted') { toast('동작 접근을 허락해야 쓸 수 있어요', 2800); return; } } catch (e) { toast('동작 접근을 허락해야 쓸 수 있어요', 2800); return; }
+  }
+  S.tilt = true; saveSettings();
+  if (S.toy !== 'ball' && S.toy !== 'doll') S.toy = 'ball';
+  startToy(S.toy); toast('폰을 옆으로 기울여 보세요. 공이 굴러가요', 2800);
+}
+function tiltBall(dt) {   // updateBall 이 부른다
+  if (!(mode === 'ball' && ball.out && (ball.st === 'ground' || ball.st === 'roll') && tiltLive())) return;
+  ball.st = 'roll'; ball.v += Math.sin(TILT.g * Math.PI / 180) * SZ * 3.4 * dt;
+}
+async function followBall(s) {   // 기울여 굴린 공을 따라간다 (물어 오지는 않는다)
+  calm(); await standUp(s); WANT.earLift = 8; WANT.tailAmp = 20; WANT.tailRate = 4.5;
+  let still = 0;
+  for (let i = 0; i < 900; i++) {
+    if (mode !== 'ball' || !ball.out || ball.st === 'held' || ball.st === 'air') break;
+    const d = angDiff(ball.th, K.th) * R, gap = SZ * 0.34;
+    if (Math.abs(d) > gap * 1.2) { K.move = null; walkTo(ball.th - Math.sign(d) * gap / R, Math.abs(d) > SZ ? runSpd() : runSpd() * 0.6, s, 15).catch(() => {}); }
+    else { K.move = null; WANT.look = [clamp(d / (SZ * 0.4), -1, 1), 0.7]; }
+    still = ball.st === 'ground' && !tiltLive() ? still + 1 : 0;
+    if (still > 30) break;
+    await sleep(50, s);
+  }
+  K.move = null; setPose('sit'); WANT.tailAmp = 18; hop(240); await sleep(600, s); calm();
+}
+
+// ── 8) 차 안 휴게소: 차가 서고, 창밖에서 강아지 아이스크림을 받아 할짝할짝 ──
+function restStop() {
+  closeSheets();
+  if (!inCar() || CAR.rest) return;
+  if (mode) setMode(null);
+  const now = performance.now() / 1000;
+  CAR.vT = 0; CAR.rest = true; CAR.goAt = now + 999; CAR.nextStop = now + 999;
+  const G = CARG, sp = CAR.layers && CAR.layers.length ? CAR.layers[CAR.layers.length - 1].sp : 300;
+  if (G) CAR.sign = { off0: CAR.off, x0: (G.xFb + G.xR) / 2 - (CAR.v / 1.3) * sp, sp };   // 차가 서면 창 가운데에 표지판이 온다
+  bumpStat('rest');
+  act(async s => {
+    try {
+      calm(); await standUp(s); if (K.pose === 'stand') setPose('sit');
+      const p = surf(K.th, 0); emit('text', p.x, (CARG ? CARG.yt : p.y - SZ) + 24, { text: '휴게소에 들렀어요', vy: -10, max: 2.2, size: 14, col: '#FFE6C0' });
+      WANT.look = [0.7, -0.3]; WANT.earLift = 10; WANT.tailAmp = 16; WANT.tailRate = 4;
+      await sleep(2300, s);
+      if (CAR.winT < 0.5) { setCarWindow(true, true); sfx('winmotor'); await sleep(1700, s); }
+      const G2 = CARG, f = { emo: '🍦', t: 0, dur: 0.9, from: { x: G2 ? G2.xR - 24 : W - 30, y: G2 ? G2.yt + G2.wh * 0.45 : H * 0.3 } };
+      flying.push(f); sfx('toss'); WANT.look = [0.5, -0.2]; WANT.mouth = 'open'; WANT.tailAmp = 24; WANT.tailRate = 5;
+      { const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.42, { text: '강아지 아이스크림!', vy: -16, max: 1.6, size: 14, col: '#FFFFFF' }); }
+      await sleep(900, s); const fi = flying.indexOf(f); if (fi >= 0) flying.splice(fi, 1);
+      rig.hold('<text x="0" y="12" font-size="36" text-anchor="middle">🍦</text>'); K.held = 'treat'; WANT.eyes = 'happy'; WANT.look = [0, 0.4];
+      for (let k = 0; k < 8; k++) {
+        await sleep(260, s); WANT.mouth = k % 2 ? 'closed' : 'open'; sfx('lick');
+        if (k % 2 === 0) { const m = kongToScreen(...rig.mouthPoint()); emit('text', m.x + SZ * 0.2, m.y - SZ * 0.1, { text: '할짝', vy: -24, max: 0.9, size: 13, col: '#FFE6C0' }); }
+        if (k === 5) rig.hold('<text x="0" y="10" font-size="24" text-anchor="middle">🍦</text>');
+      }
+      rig.hold(null); K.held = null; WANT.mouth = 'open'; WANT.blush = true; WANT.tailAmp = 26; WANT.tailRate = 5; hop(260); emitHearts(3);
+      const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.4, { text: '맛있다!', vy: -30, max: 1.5, size: 16, col: '#FFFFFF' });
+      await sleep(1500, s); calm();
+    } finally {
+      CAR.rest = false; CAR.vT = 1; CAR.nextStop = performance.now() / 1000 + rand(30, 55);
+      if (reduceMotion || !inCar()) CAR.sign = null;   // 풍경이 흐르지 않으면 표지판이 창에 계속 남는다
+    }
+  });
+}
+function drawRestSign(c) {   // 창밖 표지판 (초록 고속도로 표지)
+  const G = CARG, sg = CAR.sign; if (!G || !sg) return;
+  const x = sg.x0 + (CAR.off - sg.off0) * sg.sp, w = Math.min(150, (G.xR - G.xFb) * 0.42), h = w * 0.42, y = G.yt + G.wh * 0.16;
+  if (x - w > G.xR + 20) { CAR.sign = null; return; }
+  c.fillStyle = '#5F6B73'; c.fillRect(x - 3, y + h, 6, G.wh);   // 기둥
+  c.fillStyle = '#1F7A4D'; roundRect(c, x - w / 2, y, w, h, 8); c.fill();
+  c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; roundRect(c, x - w / 2 + 4, y + 4, w - 8, h - 8, 6); c.stroke();
+  c.fillStyle = '#FFFFFF'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '700 ' + Math.round(h * 0.42) + 'px ' + FONT; c.fillText('휴게소 🍦', x, y + h / 2 + 1);
 }
 
 // ═══════════════ 간식 ═══════════════
@@ -2938,7 +3503,7 @@ function setScene(key, label) {
   S.scene = key; saveSettings();
   K.seat = K.seatT = 0; K.move = null;
   if (indoor()) { K.th = 0; cam = 0; if (ball.out) { ball.th = inCar() ? 0.05 : 0.12; ball.h = 0; ball.v = 0; if (ball.st !== 'held') ball.st = 'ground'; } }
-  CAR.win = CAR.winT = 0; CAR.wind.length = 0; CAR.v = CAR.vT = 1; CAR.nextStop = 0; CAR.petals.length = 0; setCarWindow(false, true); if (CARA.src) stopCarAudio();   // 차에 탈 때마다 창문은 닫힌 채로
+  CAR.win = CAR.winT = 0; CAR.wind.length = 0; CAR.v = CAR.vT = 1; CAR.nextStop = 0; CAR.petals.length = 0; CAR.sign = null; setCarWindow(false, true); if (CARA.src) stopCarAudio();   // 차에 탈 때마다 창문은 닫힌 채로
   setSceneObjects(); skyMinute = -1;
   WALK.going = true; WALK.v = 0; setWalkBtn();
   if (key === 'walk') setTimeout(() => S.scene === 'walk' && hintOnce('walk', '오른쪽 위 단추로 멈추거나 다시 걸어요'), 1600);
@@ -2976,6 +3541,7 @@ function drawFx(t, dt) {
   const camDx = indoor() ? 0 : -angDiff(cam, fxCam) * R; fxCam = cam;   // 행성: 카메라가 돈 만큼 세상 물건(방울·컵)을 옮긴다
   if (camDx) {
     for (const b of BUBBLES) b.x += camDx;
+    for (const t of CATCH.treats) t.x += camDx;
     if (GAME) for (const cp of GAME.cups) { cp.x += camDx; if (cp.anim) { cp.anim.sx += camDx; cp.anim.tx += camDx; } }
   }
   const c = fc; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, fx.width, fx.height); c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -2996,6 +3562,7 @@ function drawFx(t, dt) {
   if (mode === 'tug') drawRope(c);
   if (BUBBLES.length) drawBubbles(c);
   drawCups(c);
+  if (CATCH.treats.length) drawCatch(c);
   if (K.blanket && K.pose === 'lie' && K.alpha > 0.5) drawBlanket(c);
   if (S.scene === 'walk') drawLeash(c);
   // 날아가는 간식
@@ -3028,6 +3595,7 @@ function drawFx(t, dt) {
     c.restore();
   }
   c.globalAlpha = 1;
+  if (HIDE) drawHide(c, t);   // 숨바꼭질 가림막은 맨 위에 (숨는 모습이 보이지 않게)
 }
 
 // ═══════════════ 편지 ═══════════════
@@ -3258,7 +3826,7 @@ function kongBox(pad) {
 stage.addEventListener('pointerdown', e => {
   if (pointer.down) return;
   unlockAudio();
-  Object.assign(pointer, { tug: false, bub: false, cup: false, down: true, id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), moved: 0, lastX: e.clientX, lastY: e.clientY, lastT: performance.now(), vx: 0, petAcc: 0, strokeLen: 0 });
+  Object.assign(pointer, { tug: false, bub: false, cup: false, cat: false, hide: false, vy: 0, down: true, id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, t0: performance.now(), moved: 0, lastX: e.clientX, lastY: e.clientY, lastT: performance.now(), vx: 0, petAcc: 0, strokeLen: 0 });
   try { stage.setPointerCapture(e.pointerId); } catch (er) {}
   K.lastTouch = performance.now() / 1000;
   if (mode === 'brush') {
@@ -3267,13 +3835,20 @@ stage.addEventListener('pointerdown', e => {
     if (pointer.onKong) startPetting(true);
   } else if (GAME && GAME.phase === 'pick') {   // 컵 게임: 컵 고르기
     pointer.onKong = false; pointer.cup = true; pickCup(e.clientX, e.clientY);
+  } else if (SIMON.on) {   // 따라 하기 중: 화면을 눌러도 게임이 끊기지 않게 (콩이를 누르면 살짝 반응만)
+    pointer.onKong = false; pointer.cup = true;
+    if (kongHit(e.clientX, e.clientY)) { K.sqV += 4; WANT.blush = true; }
+  } else if (HIDE && (HIDE.phase === 'count' || HIDE.phase === 'hidden' || HIDE.phase === 'pick')) {   // 숨바꼭질: 콩이(투명) 대신 숨은 곳을 고른다
+    pointer.onKong = false; pointer.hide = true;
+  } else if (mode === 'catch' && !kongHit(e.clientX, e.clientY)) {   // 간식 받아먹기: 손을 떼면 던진다
+    pointer.onKong = false; pointer.cat = true;
   } else if (mode === 'bubble' && !kongHit(e.clientX, e.clientY)) {
     pointer.onKong = false; pointer.bub = true; pointer.bubAcc = 0; blowBubbles(e.clientX, e.clientY, 2);
   } else if (mode === 'tug' && nearRope(e.clientX, e.clientY)) {
     pointer.onKong = false; pointer.tug = true; tugStart(e.clientX, e.clientY);
   } else {
     pointer.tug = pointer.bub = pointer.cup = false; pointer.onKong = kongHit(e.clientX, e.clientY);
-    if (pointer.onKong) startPetting(false);
+    if (pointer.onKong) startPetting(false, e.clientX, e.clientY);
   }
 });
 // 하단 버튼·시트·시작 카드를 눌러도 '만진 것'으로 친다 (가만히 모드 30fps 로 시킨 동작이 끊기지 않게)
@@ -3285,11 +3860,11 @@ stage.addEventListener('pointermove', e => {
   const d = Math.hypot(dx, dy);
   pointer.moved += d; pointer.x = e.clientX; pointer.y = e.clientY;
   const dtm = Math.max(1, now - pointer.lastT);
-  pointer.vx = lerp(pointer.vx, dx / dtm * 1000, 0.5);
+  pointer.vx = lerp(pointer.vx, dx / dtm * 1000, 0.5); pointer.vy = lerp(pointer.vy || 0, dy / dtm * 1000, 0.5);
   pointer.lastX = e.clientX; pointer.lastY = e.clientY; pointer.lastT = now;
   if (pointer.tug) { TUG.end = { x: e.clientX, y: Math.min(e.clientY, GY + SZ * 0.3) }; return; }
   if (pointer.bub) { pointer.bubAcc += d; if (pointer.bubAcc > 34) { pointer.bubAcc = 0; blowBubbles(e.clientX, e.clientY, 1); } return; }
-  if (pointer.cup) return;
+  if (pointer.cup || pointer.cat || pointer.hide) return;
   if (pointer.onKong) petMove(e.clientX, e.clientY, d);
 });
 const endPointer = e => {
@@ -3299,6 +3874,8 @@ const endPointer = e => {
   const tap = pointer.moved < 12 && dur < 450;
   if (pointer.tug) { pointer.tug = false; tugRelease(); return; }
   if (pointer.bub || pointer.cup) { pointer.bub = pointer.cup = false; return; }
+  if (pointer.cat) { pointer.cat = false; if (mode === 'catch') tossTreat(x, y, pointer.vx, pointer.vy); return; }
+  if (pointer.hide) { pointer.hide = false; if (tap) hideTap(x, y); return; }
   if (pointer.onKong) { endPetting(tap); return; }
   if (mode === 'ball' && ball.out && (ball.st === 'ground' || ball.st === 'roll')) {
     const kx = kongToScreen(200, 300).x;
@@ -3308,14 +3885,16 @@ const endPointer = e => {
   if (tap) tapAt(x, y);
 };
 stage.addEventListener('pointerup', e => { unlockAudio(); endPointer(e); });   // 터치는 손을 뗄 때 소리를 켤 수 있다(iOS)
-stage.addEventListener('pointercancel', e => { if (pointer.down && e.pointerId === pointer.id) { pointer.down = false; if (pointer.tug) { pointer.tug = false; tugRelease(); } pointer.bub = pointer.cup = false; if (pointer.onKong) endPetting(false); } });
+stage.addEventListener('pointercancel', e => { if (pointer.down && e.pointerId === pointer.id) { pointer.down = false; if (pointer.tug) { pointer.tug = false; tugRelease(); } pointer.bub = pointer.cup = pointer.cat = pointer.hide = false; if (pointer.onKong) endPetting(false); } });
 stage.addEventListener('pointerleave', () => { if (mode === 'brush') $('brushCursor').hidden = true; });
 
 let petting = null;
-function startPetting(brush) {
+function startPetting(brush, x, y) {
   const belly = !brush && K.pose === 'belly';   // 배 보이고 누운 채로: 배 긁어 주기
-  petting = { brush, last: 0, night: !brush && K.blanket && K.pose === 'lie', belly, rub: 0 };   // 밤잠 중: 깨지 않고 실눈만
-  GAME = null; releaseHeld(); if (belly) { K.turnA = null; K.alphaT = 1; } else unTrick();
+  const night = !brush && K.blanket && K.pose === 'lie';
+  petting = { brush, last: 0, night, belly, rub: 0, zone: !brush && !belly && !night && x != null ? petZone(x, y) : 'body', zrub: 0, said: false,
+    side: x != null ? Math.sign(screenToKong(x, y)[0] - rig.headCenter()[0]) || 1 : 1 };   // 귀: 처음 누른 쪽 (선 채로 만지면 앉으면서 머리 자리가 바뀐다)   // 밤잠 중: 깨지 않고 실눈만 · 그 밖엔 누른 부위(코·턱·귀·엉덩이)
+  GAME = null; HIDE = null; releaseHeld(); if (belly) { K.turnA = null; K.alphaT = 1; } else unTrick();
   SEQ++; K.busy = true; K.move = null;
   if (K.pose === 'stand') setPose('sit');
   K.sleeping = false;
@@ -3339,6 +3918,7 @@ function petMove(x, y, d) {
     if (!melt && !reduceMotion) { K.sqV += rand(-5, 5) * Math.min(1, d / 8); K.rollT = Math.sin(performance.now() / 70) * 4; } else K.rollT = 0;
     if (melt && !petting.melted) { petting.melted = true; const hc = kongToScreen(...rig.headCenter()); emit('text', hc.x, hc.y - SZ * 0.2, { text: '행복해~', vy: -24, max: 1.8, size: 15, col: '#FFFFFF' }); WANT.breath = 1.6; WANT.breathRate = 0.22; }
     if (pointer.petAcc > 70) { pointer.petAcc = 0; emit('heart', x + rand(-10, 10), y - 10, { vx: rand(-25, 25), vy: rand(-80, -50), max: 1.2, size: rand(8, 12), col: pick(['#FF8FA8', '#FFB3C1']) }); sfx('pet'); }
+  } else if (petting.zone !== 'body' && petZoneMove(x, y, d)) {   // 부위별 반응 (코·턱·귀·엉덩이)
   } else if (petting.night) {
     WANT.eyes = 'happy'; WANT.tailAmp = 5; WANT.tailRate = 1.4; WANT.blush = true; WANT.mouth = 'closed';
     if (pointer.petAcc > 110) { pointer.petAcc = 0; emit('heart', x + rand(-10, 10), y - 10, { vx: rand(-15, 15), vy: rand(-50, -30), max: 1.2, size: rand(6, 9), col: '#FFB3C1' }); }
@@ -3370,6 +3950,12 @@ function endPetting(tap) {
   }
   if (p.night) {   // 실눈 떴다가 다시 새근새근
     act(async s => { WANT.eyes = 'happy'; WANT.tailAmp = 5; if (tap) emitHearts(1, { x: pointer.x, y: pointer.y - 10 }); await sleep(1500, s); await nightSleep(s, true); });
+    return;
+  }
+  if (p.zone === 'nose' && (tap || !p.sneezed)) { act(sneeze); return; }   // 코를 톡 → 에취
+  if (p.zone === 'butt' && tap) { act(buttWag); return; }                   // 엉덩이 톡톡 → 꼬리 붕붕
+  if ((p.zone === 'chin' || p.zone === 'ear') && !tap) {                     // 턱·귀 긁기를 마치면 잠깐 여운
+    act(async s => { WANT.eyes = 'happy'; WANT.tilt = 0; WANT.nod = 0; WANT.tailAmp = 18; WANT.tailRate = 4; await sleep(900, s); await proud(s); calm(); });
     return;
   }
   if (tap) {
@@ -3443,7 +4029,7 @@ function setMode(m) {
   if (mode === m) m = null;
   mode = m;
   document.querySelectorAll('.dock button').forEach(b => {
-    const on = b.dataset.act === mode || (b.dataset.act === 'ball' && (mode === 'tug' || mode === 'bubble'));   // 공놀이 단추는 터그·비눗방울 때도 켜짐
+    const on = b.dataset.act === mode || (b.dataset.act === 'ball' && (mode === 'tug' || mode === 'bubble')) || (b.dataset.act === 'treat' && mode === 'catch');   // 장난감 단추는 터그·비눗방울 때도, 간식 단추는 받아먹기 놀이 때 켜짐
     b.classList.toggle('on', on);
     if (b.dataset.act === 'ball' || b.dataset.act === 'brush') b.setAttribute('aria-pressed', String(on));
   });
@@ -3455,6 +4041,12 @@ function setMode(m) {
     act(async s => { calm(); await standUp(s); WANT.earLift = 8; WANT.look = [0.6, 0.6]; WANT.tailAmp = 22; WANT.tailRate = 4.5; hop(300); await sleep(1200, s); WANT.look = [0, 0]; });
   } else if (ball.out && ball.st !== 'held') { ball.out = false; ball.st = 'none'; }
   if (mode !== 'bubble' && BUBBLES.length) for (const b of [...BUBBLES]) popBubble(b, false, true);   // 비눗방울 놀이를 끄면 남은 방울은 조용히
+  if (mode !== 'catch') CATCH.treats.length = 0;
+  if (mode === 'catch') {
+    CATCH.streak = 0; CATCH.lastAt = performance.now();
+    hintOnce('catch', '화면을 누르면 간식이 위로 날아가요. 휙 밀어 올리면 더 높이! ' + J(S.name, '이/가') + ' 폴짝 받아먹어요');
+    act(async s => { calm(); await standUp(s); if (K.seatT) await jumpTo(K.th + 60 * U / R, 0, s); if (K.pose === 'stand') setPose('sit'); WANT.look = [0, -0.7]; WANT.earLift = 10; WANT.tailAmp = 22; WANT.tailRate = 4.5; hop(260); await sleep(1000, s); WANT.look = [0, 0]; });
+  }
   if (mode === 'bubble') {
     hintOnce('bubble', '화면을 누르거나 쓱 문지르면 비눗방울이 나와요. ' + J(S.name, '이/가') + ' 뛰어올라 터뜨려요');
     act(async s => { calm(); await standUp(s); if (K.pose === 'stand') setPose('sit'); WANT.look = [0, -0.9]; WANT.earLift = 10; WANT.tailAmp = 22; WANT.tailRate = 4.5; hop(260); await sleep(1000, s); WANT.look = [0, 0]; });
@@ -3490,7 +4082,7 @@ document.querySelector('.dock').addEventListener('click', e => {
   else if (a === 'ball') { if (mode === 'ball' || mode === 'tug' || mode === 'bubble') setMode(null); else { if (mode === 'brush') setMode(null); renderToys(); openSheet('sheetToy'); } }   // 켜져 있으면 끄고, 아니면 장난감 고르기
   else if (a === 'brush') setMode(a);
   else if (a === 'bell') { if (mode === 'brush') setMode(null); ringBell(); }
-  else if (a === 'treat') { if (mode === 'brush') setMode(null); renderTreats(); openSheet('sheetTreat'); }
+  else if (a === 'treat') { if (mode === 'catch') { setMode(null); return; } if (mode === 'brush') setMode(null); renderTreats(); openSheet('sheetTreat'); }   // 받아먹기 놀이 중이면 끈다
   else if (a === 'trick') { renderTricks(); openSheet('sheetTrick'); }
   else if (a === 'closet') { renderCloset(); openSheet('sheetCloset'); }
   else if (a === 'scene') { renderScenes(); openSheet('sheetScene'); }
@@ -3506,9 +4098,16 @@ function renderTreats() {
   $('treatCustom').value = S.favTreat || '';
   $('tLead').textContent = '뭘 줄까요? 고르면 살짝 던져 줘요. ' + J(S.name, '이/가') + ' 받아먹어요.';
   $('cupKong').textContent = '🥤 ' + J(S.name, '이/가') + ' 간식 찾기';
+  $('catchGo').textContent = mode === 'catch' ? '🦴 받아먹기 놀이 그만' : '🦴 간식 받아먹기 놀이';
 }
 $('cupKong').addEventListener('click', () => startCupGame('kong'));
 $('cupMe').addEventListener('click', () => startCupGame('me'));
+$('catchGo').addEventListener('click', () => { closeSheets(); setMode(mode === 'catch' ? null : 'catch'); });
+$('hideKong').addEventListener('click', () => startHide('kong'));
+$('hideMe').addEventListener('click', () => startHide('me'));
+$('tiltGo').addEventListener('click', () => { closeSheets(); toggleTilt(); });
+$('simonGo').addEventListener('click', startSimon);
+$('restGo').addEventListener('click', restStop);
 $('treatCustomGo').addEventListener('click', () => {
   const v = $('treatCustom').value.trim(); if (!v) { $('treatCustom').focus(); return; }
   S.favTreat = v; saveSettings(); giveTreat('🍪', v);
@@ -3950,6 +4549,17 @@ function sfx(name) {
     case 'pop': tone(rand(900, 1300), 0.05, 'sine', 0.05, 0, false); noise(0.04, 0.05, 3000, 5000); break;   // 방울 퐁
     case 'squeak': tone(1250, 0.09, 'square', 0.025, 0, false); tone(1650, 0.11, 'square', 0.02, 0.08, false); break;   // 인형 삑삑
     case 'growl': tone(95, 0.35, 'sawtooth', 0.03, 0, false); noise(0.3, 0.04, 260, 180); break;   // 장난 으르릉
+    case 'sneeze': noise(0.05, 0.05, 1800, 2400); noise(0.24, 0.16, 3200, 900, 0.06); tone(560, 0.09, 'square', 0.02, 0.06, false); break;   // 에취
+    case 'thump': tone(72, 0.1, 'sine', 0.16, 0, false); break;   // 뒷발 탕
+    case 'yawn': {   // 하~암: 올라갔다 길게 내려가는 소리
+      const ctx = AU.ctx, o = ctx.createOscillator(), g = ctx.createGain(), t0 = ctx.currentTime;
+      o.type = 'triangle'; o.frequency.setValueAtTime(330, t0); o.frequency.exponentialRampToValueAtTime(520, t0 + 0.35); o.frequency.exponentialRampToValueAtTime(190, t0 + 1.1);
+      g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.035, t0 + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2);
+      o.connect(g); g.connect(AU.out); o.start(t0); o.stop(t0 + 1.25); noise(1, 0.015, 700, 400); break;
+    }
+    case 'shake': for (let i = 0; i < 6; i++) noise(0.08, 0.05, 1500, 900, i * 0.13); break;   // 부르르
+    case 'lick': noise(0.06, 0.05, 2600, 1800); break;   // 할짝
+    case 'sniff': noise(0.07, 0.04, 2000, 2600); noise(0.07, 0.04, 2000, 2600, 0.14); break;   // 킁킁
     case 'winmotor': tone(92, 1.5, 'sawtooth', 0.012, 0, false); noise(1.5, 0.03, 520, 430); break;   // 차 창문 모터 윙
     case 'dingdong':   // 초인종: 높은 '띵'(미) → 낮은 '동'(도), 종소리처럼 배음을 얹고 길게 울린다
       for (const [f, d] of [[659.25, 0], [523.25, 0.62]]) { tone(f, 1.6, 'sine', 0.2, d, false); tone(f * 2, 0.9, 'sine', 0.05, d, false); tone(f * 3, 0.5, 'triangle', 0.025, d, false); }
@@ -4021,7 +4631,7 @@ function frame(nowMs) {
   if (window.innerWidth !== W || window.innerHeight !== H) { if (window.innerWidth > 1 && window.innerHeight > 1) layout(); else return; }
   // 가만히: 시트·사진 보기에 가린 장면(그 안을 만져도), 또는 25초 손대지 않았고 움직이는 것(별똥별 포함)이 없을 때
   const covered = openStack.length > 0 || !$('viewer').hidden;
-  const idle = !paperFlight && !flying.length && !BUBBLES.length && !GAME && (covered || (performance.now() / 1000 - K.lastTouch > 25 && !K.move && !METEORS.length && ball.st !== 'air' && ball.st !== 'roll' && ball.st !== 'lift'));
+  const idle = !paperFlight && !flying.length && !BUBBLES.length && !GAME && !HIDE && !CATCH.treats.length && !SIMON.on && !(mode === 'ball' && ball.out && tiltLive()) && !K.shakeUntil && (covered || (performance.now() / 1000 - K.lastTouch > 25 && !K.move && !METEORS.length && ball.st !== 'air' && ball.st !== 'roll' && ball.st !== 'lift'));
   // 주사율과 상관없이 가만히 있을 때는 약 30fps, 움직일 때는 최대 60~90fps (120Hz 폰에서 배터리 아끼기)
   if (nowMs - lastDraw < (idle ? 30 : 10)) return;
   lastDraw = nowMs;
@@ -4031,6 +4641,8 @@ function frame(nowMs) {
   updateKong(dt, t);
   updateBall(dt);
   if (BUBBLES.length) updateBubbles(dt);
+  if (CATCH.treats.length) updateCatch(dt);
+  if (mode === 'catch' && !pointer.down && !CATCH.treats.length && performance.now() - CATCH.lastAt > 40000) setMode(null);   // 40초 동안 안 던지면 놀이를 끈다
   updateMeteors(dt);
   updateLanterns(dt);
   if (mode === 'brush' && !pointer.down && performance.now() - brushIdleAt > 25000) setMode(null);
@@ -4077,6 +4689,7 @@ function updateKong(dt, t) {
   K.roll += (K.rollT - K.roll) * (1 - Math.exp(-dt * 12));
   K.alpha += (K.alphaT - K.alpha) * (1 - Math.exp(-dt * 8));
   K.seat += (K.seatT - K.seat) * (1 - Math.exp(-dt * 14));
+  K.stretchC = (K.stretchC || 0) + ((K.stretch || 0) - (K.stretchC || 0)) * (1 - Math.exp(-dt * 6));   // 기지개: 몸을 낮고 길게
   if (K.turnA != null) { const k = (performance.now() - K.turnAt) / 1100; K.turnA = k >= 1 ? null : k * TAU; }   // 시간으로 — 느린 기기에서도 1.1초에 꼭 한 바퀴
   // 부드럽게 따라가기
   const k1 = 1 - Math.exp(-dt * 10), k2 = 1 - Math.exp(-dt * 5), k3 = 1 - Math.exp(-dt * 3);
@@ -4095,6 +4708,7 @@ function updateKong(dt, t) {
   if (WANT.eyes === 'open' && nowS > K.blinkAt) { K.blinkUntil = nowS + 0.13; K.blinkAt = nowS + (Math.random() < 0.2 ? 0.3 : rand(2.6, 6)); }
   // 카메라는 콩이를 천천히 따라간다. 걸을 때는 가는 쪽을 조금 더 비추고, 공을 쫓아 달려도 화면 밖으로 나가지 않게 붙잡는다
   if (indoor()) { cam = 0; return; }   // 방은 화면이 움직이지 않는다
+  if (HIDE && HIDE.who === 'kong' && (HIDE.phase === 'count' || HIDE.phase === 'hidden')) return;   // 숨바꼭질: 화면이 콩이를 따라가면 숨은 곳이 들킨다
   const lead = K.move ? K.facing * Math.asin(clamp(SZ * 0.3 / R, 0, 0.5)) : 0;
   cam += angDiff(K.th + lead, cam) * (1 - Math.exp(-dt * (K.move ? 3.6 : 2.4)));
   const camLim = Math.asin(clamp((W / 2 - SZ * 0.6) / R, 0.05, 0.95)), camOff = angDiff(K.th, cam);
@@ -4106,9 +4720,10 @@ function placeKong(t) {
   kongWrap.style.transform = `translate(${(p.x - SZ / 2).toFixed(1)}px, ${(p.y - SZ * 0.95).toFixed(1)}px) rotate(${p.a.toFixed(4)}rad) scale(${CUR.zoom.toFixed(3)})`;
   kongWrap.style.opacity = K.alpha > 0.995 ? '' : K.alpha.toFixed(3);
   const blinking = WANT.eyes === 'open' && performance.now() / 1000 < K.blinkUntil;
+  const shk = K.shakeUntil && !reduceMotion ? Math.sin(t * 46) * 7 * clamp((K.shakeUntil - performance.now()) / 900, 0, 1) : 0;   // 부르르: 몸 전체를 빠르게 좌우로
   rig.render({
-    t, facing: K.pose === 'stand' && !NOFLIP ? K.facing : 1, hop: K.hopY, squash: clamp(K.sq, -1, 1),
-    turnX: K.turnA != null && K.pose === 'stand' ? Math.cos(K.turnA) * K.facing : null, roll: K.roll, rollPivot: ROLL_PV, sleep: K.sleeping, frame: K.pose === 'stand' ? K.frame : null,
+    t, facing: K.pose === 'stand' && !NOFLIP ? K.facing : 1, hop: K.hopY, squash: clamp(K.sq + (K.stretchC || 0) * 0.75, -1, 1),
+    turnX: K.turnA != null && K.pose === 'stand' ? Math.cos(K.turnA) * K.facing : null, roll: K.roll + shk, rollPivot: ROLL_PV, sleep: K.sleeping, frame: K.pose === 'stand' ? K.frame : null,
     breath: CUR.breath, breathRate: CUR.breathRate, tilt: CUR.tilt, nod: CUR.nod,
     earLift: CUR.earLift + carFlap(t), tailAmp: CUR.tailAmp, tailRate: CUR.tailRate,
     walk: CUR.walk, phase: K.phase, look: [CUR.lx, CUR.ly],
