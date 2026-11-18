@@ -46,6 +46,7 @@
 .kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
 .kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
 a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
 /* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
 body .kg-top { z-index: 26; }
 /* 좁은 놀이판(가로 휴대폰): 점수판을 조금 더 촘촘하게 */
@@ -53,6 +54,35 @@ body .kg-top { z-index: 26; }
 #hud.tight > div { padding: 0 8px; font-size: 13px; }
 #hud.tight .hp { padding: 0 7px; gap: 2px; }
 #hud.tight .hp svg { width: 15px; height: 15px; }
+/* 아주 좁은 화면: 'Very Hard' 가 칸을 넘지 않게 */
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } }
+/* 낮은 세로 화면(320×568 쯤): 기록 칸까지 뜨면 카드가 위 줄 단추에 닿으므로 조금 촘촘하게 */
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+/* 낮은 세로 화면: 규칙 안내가 한 화면에 들어오게 조금 촘촘하게 (가로 화면은 공통이 두 줄로 나눈다) */
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .how p + p { margin-top: 2px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
 </style>
 </head>
 <body>
@@ -74,11 +104,9 @@ body .kg-top { z-index: 26; }
     <p id="stLead"></p>
     <div class="how">
       <p><b>좌우로 끌면</b> <span id="stMove"></span></p>
-      <p><b>왈!</b> 짖는 건 알아서 해요. 무서운 것들을 쫓아내 주세요.</p>
-      <p><b>떨어지는 간식</b>을 받으면 잠깐 힘이 세져요.</p>
     </div>
     <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
-    <div class="row"><button class="kg-btn pri" id="btnStart">시작</button></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
   </div>
 </div>
 
@@ -96,7 +124,7 @@ body .kg-top { z-index: 26; }
     <p id="edText"></p>
     <div class="big"><span id="edScore">0</span><small>점</small></div>
     <div id="edNew" class="new" hidden>새 기록이에요!</div>
-    <div class="rec"><span>도착한 단계<b id="edWave"></b></span><span>최고 기록<b id="edBest"></b></span></div>
+    <div class="rec"><span>도착한 단계<b id="edWave"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
     <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
   </div>
 </div>
@@ -140,6 +168,19 @@ body .kg-top { z-index: 26; }
   const enemies = [], bullets = [], shots = [], pows = [], parts = [], floats = [];
   const keys = { l: false, r: false };
   let god = false;   // 시험용: 하트가 줄지 않는다
+
+  // ═══════ 난이도 표 (normal 이 기준 — 곱하는 값은 모두 1) ═══════
+  //   hearts 시작 하트 · shield 이불 방패를 덮고 시작 · spd 내려오는 빠르기 · cnt 한 단계 마릿수 · gap 나오는 간격
+  //   hp 체력 더하기(1 밑으로는 안 내려감) · tough 이 단계부터 체력 +1 · shot 적 탄 빠르기 · cd 적 탄 쏘는 간격 · puff 드라이어가 바람을 쏘기 시작하는 단계
+  //   bossHp 대장 체력 · bossCd 대장이 쏘는 간격 · fan 대장 부채꼴 탄 수(첫 대장, 다음 대장) — 탄 사이 각도는 그대로라 틈은 늘 남는다
+  //   drop 간식 확률 · pity 이만큼 쫓아내면 꼭 하나 · heart 하트가 나올 확률 · inv 맞은 뒤 무적 시간
+  const DIFF = {
+    easy:   { hearts: 3, shield: true,  spd: 0.80, cnt: 0.70, gap: 1.30, hp: -1, tough: 9, shot: 0.85, cd: 1.50, puff: 8, bossHp: 0.60, bossCd: 1.35, fan: [3, 3], drop: 0.20, pity: 6,  heart: 1.5, inv: 1.5 },
+    normal: { hearts: 3, shield: false, spd: 1.00, cnt: 1.00, gap: 1.00, hp: 0,  tough: 9, shot: 1.00, cd: 1.00, puff: 6, bossHp: 1.00, bossCd: 1.00, fan: [3, 5], drop: 0.12, pity: 10, heart: 1.0, inv: 1.0 },
+    hard:   { hearts: 3, shield: false, spd: 1.12, cnt: 1.20, gap: 0.85, hp: 0,  tough: 5, shot: 1.08, cd: 0.80, puff: 4, bossHp: 1.30, bossCd: 0.88, fan: [3, 5], drop: 0.09, pity: 13, heart: 0.8, inv: 0.9 },
+    vhard:  { hearts: 2, shield: false, spd: 1.22, cnt: 1.35, gap: 0.75, hp: 0,  tough: 3, shot: 1.15, cd: 0.68, puff: 3, bossHp: 1.60, bossCd: 0.78, fan: [5, 5], drop: 0.07, pity: 16, heart: 0.7, inv: 0.8 }
+  };
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
 
   // 대장이 머무는 높이: 체력 막대가 점수판 밑으로 들어가지 않게
   const bossHover = () => TOPY / S + Math.max(118, 38 / S + 76);
@@ -378,11 +419,11 @@ body .kg-top { z-index: 26; }
   function barkVoice() { if (tAnim - lastBark > 7) { lastBark = tAnim; voice('bark', 0, 1.1); } }
 
   // ═══════ 단계 ═══════
-  const speedMul = () => Math.min(1.85, 1 + 0.065 * (wave - 1)) * clamp(VH / 700, 0.82, 1.12);
+  const speedMul = () => Math.min(1.85, 1 + 0.065 * (wave - 1)) * clamp(VH / 700, 0.82, 1.12) * D.spd;
   function buildQueue(n) {
     if (n % 4 === 0) return ['boss'];
     const pool = n === 1 ? ['vac'] : n === 2 ? ['vac', 'vac', 'dryer'] : n === 3 ? ['vac', 'dryer', 'cloud', 'vac'] : n < 7 ? ['vac', 'dryer', 'cloud', 'shower', 'vac', 'row'] : ['vac', 'dryer', 'cloud', 'shower', 'dryer', 'row'];
-    const cnt = Math.min(7 + n * 2, 30), q = [];
+    const cnt = Math.round(Math.min(7 + n * 2, 30) * D.cnt), q = [];
     for (let i = 0; i < cnt; i++) q.push(pick(pool));
     if (n === 2) q[1] = 'dryer'; if (n === 3) q[1] = 'cloud'; if (n === 5) q[1] = 'shower';
     return q;
@@ -394,13 +435,14 @@ body .kg-top { z-index: 26; }
   }
   function spawnX() { let x = 180; for (let i = 0; i < 6; i++) { x = rand(40, FW - 40); if (Math.abs(x - lastSpawnX) > 60) break; } lastSpawnX = x; return x; }
   function spawn(type, x, y) {
-    const sp = speedMul(), tough = wave >= 9 ? 1 : 0;
+    const sp = speedMul(), tough = wave >= D.tough ? 1 : 0;
     const e = { type, x, bx: x, y: y == null ? -46 : y, t: 0, ph: rand(0, TAU), flash: 0, kb: 0, cd: 0, alpha: 1, sc: 1, gone: false };
     if (type === 'vac') Object.assign(e, { hp: 2 + tough, rx: 27, ry: 21, vy: 60 * sp, pts: 20 });
     else if (type === 'dryer') Object.assign(e, { hp: 2 + tough, rx: 21, ry: 25, vy: 44 * sp, pts: 30, amp: rand(46, 78), cd: rand(1.6, 2.6) });
     else if (type === 'cloud') Object.assign(e, { hp: 3 + tough, rx: 33, ry: 19, vy: 27 * sp, pts: 40, cd: rand(1.1, 1.8) });
     else if (type === 'shower') Object.assign(e, { hp: 4 + tough, rx: 26, ry: 17, vy: 70, pts: 50, hy: TOPY / S + rand(74, 150), hover: 8.5, cd: 1.2, bx: clamp(x, 110, FW - 110) });
-    else if (type === 'boss') { bossLv++; Object.assign(e, { x: 180, bx: 180, y: -100, hp: 30 + 16 * (bossLv - 1), rx: 62, ry: 48, vy: 80, pts: 500, hy: bossHover(), cd: 2.2, pat: 0, sc: 1 }); }
+    else if (type === 'boss') { bossLv++; Object.assign(e, { x: 180, bx: 180, y: -100, hp: Math.round((30 + 16 * (bossLv - 1)) * D.bossHp), rx: 62, ry: 48, vy: 80, pts: 500, hy: bossHover(), cd: 2.2, pat: 0, sc: 1 }); }
+    if (type !== 'boss') e.hp = Math.max(1, e.hp + D.hp);
     e.max = e.hp; enemies.push(e); return e;
   }
   function spawnNext() {
@@ -415,12 +457,12 @@ body .kg-top { z-index: 26; }
 
   function dropPow(x, y, force) {
     killsSinceDrop++;
-    if (!force && !(Math.random() < 0.12 || killsSinceDrop >= 10)) return;
+    if (!force && !(Math.random() < D.drop || killsSinceDrop >= D.pity)) return;
     killsSinceDrop = 0;
     let kind = force;
     if (!kind) {
       const c = ['rapid', 'triple']; if (!shield) c.push('shield');
-      kind = hearts < 3 && Math.random() < (hearts === 1 ? 0.45 : 0.25) ? 'heart' : pick(c);
+      kind = hearts < 3 && Math.random() < (hearts === 1 ? 0.45 : 0.25) * D.heart ? 'heart' : pick(c);
     }
     pows.push({ kind, x: clamp(x, 40, FW - 40), y, t: 0, rest: 0 });
   }
@@ -447,7 +489,7 @@ body .kg-top { z-index: 26; }
     const ky = groundY(kx);
     if (shield) { shield = false; shieldPop = 1; inv = 1.0; floatText(kx, ky - 108, '이불이 막아 줬어요', '#FFD3E2'); sfx('swap'); tone(520, 0.14, 'sine', 0.06, 0, 300); burst(kx, ky - 50, 12, 150, ['glowW']); paintBuffs(); return true; }
     if (god) { inv = 0.6; return true; }
-    hearts--; inv = 1.9; hurtT = 0.6; paintHearts(); floatText(kx, ky - 108, msg || '아이쿠!', '#FFFFFF');
+    hearts--; inv = 1.9 * D.inv; hurtT = 0.6; paintHearts(); floatText(kx, ky - 108, msg || '아이쿠!', '#FFFFFF');
     sfx('hit'); tone(420, 0.2, 'sine', 0.07, 0.03, 250); if (!reduceMotion) shake = 0.3;
     if (navigator.vibrate && !reduceMotion) { try { navigator.vibrate(40); } catch (e) {} }
     if (hearts <= 0) gameOver();
@@ -515,7 +557,7 @@ body .kg-top { z-index: 26; }
       if (dead) bullets.splice(i, 1);
     }
     // 내려오는 것들
-    if (queue.length) { spawnT -= dt; if (spawnT <= 0) { spawnNext(); spawnT = Math.max(0.5, 1.4 - 0.06 * wave) * rand(0.8, 1.2); } }
+    if (queue.length) { spawnT -= dt; if (spawnT <= 0) { spawnNext(); spawnT = Math.max(0.5, 1.4 - 0.06 * wave) * rand(0.8, 1.2) * D.gap; } }
     const sp = speedMul(), kcy = ky - 52;
     for (const e of enemies) {
       if (e.gone) continue;
@@ -523,13 +565,13 @@ body .kg-top { z-index: 26; }
       if (e.type === 'vac') { e.y += e.vy * dt; e.x = e.bx + Math.sin(e.t * 2 + e.ph) * 5; }
       else if (e.type === 'dryer') {
         e.y += e.vy * dt; e.x = clamp(e.bx + Math.sin(e.t * 2.1 + e.ph) * e.amp, 26, FW - 26);
-        if (wave >= 6) { e.cd -= dt; if (e.cd <= 0 && e.y > 30 && e.y < GY - 190) { enemyShot('puff', e.x, e.y + 26, 0, 150 * sp); e.cd = rand(2.6, 3.6); } }
+        if (wave >= D.puff) { e.cd -= dt; if (e.cd <= 0 && e.y > 30 && e.y < GY - 190) { enemyShot('puff', e.x, e.y + 26, 0, 150 * sp * D.shot); e.cd = rand(2.6, 3.6) * D.cd; } }
       } else if (e.type === 'cloud') {
         e.y += e.vy * dt; e.x = clamp(e.bx + Math.sin(e.t * 0.9 + e.ph) * 34, 36, FW - 36);
-        e.cd -= dt; if (e.cd <= 0) { if (e.y > 20 && e.y < GY - 150) { enemyShot('bolt', e.x + 1, e.y + 30, 0, 225 * Math.min(sp, 1.5)); tone(1500, 0.05, 'square', 0.012, 0, 500); } e.cd = Math.max(1.5, 2.7 - wave * 0.06) * rand(0.85, 1.15); }
+        e.cd -= dt; if (e.cd <= 0) { if (e.y > 20 && e.y < GY - 150) { enemyShot('bolt', e.x + 1, e.y + 30, 0, 225 * Math.min(sp, 1.5) * D.shot); tone(1500, 0.05, 'square', 0.012, 0, 500); } e.cd = Math.max(1.5, 2.7 - wave * 0.06) * rand(0.85, 1.15) * D.cd; }
       } else if (e.type === 'shower') {
         if (e.y < e.hy) e.y += e.vy * dt;
-        else if (e.hover > 0) { e.hover -= dt; e.x = clamp(e.bx + Math.sin(e.t * 1.2 + e.ph) * 84, 30, FW - 30); e.cd -= dt; if (e.cd <= 0) { for (const vx of [-52, 0, 52]) enemyShot('drop', e.x + vx * 0.22, e.y + 14, vx, 95, 150); e.cd = Math.max(1.7, 2.7 - wave * 0.05); } }
+        else if (e.hover > 0) { e.hover -= dt; e.x = clamp(e.bx + Math.sin(e.t * 1.2 + e.ph) * 84, 30, FW - 30); e.cd -= dt; if (e.cd <= 0) { for (const vx of [-52, 0, 52]) enemyShot('drop', e.x + vx * 0.22, e.y + 14, vx, 95 * D.shot, 150); e.cd = Math.max(1.7, 2.7 - wave * 0.05) * D.cd; } }
         else { e.y += 46 * sp * dt; e.hy = e.y + 1; }
       } else if (e.type === 'boss') {
         if (e.y < e.hy) e.y += e.vy * dt; else {
@@ -537,13 +579,13 @@ body .kg-top { z-index: 26; }
           e.x = 180 + Math.sin(e.t * 0.62 + e.ph * 0) * 96;
           e.cd -= dt;
           if (e.cd <= 0) {
-            e.pat = (e.pat + 1) % 3; const ox = e.x - 80, oy = e.y + 58, v = 150 * clamp(VH / 700, 0.85, 1.1);
+            e.pat = (e.pat + 1) % 3; const ox = e.x - 80, oy = e.y + 58, v = 150 * clamp(VH / 700, 0.85, 1.1) * D.shot;
             const minis = enemies.filter(o => o.type === 'vac' && !o.gone).length;
             if (e.pat === 2 && minis < 3) { spawn('vac', clamp(e.x + pick([-70, 70]), 40, FW - 40), e.y + 40); }
             else if (e.pat === 1) { const a = Math.atan2(kx - ox, kcy - oy); for (const d of [-0.16, 0.16]) enemyShot('dust', ox, oy, Math.sin(a + d) * v * 1.1, Math.cos(a + d) * v * 1.1); }
-            else { const n = bossLv > 1 ? 5 : 3; for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.3; enemyShot('dust', ox, oy, Math.sin(a) * v, Math.cos(a) * v); } }
+            else { const n = D.fan[bossLv > 1 ? 1 : 0]; for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.3; enemyShot('dust', ox, oy, Math.sin(a) * v, Math.cos(a) * v); } }
             noise(0.18, 0.05, 300, 900);
-            e.cd = Math.max(1.25, 2.3 - 0.22 * bossLv) * (e.hp < e.max * 0.4 ? 0.8 : 1);
+            e.cd = Math.max(1.25, 2.3 - 0.22 * bossLv) * (e.hp < e.max * 0.4 ? 0.8 : 1) * D.bossCd;
           }
         }
       }
@@ -553,7 +595,7 @@ body .kg-top { z-index: 26; }
       // 행성에 내려앉음
       if (e.y + e.ry * 0.7 > groundY(e.x) && e.type !== 'boss') {
         kill(e, true);
-        if (inv <= 0 && !god) { hearts--; inv = 1.2; hurtT = 0.45; paintHearts(); floatText(e.x, groundY(e.x) - 30, '앗, 내려왔어요', '#FFFFFF'); sfx('hit'); if (!reduceMotion) shake = 0.22; if (hearts <= 0) { gameOver(); return; } }
+        if (inv <= 0 && !god) { hearts--; inv = 1.2 * D.inv; hurtT = 0.45; paintHearts(); floatText(e.x, groundY(e.x) - 30, '앗, 내려왔어요', '#FFFFFF'); sfx('hit'); if (!reduceMotion) shake = 0.22; if (hearts <= 0) { gameOver(); return; } }
       }
     }
     for (let i = enemies.length - 1; i >= 0; i--) if (enemies[i].gone) enemies.splice(i, 1);
@@ -707,12 +749,13 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 흐름 ═══════
   function reset() {
-    score = 0; wave = 0; hearts = 3; shownScore = -1; kx = target = FW / 2; kv = 0; inv = 0; hurtT = 0; fireT = 0.5; shake = 0; overT = 0;
-    rapid = 0; triple = 0; shield = false; shieldPop = 0; bossLv = 0; killsSinceDrop = 0; kills = 0; lastSpawnX = 180;
+    score = 0; wave = 0; hearts = D.hearts; shownScore = -1; kx = target = FW / 2; kv = 0; inv = 0; hurtT = 0; fireT = 0.5; shake = 0; overT = 0;
+    rapid = 0; triple = 0; shield = D.shield; shieldPop = 0; bossLv = 0; killsSinceDrop = 0; kills = 0; lastSpawnX = 180;
     enemies.length = bullets.length = shots.length = pows.length = parts.length = floats.length = 0;
     paintHearts(); paintScore(); paintBuffs();
   }
   function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     reset(); state = 'play';
     $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
     KG.unlockAudio(); beginWave(1);
@@ -728,13 +771,13 @@ body .kg-top { z-index: 26; }
   function showResult() {
     if (state !== 'over') return;
     state = 'result';
-    const isNew = score > 0 && setBest('shoot', score);
-    $('edScore').textContent = fmt(score); $('edWave').textContent = wave + '단계'; $('edBest').textContent = fmt(best('shoot')) + '점';
+    const isNew = score > 0 && setBest(KG.dkey('shoot', diffId), score);
+    $('edScore').textContent = fmt(score); $('edWave').textContent = wave + '단계'; paintBest();
     $('edNew').hidden = !isNew;
     $('edText').textContent = kills > 0 ? '무서운 것들을 ' + fmt(kills) + '번 쫓아냈어요.' : J(name, '이랑/랑') + ' 잘 놀았어요.';
     $('cardEnd').hidden = false; if (isNew) sfx('win');
   }
-  $('btnStart').addEventListener('click', start);
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) start(); });
   $('btnAgain').addEventListener('click', start);
   $('btnResume').addEventListener('click', resume);
   btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
@@ -764,9 +807,10 @@ body .kg-top { z-index: 26; }
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keys.l = true; e.preventDefault(); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keys.r = true; e.preventDefault(); }
     else if (k === ' ' || k === 'Enter') {
-      if (e.repeat) return;
+      if (e.repeat) { e.preventDefault(); return; }   // 누르고 있는 동안의 반복은 단추도 누르지 않게 (규칙 안내를 길게 눌러 닫아도 초점이 옮겨 간 「시작」이 눌리지 않는다)
       if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
       e.preventDefault();
+      if (KG.rulesOpen) return;
       if (state === 'ready' || state === 'result') start(); else if (state === 'pause') resume(); else if (state === 'play' && k === ' ') pause();
     } else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
   });
@@ -774,18 +818,41 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 시작 ═══════
   layout(); paintHearts(); paintScore();
-  if (best('shoot') > 0) { $('stRec').hidden = false; $('stBest').textContent = fmt(best('shoot')) + '점'; }
+  // 난이도 고르기: 시작 카드·결과 카드에만 (고르면 그 난이도의 최고 기록을 보여 준다, 없으면 숨김)
+  function paintBest() {
+    const b = best(KG.dkey('shoot'));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점';
+    // 결과 카드는 방금 끝난 판(diffId)의 기록으로 고정 — 다음 판 난이도를 바꿔도 그 판 점수·'새 기록' 딱지와 어긋나지 않게. 다른 난이도를 골라 두었으면 어느 난이도 기록인지 밝힌다
+    const e = best(KG.dkey('shoot', diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+  }
+  $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  paintBest();
+  // 규칙 안내: 앱을 켠 뒤 처음 열 때 시작 카드보다 먼저 한 번 (공통이 sessionStorage 로 기억), 시작 카드의 「규칙 보기」 로 다시
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const RULES = { key: 'shoot', title: J(name, '의') + ' 슈팅', lead: J(name, '이/가') + ' 사는 별나라에 무서운 것들이 내려와요.', items: [
+    ['👆', '화면을 좌우로 끌면 ' + J(name, '이/가') + ' 따라와요' + (KEYS_OK ? '(← → 키도 돼요).' : '.') + ' 짖는 건 알아서 해요.'],
+    ['⭐', '무서운 것들을 쫓아내면 점수를 얻고, 떨어지는 간식을 받으면 힘이 세져요.'],
+    ['💗', '무서운 것에 맞거나 별에 내려앉게 두면 하트가 줄고, 하트가 다 없어지면 끝나요.'],
+    ['🎯', '시작하기 전에 난이도를 고를 수 있어요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(focusStart);
   requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
 
   // 시험·디버그용
   window.GAME = {
     get state() { return state; }, get score() { return score; }, get wave() { return wave; }, get hearts() { return hearts; }, get kx() { return kx; },
-    get buffs() { return { rapid, triple, shield }; }, get kills() { return kills; },
+    get buffs() { return { rapid, triple, shield }; }, get kills() { return kills; }, get diff() { return diffId; }, get D() { return D; },
     enemies, shots, pows, bullets,
     field: () => ({ FX, S, PW, VH, GY, W, H, wide, kongY: groundY(kx) }),
     start, pause, resume, end: () => { if (state === 'pause') resume(); if (state === 'play') { hearts = 0; paintHearts(); gameOver(); } },
     setWave: n => { enemies.length = shots.length = 0; beginWave(n); }, give: kind => take({ kind, x: kx, y: groundY(kx) - 40 }),
-    moveTo: x => { target = clamp(x, KMIN, KMAX); }, set god(v) { god = !!v; }, get god() { return god; }, spawn, hurt
+    moveTo: x => { target = clamp(x, KMIN, KMAX); }, set god(v) { god = !!v; }, get god() { return god; }, spawn, hurt,
+    step: dt => { tAnim += dt; if (state === 'play' || state === 'over') { update(dt); drawKong(); } }   // 시험용: 화면 없이 빨리 돌리기
   };
 })();
 </script>

@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 점프 점프</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 점프 점프: 구름·쿠션을 밟고 위로 — 배경 캔버스 · 콩이(SVG) · 효과 캔버스를 차례로 겹친다 */
+#stage { position: fixed; inset: 0; overflow: hidden; touch-action: none; background: #8CC4F4; }
+#bg, #fx { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#dog { position: absolute; top: 0; bottom: 0; overflow: hidden; pointer-events: none; }   /* 놀이 칸(가운데 기둥) — 좌우 끝에서 콩이가 잘려 반대쪽으로 이어진다 */
+#fx { pointer-events: none; }
+#dog.air #kong-shadow { opacity: 0; }   /* 공중에서는 발밑 그림자를 감춘다 */
+/* 점수판 */
+#hud { position: fixed; z-index: 10; left: calc(var(--sal) + 12px); right: calc(var(--sar) + 12px); top: calc(var(--sat) + 62px); display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; pointer-events: none; }
+.hp { height: 34px; border-radius: 17px; padding: 0 12px; display: inline-flex; align-items: center; gap: 5px; background: rgba(18,22,52,.46); border: 1px solid rgba(255,255,255,.14); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.2px; white-space: nowrap; }
+.hp .num { font-size: 16px; font-weight: 700; min-width: 1ch; text-align: right; }
+.hp .unit { font-size: 12px; font-weight: 500; opacity: .8; margin-left: -3px; }
+.hp .sep { width: 1px; height: 14px; background: rgba(255,255,255,.25); margin: 0 4px; }
+.hp svg { width: 18px; height: 18px; display: block; }
+#hDiff { height: 26px; border-radius: 13px; padding: 0 10px; font-size: 12px; letter-spacing: 0; opacity: .92; }
+#note { position: fixed; z-index: 10; left: 50%; top: calc(var(--sat) + 106px); transform: translate(-50%, -6px); padding: 8px 16px; border-radius: 18px; background: rgba(255,255,255,.92); color: #191F28; font-size: 14px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; max-width: 92vw; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+#note.show { opacity: 1; transform: translate(-50%, 0); }
+/* 좌우 이동 단추: 엄지가 닿는 좌하단 · 우하단, 누르고 있는 동안 움직인다 */
+.ctl { position: fixed; z-index: 12; bottom: calc(var(--sab) + 14px); width: 84px; height: 84px; border-radius: 50%; padding: 0; border: 1.5px solid rgba(255,255,255,.5); background: rgba(255,255,255,.3); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; display: flex; align-items: center; justify-content: center; touch-action: none; box-shadow: 0 6px 18px rgba(20,30,80,.2); transition: transform .08s, background .08s; }
+.ctl::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; }   /* 눌리는 자리는 보이는 것보다 넓게 */
+.ctl svg { width: 38px; height: 38px; display: block; filter: drop-shadow(0 1px 3px rgba(20,30,80,.35)); pointer-events: none; }
+.ctl.on { background: rgba(255,255,255,.62); color: #2C3577; transform: scale(.94); }
+#btnL { left: calc(var(--sal) + 14px); }
+#btnR { right: calc(var(--sar) + 14px); }
+@media (max-height: 430px) { .ctl { width: 78px; height: 78px; bottom: calc(var(--sab) + 18px); } #btnL { left: calc(var(--sal) + 22px); } #btnR { right: calc(var(--sar) + 22px); } }
+/* 카드 안 */
+.kg-card .tip { margin: 12px 0 0; padding: 12px 14px; background: var(--soft); border-radius: 14px; font-size: 14px; line-height: 1.55; color: #3A4552; text-align: left; }
+.kg-card .tip b { color: var(--pri); font-weight: 700; }
+.kg-card .key { margin-top: 8px; font-size: 12.5px; color: #8A94A0; }
+.kg-card .stats { display: flex; gap: 8px; margin-top: 12px; }
+.kg-card .stats div { flex: 1; min-width: 0; background: var(--soft); border-radius: 14px; padding: 10px 4px 9px; }
+.kg-card .stats b { display: block; font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
+.kg-card .stats small { display: block; margin-top: 1px; font-size: 12px; color: var(--sub); }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+.badge { display: inline-block; margin-bottom: 6px; padding: 5px 11px; border-radius: 12px; background: #FFF1D6; color: #B36B00; font-size: 13px; font-weight: 700; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+/* 세로 화면: 카드를 위로 올려 아래에 있는 콩이가 보이게 */
+@media (orientation: portrait) and (min-height: 620px) { body .kg-scrim:not(.kg-rules) { align-items: flex-start; padding-top: calc(var(--sat) + 74px); } }
+@media (max-height: 430px) {
+  body .kg-scrim:not(.kg-rules) .kg-card { padding: 14px 18px 12px; width: min(100%, 440px); }
+  .kg-card .tip { margin-top: 6px; padding: 8px 12px; font-size: 13px; line-height: 1.45; }
+  .kg-card .key { margin-top: 5px; }
+  body .kg-card .big { font-size: 30px; margin: 0; }
+  body .kg-scrim:not(.kg-rules) .kg-card .row { margin-top: 10px; }
+  body .kg-scrim:not(.kg-rules) .kg-card .row .kg-btn { height: 44px; }
+  .kg-card .stats { margin-top: 6px; }
+  .kg-card .stats div { padding: 6px 4px 5px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  .kg-card .kg-diff button { height: 34px; }
+  .badge { margin-bottom: 2px; padding: 3px 10px; }
+  body .kg-scrim:not(.kg-rules) .kg-card h2 { font-size: 18px; margin-bottom: 2px; }
+}
+@media (max-width: 340px) {
+  .kg-card .kg-diff button { font-size: 12px; letter-spacing: -.5px; }
+  .kg-card .stats { gap: 6px; }
+  .kg-card .stats div { padding-left: 1px; padding-right: 1px; }
+  .kg-card .stats small { font-size: 11px; letter-spacing: -.5px; white-space: nowrap; }
+  .ctl { width: 76px; height: 76px; }
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg"></canvas>
+  <div id="dog"></div>
+  <canvas id="fx"></canvas>
+</div>
+
+<div id="hud" hidden>
+  <div class="hp" id="hDiff"></div>
+  <div class="hp"><span class="num" id="hScore">0</span><span class="unit">점</span><span class="sep"></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-35 12 12)" fill="#FFF6E0"><rect x="6" y="9.6" width="12" height="4.8" rx="2"/><circle cx="6" cy="9.4" r="3"/><circle cx="6" cy="14.6" r="3"/><circle cx="18" cy="9.4" r="3"/><circle cx="18" cy="14.6" r="3"/></g></svg>
+    <span id="hBone">0</span></div>
+</div>
+<div id="note" role="status" aria-live="polite"></div>
+
+<button class="ctl" id="btnL" aria-label="왼쪽으로" hidden><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.6 4.6c.9-.6 2.100 0 2.100 1.100v12.600c0 1.100-1.200 1.700-2.100 1.100l-9.200-6.300a1.300 1.300 0 0 1 0-2.200z"/></svg></button>
+<button class="ctl" id="btnR" aria-label="오른쪽으로" hidden><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.4 4.6c-.9-.6-2.100 0-2.100 1.100v12.600c0 1.100 1.200 1.700 2.100 1.100l9.200-6.300a1.300 1.300 0 0 0 0-2.200z"/></svg></button>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="stTitle">
+    <h2 id="stTitle">콩이의 점프 점프</h2>
+    <p id="stSub"></p>
+    <div class="tip">구름을 밟으면 <b>저절로 폴짝!</b> 아래의 <b>◀ ▶ 단추</b>를 누르고 있으면 그쪽으로 움직여요.</div>
+    <div class="key" id="stKey"></div>
+    <div class="row"><button class="kg-btn" id="btnRules">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="paTitle">
+    <h2 id="paTitle">잠깐 쉬는 중이에요</h2>
+    <p id="paSub"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardOver" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="ovTitle">
+    <div class="badge" id="ovBadge" hidden>새 기록이에요!</div>
+    <h2 id="ovTitle">높이 올라갔어요!</h2>
+    <p id="ovSub"></p>
+    <div class="big"><span id="ovScore">0</span><small>점</small></div>
+    <div class="stats">
+      <div><b id="ovHigh">0m</b><small>올라간 높이</small></div>
+      <div><b id="ovBone">0개</b><small>뼈다귀</small></div>
+      <div><b id="ovBest">0점</b><small id="ovBestL">최고 기록</small></div>
+    </div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const KEY = 'jump';
+
+  // ── 놀이 단위: 놀이 칸 너비 = FW(9) 단위, 높이 1 단위 = 1m = 1점. 화면 px = 단위 × U
+  const FW = 9;
+  const G = 26, VJ = 12.5, VS = 19;       // 내려오는 힘 · 보통 발판에서 튀는 빠르기(높이 3.0) · 쿠션에서 튀는 빠르기(높이 6.9)
+  const VX = 7, AX = 120, FR = 80;        // 좌우 빠르기 · 단추를 눌렀을 때 붙는 힘 · 뗐을 때 멈추는 힘
+  const VFALL = 22, FOOT = 0.42;          // 떨어지는 빠르기 한도 · 발 반 너비(발판 끝에서 이만큼은 걸쳐도 밟힌다)
+  const GAP_MAX = 2.55;                   // 발판 사이 높이 한도 (점프 높이 3.0 보다 늘 낮게)
+  const BONE_PT = 5;
+  // 난이도: pw 발판 너비 · g0→g1 발판 사이 높이(ramp m 에 걸쳐 벌어짐) · h0 시작 높이(처음부터 이만큼 올라온 것처럼 어렵게)
+  //   reach 다음 발판을 얼마나 멀리 놓나(닿을 수 있는 거리의 몇 할까지) · mv0→mv1 움직이는 발판 비율 · va0→va1 사라지는 발판 비율
+  //   spring 쿠션 비율 · extra 덤 발판(쉬어 갈 곳) · mvSp 움직이는 빠르기 · amp 움직이는 폭 · bone 뼈다귀
+  const DIFF = {
+    easy:   { pw: 2.4,  g0: 1.0, g1: 1.7,  ramp: 500, h0: 0,   reach: 0.42, mv0: 0.05, mv1: 0.15, va0: 0,    va1: 0.08, spring: 0.12, extra: 0.6,  mvSp: 1.2, amp: 1.0, bone: 0.12 },
+    normal: { pw: 1.9,  g0: 1.3, g1: 2.05, ramp: 400, h0: 0,   reach: 0.58, mv0: 0.12, mv1: 0.28, va0: 0.06, va1: 0.18, spring: 0.09, extra: 0.3,  mvSp: 1.8, amp: 1.4, bone: 0.10 },
+    hard:   { pw: 1.55, g0: 1.6, g1: 2.3,  ramp: 300, h0: 60,  reach: 0.74, mv0: 0.22, mv1: 0.40, va0: 0.14, va1: 0.28, spring: 0.07, extra: 0.12, mvSp: 2.4, amp: 1.8, bone: 0.09 },
+    vhard:  { pw: 1.25, g0: 1.9, g1: 2.5,  ramp: 200, h0: 100, reach: 0.90, mv0: 0.30, mv1: 0.50, va0: 0.22, va1: 0.38, spring: 0.05, extra: 0,    mvSp: 3.0, amp: 2.2, bone: 0.08 }
+  };
+  let D = DIFF[KG.diff()] || DIFF.normal, runKey = KG.dkey(KEY);   // 판을 시작할 때 한 번 정해 그 판 동안 그대로
+
+  const mod = (a, n) => ((a % n) + n) % n;
+  const wd = d => mod(d + FW / 2, FW) - FW / 2;   // 좌우가 이어진 칸에서 가장 가까운 쪽 거리(부호 있음)
+  // 높이 y, 위로 vy 인 콩이가 내려오면서 높이 py 를 지나는 때까지 걸리는 시간 (못 올라가면 null)
+  function tFall(y, vy, py) { const disc = vy * vy - 2 * G * (py - y); return disc < 0 ? null : (vy + Math.sqrt(disc)) / G; }
+  // t 초 동안 옆으로 갈 수 있는 거리 — 가장 나쁜 경우(반대쪽으로 한껏 가던 중)로 센다
+  const reachWorst = t => Math.max(0, VX * t - 2 * VX * VX / AX);
+  const pxAt = (p, t) => p.type === 'm' ? p.x + p.A * Math.sin(p.ph + p.om * t) : p.x;
+
+  // ── 발판 만들기: 「사슬」 발판은 바로 앞 사슬 발판에서 꼭 닿을 수 있는 자리에만 놓는다
+  //   가장 나쁜 경우 옆 거리 = 가운데끼리 거리 + 두 발판이 움직이는 폭 + (앞 발판 반 너비 − 새 발판 반 너비)  ≤  닿는 거리 × reach
+  function needDist(top, x, w, A) { return Math.abs(wd(x - top.x)) + (top.type === 'm' ? top.A : 0) + A + Math.max(0, top.w / 2 - w / 2); }
+  function nextPlat(top, d) {
+    const p = clamp((top.y + d.h0) / d.ramp, 0, 1);
+    let dy = Math.min(GAP_MAX, lerp(d.g0, d.g1, p) * rand(0.82, 1));
+    const r = Math.random(), pm = lerp(d.mv0, d.mv1, p), pv = lerp(d.va0, d.va1, p);
+    let type = r < d.spring ? 's' : r < d.spring + pm ? 'm' : (r < d.spring + pm + pv && top.type !== 'v') ? 'v' : 'n';
+    // 사라지는 발판 V 는 밟으면 없어진다 → 그 앞 발판 A0 에서 V 다음 발판으로도 바로 닿아야 한다(다음 발판을 놓쳐 A0 로 떨어져도 길이 남게).
+    //   V 는 반 칸 높이까지만, V 다음 발판은 A0 에서 GAP_MAX 안에 · 옆 거리도 A0 기준으로 한 번 더 본다
+    const A0 = top.type === 'v' ? top.from : null;
+    if (type === 'v') dy = Math.min(dy, GAP_MAX / 2);
+    if (A0) dy = Math.min(dy, GAP_MAX - (top.y - A0.y));
+    const bud = h => reachWorst(tFall(0, VJ, h)) * d.reach;
+    const budget = bud(type === 'v' ? GAP_MAX : dy), budget0 = A0 ? bud(top.y + dy - A0.y) : 0, aTop = top.type === 'm' ? top.A : 0;
+    const okA0 = (x, w, A) => !A0 || A0.type === 'g' || needDist(A0, x, w, A) <= budget0;
+    const done = q => { if (q.type === 'v') q.from = Object.assign({}, top, { from: null }); return q; };
+    for (let i = 0; i < 14; i++) {
+      if (i >= 10 && type === 'm') type = 'n';
+      const w = type === 's' ? Math.max(1.2, d.pw * 0.85) : d.pw, A = type === 'm' ? rand(0.6, 1) * d.amp : 0;
+      const lo = w / 2 + A + 0.1, hi = FW - w / 2 - A - 0.1;
+      let x;
+      if (top.type === 'g') x = rand(lo, hi);
+      else { const maxd = budget - aTop - A - Math.max(0, top.w / 2 - w / 2); if (maxd < 0.15) continue; const off = rand(-1, 1) * maxd; x = top.x + off; if (x < lo || x > hi) x = Math.random() < 0.5 ? clamp(mod(x, FW), lo, hi) : clamp(top.x - off, lo, hi); }   // 끝에 닿으면 반대쪽으로 이어 놓거나 안쪽으로 되돌린다
+      if ((top.type === 'g' || needDist(top, x, w, A) <= budget) && okA0(x, w, A)) return done(mkPlat(type, x, top.y + dy, w, A, d));
+    }
+    const w = d.pw; return mkPlat('n', clamp(top.x, w / 2 + 0.1, FW - w / 2 - 0.1), top.y + dy, w, 0, d);   // 마지막 수: 바로 위에 멈춘 발판 (앞이 사라지는 발판이어도 그 바로 위는 A0 에서 닿는다)
+  }
+  function mkPlat(type, x, y, w, A, d) { return { type, x, y, w, A, ph: rand(0, TAU), om: A > 0 ? d.mvSp / A : 0, gone: false, fade: 0, sq: 0, chain: true, seed: Math.floor(rand(0, 1000)) }; }
+
+  // ── 화면
+  const stage = $('stage'), bg = $('bg'), fx = $('fx'), dogBox = $('dog');
+  const c = bg.getContext('2d', { alpha: false }), f = fx.getContext('2d');
+  let W = 0, H = 0, DPR = 1, U = 40, FX0 = 0, FWPX = 360, VH = 19, FOLLOW = 9, GROUND = 3, KS = 88, FONT = 'sans-serif', PORT = true, SAFE = { t: 0, b: 0, l: 0, r: 0 };
+  const TITLE = J(name, '의') + ' 점프 점프';
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  document.title = TITLE;
+  const btnPause = document.createElement('button'); btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6v12M15 6v12"/></svg>';
+  bar.right(btnPause);
+  const k = kong(dogBox, 88), k2 = kong(dogBox, 88);   // k2: 좌우 끝을 넘어갈 때 반대쪽에 함께 보이는 그림
+  k.setPose('stand'); k2.setPose('stand'); k2.el.style.display = 'none';
+
+  $('stTitle').textContent = TITLE;
+  $('stSub').textContent = J(name, '이랑/랑') + ' 구름을 밟고 하늘 높이 올라가요';
+  const fine = matchMedia('(pointer: fine)').matches;
+  const bestTxt = () => { const b = KG.best(KG.dkey(KEY)); return b > 0 ? '최고 기록 ' + Math.round(b).toLocaleString() + '점' : ''; };
+  const keyTxt = () => [fine ? '← → 키로도 움직여요' : '', bestTxt()].filter(Boolean).join('  ·  ');
+  const RULES = { key: KEY, title: TITLE, lead: '구름을 밟고 하늘 높이 올라가요', items: [
+    ['☁️', '구름을 밟으면 ' + J(name, '이/가') + ' 저절로 폴짝 뛰어올라요.'],
+    ['👆', '아래 ◀ ▶ 단추를 누르고 있으면 그쪽으로 움직여요. 화면 끝은 반대쪽과 이어져요.'],
+    ['🌸', '분홍 솜구름은 한 번 밟으면 사라지고, 푹신한 쿠션은 아주 높이 튕겨 줘요.'],
+    ['🦴', '뼈다귀를 먹으면 ' + BONE_PT + '점 보너스! 화면 아래로 떨어지면 끝나요.']
+  ] };
+
+  // ── 상태
+  const S = {
+    mode: 'ready', t: 0, x: FW / 2, y: 0, vx: 0, vy: 0, face: 1, dir: 0, jumpY: 0, cam: 0, high: 0, bones: 0, score: 0, bounces: 0,
+    plats: [], items: [], top: null, landT: 0, happy: 0, munch: 0, scare: 0, endT: 0, sat: false, say: 0, sayTxt: '', freeze: 0, mile: 0, skyIdx: 0, parts: [], simulating: false, newBest: false
+  };
+  const BOT = { on: false, err: 0, lag: 0, slip: 0, tgt: null, off: 0, wait: 0 };
+
+  function layout() {
+    DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; SAFE = safe(); PORT = H >= W;
+    for (const cv of [bg, fx]) { cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
+    c.setTransform(DPR, 0, 0, DPR, 0, 0); f.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // 세로: 화면 너비 그대로(넓으면 520 까지). 가로: 가운데 기둥 — 양옆은 ◀ ▶ 단추 자리
+    FWPX = Math.round(PORT ? Math.min(W, 520) : clamp(Math.min(W - 2 * (Math.max(SAFE.l, SAFE.r) + 124), H * 1.15), 280, 520));
+    U = FWPX / FW; FX0 = Math.round((W - FWPX) / 2); VH = H / U;
+    FOLLOW = VH * (PORT ? 0.46 : 0.42);                       // 콩이가 이 높이보다 올라가면 화면이 따라 올라간다
+    GROUND = ((PORT ? 124 : 30) + SAFE.b) / U;                // 처음 땅이 화면 바닥에서 떠 있는 높이(세로에서는 단추 위로)
+    KS = Math.round(U * 2.3);
+    dogBox.style.left = FX0 + 'px'; dogBox.style.width = FWPX + 'px';
+    FONT = getComputedStyle(document.body).fontFamily;
+    k.setSize(KS); k2.setSize(KS);
+    if (S.mode === 'ready') S.cam = -GROUND; bar.setTitle(W < 350 ? '점프 점프' : TITLE);
+    draw();
+  }
+
+  // ── 판 깔기
+  function reset() {
+    Object.assign(S, { t: 0, x: FW / 2, y: 0, vx: 0, vy: 0, face: 1, dir: 0, jumpY: 0, cam: -GROUND, high: 0, bones: 0, score: 0, bounces: 0, plats: [], items: [], landT: 0, happy: 0, munch: 0, scare: 0, endT: 0, sat: false, say: 0, freeze: 0, mile: 0, skyIdx: 0, parts: [], newBest: false });
+    const ground = { type: 'g', x: FW / 2, y: 0, w: FW + 2, A: 0, ph: 0, om: 0, gone: false, fade: 0, sq: 0, chain: true, seed: 0 };
+    S.plats.push(ground); S.top = ground; grow();
+  }
+  function grow() {
+    const lim = S.cam + VH + 9;   // 쿠션으로 높이 튀어도 그 위까지 늘 깔려 있게
+    while (S.top.y < lim) {
+      const prev = S.top, p = nextPlat(prev, D); S.plats.push(p); S.top = p;
+      const gap = p.y - prev.y;
+      // 덤 발판: 사슬 발판 사이, 겹치지 않는 자리에
+      if (prev.type !== 'g' && gap > 1.1 && Math.random() < D.extra) {
+        for (let i = 0; i < 6; i++) {
+          const x = rand(D.pw / 2 + 0.1, FW - D.pw / 2 - 0.1), y = prev.y + rand(0.45, gap - 0.45);
+          const far = q => Math.abs(wd(x - q.x)) > (q.w + D.pw) / 2 + (q.type === 'm' ? q.A : 0) + 0.5;
+          if (far(prev) && far(p)) { const e = mkPlat('n', x, y, D.pw, 0, D); e.chain = false; S.plats.push(e); break; }
+        }
+      }
+      // 뼈다귀: 멈춘 발판 위에 하나, 쿠션 위 높은 곳에도 가끔
+      if (p.type === 's') { if (Math.random() < 0.5) S.items.push({ x: p.x, y: p.y + 3.4, got: false, seed: p.seed }); }
+      else if (p.type !== 'm' && Math.random() < D.bone) S.items.push({ x: clamp(p.x + rand(-0.4, 0.4), 0.5, FW - 0.5), y: p.y + 1.5, got: false, seed: p.seed });
+    }
+  }
+
+  // ── 조각 효과 (효과 캔버스, 화면 px)
+  const sx = x => FX0 + x * U, sy = y => H - (y - S.cam) * U;
+  function emit(o) { if (S.simulating) return; if (S.parts.length > 90) S.parts.shift(); S.parts.push(Object.assign({ life: 0, max: 0.6, vx: 0, vy: 0, g: 0 }, o)); }
+  function sayUp(text, col) { emit({ kind: 'text', text, col: col || '#fff', x: clamp(sx(S.x), FX0 + 40, FX0 + FWPX - 40), y: sy(S.y) - KS * 0.95, vy: -U * 1.2, max: 0.9, size: clamp(U * 0.42, 15, 22) }); }
+  function puff(x, y, n, col) { for (let i = 0; i < n; i++) emit({ kind: 'dot', x: x + rand(-1, 1) * U * 0.5, y: y + rand(-2, 4), vx: rand(-1, 1) * U * 1.6, vy: rand(-0.2, 1.2) * U, r: rand(2.5, 5), col: col || 'rgba(255,255,255,.85)', max: rand(0.25, 0.5) }); }
+  function sparkle(x, y, n, col) { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(30, 110); emit({ kind: 'star', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, g: 160, r: rand(2.5, 5), col: col || '#FFD25E', max: rand(0.35, 0.6) }); } }
+  let noteT = 0;
+  function note(msg) { if (S.simulating) return; const n = $('note'); n.textContent = msg; n.classList.add('show'); clearTimeout(noteT); noteT = setTimeout(() => n.classList.remove('show'), 2200); }
+
+  // ── 조작: 누르고 있는 단추·키 가운데 가장 나중 것이 방향
+  const holds = [];
+  function hold(id, dir) { unhold(id, true); holds.push({ id, dir }); paintCtl(); }
+  function unhold(id, quiet) { if (id == null) holds.length = 0; else { const i = holds.findIndex(h => h.id === id); if (i >= 0) holds.splice(i, 1); } if (!quiet) paintCtl(); }
+  const inputDir = () => holds.length ? holds[holds.length - 1].dir : 0;
+  function paintCtl() { const d = inputDir(); $('btnL').classList.toggle('on', d < 0); $('btnR').classList.toggle('on', d > 0); }
+
+  function bounce(p) {
+    S.y = p.y; S.jumpY = p.y; S.bounces++; S.landT = 0.1; p.sq = 1; BOT.tgt = null;
+    const X = sx(S.x), Y = sy(p.y);
+    if (p.type === 's') { S.vy = VS; S.happy = 1.4; tone(300, 0.28, 'sine', 0.1, 0, 1250); tone(600, 0.2, 'triangle', 0.04, 0.05, 1600); sparkle(X, Y, 8, '#FFE9A8'); sayUp(pick(['슈웅!', '높이높이!', '우와!']), '#FFE9A8'); }
+    else { S.vy = VJ; tone(rand(400, 440), 0.11, 'sine', 0.07, 0, 680); puff(X, Y, 3); }
+    if (p.type === 'v') { p.gone = true; sfx('pop'); puff(sx(pxAt(p, S.t)), Y + 4, 7, 'rgba(255,205,222,.9)'); }
+  }
+  function eat(it) {
+    it.got = true; S.bones++; S.munch = 0.35; S.happy = Math.max(S.happy, 0.7); sfx('coin'); sfx('munch');
+    const X = sx(it.x), Y = sy(it.y); sparkle(X, Y, 4); emit({ kind: 'text', text: '+' + BONE_PT, col: '#FFF6D8', x: X, y: Y - 10, vy: -50, max: 0.6, size: 14 });
+    if (S.bones % 5 === 0) { sayUp('냠냠!', '#FFF1D6'); voice('bark', 0, 0.9); }
+  }
+
+  // ── 한 걸음 (그리기와 따로 — 시험에서 빨리 돌릴 수 있다)
+  function step(dt) {
+    S.t += dt;
+    const m = S.mode;
+    S.landT = Math.max(0, S.landT - dt); S.happy = Math.max(0, S.happy - dt); S.munch = Math.max(0, S.munch - dt);
+    for (const p of S.plats) { if (p.sq > 0) p.sq = Math.max(0, p.sq - dt * 5); if (p.gone && p.fade < 1) p.fade = Math.min(1, p.fade + dt * 4); }
+    if (m === 'play' || (m === 'ending' && !S.sat)) {
+      const dir = m !== 'play' ? 0 : BOT.on ? botDir(dt) : inputDir();
+      S.dir = dir; if (dir) S.face = dir;
+      const want = dir * VX, a = (dir ? AX : FR) * dt;
+      S.vx = S.vx < want ? Math.min(want, S.vx + a) : Math.max(want, S.vx - a);
+      S.x = mod(S.x + S.vx * dt, FW);
+      const y0 = S.y; S.vy = Math.max(-VFALL, S.vy - G * dt); S.y += S.vy * dt;
+      if (m === 'play') {
+        if (S.vy < 0) {   // 내려오는 중에만 밟힌다 (아래에서는 그냥 지나간다)
+          let hit = null;
+          for (const p of S.plats) { if (p.gone || p.y > y0 || p.y < S.y) continue; if (Math.abs(wd(S.x - pxAt(p, S.t))) <= p.w / 2 + FOOT && (!hit || p.y > hit.y)) hit = p; }
+          if (hit) bounce(hit);
+        }
+        for (const it of S.items) { if (it.got) continue; if (Math.abs(wd(it.x - S.x)) < 0.95 && it.y > S.y - 0.35 && it.y < S.y + 2.1) eat(it); }
+        if (S.y > S.high) S.high = S.y;
+        S.score = Math.floor(S.high) + S.bones * BONE_PT;
+        // 화면은 위로만 따라간다
+        const want = S.y - FOLLOW; if (want > S.cam) S.cam += (want - S.cam) * (1 - Math.exp(-dt * 12));
+        S.scare = S.vy < -9 && S.y - S.cam < VH * 0.22 ? Math.min(1, S.scare + dt * 6) : Math.max(0, S.scare - dt * 4);
+        const ml = Math.floor(S.score / 100); if (ml > S.mile) { S.mile = ml; S.happy = 1.2; note(ml * 100 + '점! ' + pick(['잘한다!', '높이높이!', '멋져요!'])); sfx('heart'); voice('bark', 0.1, 0.9); }
+        const sk = skyAt(S.high).idx; if (sk !== S.skyIdx) { S.skyIdx = sk; note(SKY[sk % SKY.length].note); }
+        grow();
+        const lim = S.cam - 3;
+        for (let i = S.plats.length - 1; i >= 0; i--) { const p = S.plats[i]; if (p.y < lim || (p.gone && p.fade >= 1)) S.plats.splice(i, 1); }
+        while (S.items.length && S.items[0].y < lim) S.items.shift();
+        if (S.y < S.cam - 1.4) fall();
+      }
+    }
+    if (S.mode === 'ending') {
+      S.endT += dt;
+      if (!S.sat && S.endT > 0.6) { S.sat = true; k.setPose('sit'); S.say = 1.5; S.sayTxt = S.newBest ? '새 기록이야!' : '아쉽다… 한 번 더!'; if (S.newBest) { sfx('win'); voice('bark', 0.2, 1.1); } }
+      if (S.sat && S.endT > 2.1 && !S.simulating) showOver();
+    }
+    for (let i = S.parts.length - 1; i >= 0; i--) { const p = S.parts[i]; p.life += dt; if (p.life >= p.max) { S.parts.splice(i, 1); continue; } p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+    if (S.say > 0) S.say -= dt;
+  }
+
+  // ── 시험용 자동 놀이: 닿을 수 있는 가장 높은 발판을 골라 내려앉을 자리로 간다
+  //   err 겨누는 자리 흔들림(단위) · lag 튄 뒤 움직이기까지 걸리는 시간 · slip 가끔 한눈파는 비율
+  function gauss() { let s = 0; for (let i = 0; i < 6; i++) s += Math.random(); return (s - 3) / 0.707; }
+  function botPick() {
+    const apex = S.y + (S.vy > 0 ? S.vy * S.vy / (2 * G) : 0); let best = null, fb = null;
+    for (const p of S.plats) {
+      if (p.gone || p.y > apex - 0.12) continue;
+      const t = tFall(S.y, S.vy, p.y); if (t == null) continue;
+      const d = Math.abs(wd(pxAt(p, S.t + t) - S.x));
+      if (d > Math.max(0, VX * (t - BOT.wait) - 0.9) + (p.w / 2 + FOOT) * 0.6) continue;
+      if (p.y > S.jumpY + 0.2) { if (!best || p.y > best.y) best = p; } else if (!fb || p.y > fb.y) fb = p;
+    }
+    BOT.tgt = best || fb; BOT.off = BOT.err ? gauss() * BOT.err : 0;
+  }
+  function botDir(dt) {
+    if (BOT.fresh !== S.bounces) { BOT.fresh = S.bounces; BOT.tgt = null; BOT.wait = BOT.lag + (Math.random() < BOT.slip ? rand(0.25, 0.5) : 0); }
+    if (BOT.wait > 0) { BOT.wait -= dt; return 0; }
+    let p = BOT.tgt, t = p && !p.gone ? tFall(S.y, S.vy, p.y) : null;
+    if (t != null && Math.abs(wd(pxAt(p, S.t + t) - S.x)) > VX * t + p.w / 2 + FOOT + 0.3) t = null;   // 이제는 못 닿는다 → 다시 고른다
+    if (t == null) { botPick(); p = BOT.tgt; if (!p) return 0; t = tFall(S.y, S.vy, p.y); if (t == null) return 0; }
+    const d = wd(pxAt(p, S.t + t) + BOT.off - S.x), stop = S.vx * S.vx / (2 * FR);
+    return Math.abs(d) > stop + 0.06 ? Math.sign(d) : 0;
+  }
+  // 한 번의 점프를 따로 돌려 본다: 발판 a 의 먼 끝에서, 반대쪽으로 한껏 가던 중에 튀어 b 에 내려앉을 수 있나 (검증용)
+  function jumpTest(a, b, t0) {
+    const tLand0 = tFall(a.y, a.type === 's' ? VS : VJ, b.y); if (tLand0 == null) return -9;
+    const toward = Math.sign(wd(pxAt(b, t0 + tLand0) - pxAt(a, t0))) || 1;
+    let x = mod(pxAt(a, t0) - toward * (Math.min(a.w, FW) / 2 + FOOT - 0.01), FW), vx = -toward * VX, y = a.y, vy = a.type === 's' ? VS : VJ, t = t0; const dt = 1 / 120;
+    for (let i = 0; i < 600; i++) {
+      const tl = tFall(y, vy, b.y); if (tl == null) return -9;
+      const d = wd(pxAt(b, t + tl) - x), stop = vx * vx / (2 * FR), dir = Math.abs(d) > stop + 0.06 ? Math.sign(d) : 0;
+      const want = dir * VX, acc = (dir ? AX : FR) * dt; vx = vx < want ? Math.min(want, vx + acc) : Math.max(want, vx - acc);
+      x = mod(x + vx * dt, FW); const y0 = y; vy = Math.max(-VFALL, vy - G * dt); y += vy * dt; t += dt;
+      if (vy < 0 && y0 >= b.y && y <= b.y) return b.w / 2 + FOOT - Math.abs(wd(x - pxAt(b, t)));   // 남은 여유(0 이상이면 밟았다)
+    }
+    return -9;
+  }
+  function verify(id, n) {
+    const d = DIFF[id]; let top = { type: 'g', x: FW / 2, y: 0, w: FW + 2, A: 0, ph: 0, om: 0 }, fails = 0, min = 99, maxGap = 0, skips = 0, skipFails = 0, skipMin = 99, maxSkip = 0; const kinds = { n: 0, m: 0, v: 0, s: 0 };
+    for (let i = 0; i < n; i++) {
+      const p = nextPlat(top, d); kinds[p.type]++; maxGap = Math.max(maxGap, p.y - top.y);
+      if (top.type !== 'g') for (let q = 0; q < 8; q++) { const s = jumpTest(top, p, q * 0.37 + i); if (s < min) min = s; if (s < 0) { fails++; break; } }
+      // 사라지는 발판이 없어진 뒤: 그 앞 발판에서 이 발판으로 바로
+      if (top.type === 'v' && top.from) {
+        const a = top.from, gap = p.y - a.y; skips++; maxSkip = Math.max(maxSkip, gap); let bad = gap > GAP_MAX + 1e-9;
+        if (a.type !== 'g') for (let q = 0; q < 8 && !bad; q++) { const s = jumpTest(a, p, q * 0.37 + i); if (s < skipMin) skipMin = s; if (s < 0) bad = true; }
+        if (bad) skipFails++;
+      }
+      top = p;
+    }
+    return { diff: id, n, fails, minSlack: +min.toFixed(2), maxGap: +maxGap.toFixed(2), skips, skipFails, skipMinSlack: +skipMin.toFixed(2), maxSkipGap: +maxSkip.toFixed(2), top: Math.round(top.y), kinds };
+  }
+
+  // ── 하늘: 올라갈수록 낮 → 노을 → 밤 → 새벽 (한 구간 150m)
+  const SKY = [
+    { top: [112, 178, 240], bot: [196, 229, 250], night: 0, note: '맑은 하늘이에요' },
+    { top: [140, 136, 214], bot: [255, 205, 178], night: 0, note: '노을 구름까지 올라왔어요' },
+    { top: [18, 24, 68],    bot: [66, 72, 150],   night: 1, note: '별이 보이는 밤하늘이에요' },
+    { top: [150, 180, 236], bot: [255, 224, 210], night: 0, note: '새벽하늘이 밝아와요' }
+  ];
+  const SKY_LEN = 150;
+  function skyAt(h) {
+    const p = Math.max(0, h) / SKY_LEN, i = Math.floor(p), fr = p - i, a = SKY[i % 4], b = SKY[(i + 1) % 4];
+    let u = clamp((fr - 0.6) / 0.4, 0, 1); u = u * u * (3 - 2 * u);
+    const mix = (A, B) => A.map((v, j) => lerp(v, B[j], u));
+    return { top: mix(a.top, b.top), bot: mix(a.bot, b.bot), night: lerp(a.night, b.night, u), idx: i + (fr > 0.8 ? 1 : 0) };
+  }
+  const rgb = a => 'rgb(' + (a[0] | 0) + ',' + (a[1] | 0) + ',' + (a[2] | 0) + ')';
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const rnd = mulberry32(91);
+  const FAR = Array.from({ length: 9 }, (_, i) => ({ x: rnd(), y: (i + rnd() * 0.7) / 9, s: 0.7 + rnd() * 0.9 }));   // 먼 구름
+  const STARS = Array.from({ length: 70 }, () => ({ x: rnd(), y: rnd(), r: 0.6 + rnd() * 1.1, p: rnd() * TAU }));
+  function rr(g, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); g.beginPath(); g.moveTo(x + r, y); g.lineTo(x + w - r, y); g.arcTo(x + w, y, x + w, y + r, r); g.lineTo(x + w, y + h - r); g.arcTo(x + w, y + h, x + w - r, y + h, r); g.lineTo(x + r, y + h); g.arcTo(x, y + h, x, y + h - r, r); g.closePath(); }
+
+  // ── 그리기: 발판 (원점 = 밟는 면 가운데, 단위 좌표, 아래쪽 = +y)
+  function cloud(g, w, fill, shade, seed) {
+    const n = Math.max(2, Math.round(w / 0.62)), bw = w / n;
+    g.fillStyle = 'rgba(40,60,130,.13)'; g.beginPath(); g.ellipse(0, 0.66, w * 0.44, 0.1, 0, 0, TAU); g.fill();
+    g.fillStyle = shade; rr(g, -w / 2, 0.16, w, 0.44, 0.22); g.fill();
+    g.fillStyle = fill; rr(g, -w / 2, 0.1, w, 0.4, 0.2); g.fill();
+    g.beginPath();
+    for (let i = 0; i < n; i++) { const r = bw * (0.58 + ((seed + i * 7) % 5) * 0.03), cx = -w / 2 + bw * (i + 0.5); g.moveTo(cx + r, r * 0.86 + 0.01); g.arc(cx, Math.min(0.3, r * 0.86) + 0.01, Math.min(r, 0.34), 0, TAU); }
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(-w * 0.2, 0.13, w * 0.16, 0.05, 0, 0, TAU); g.fill();
+  }
+  const PLAT = {
+    n(g, p) { cloud(g, p.w, '#FFFFFF', '#DCE8F8', p.seed); },
+    m(g, p, t) {   // 움직이는 구름: 하늘빛 + 양옆 작은 날개
+      const fl = reduceMotion ? 0 : Math.sin(t * 9 + p.ph) * 0.06;
+      g.fillStyle = '#F4FAFF'; for (const s of [-1, 1]) { g.beginPath(); g.ellipse(s * (p.w / 2 + 0.12), 0.2 - fl, 0.26, 0.11, s * (-0.5 - fl * 3), 0, TAU); g.fill(); }
+      cloud(g, p.w, '#CFE7FF', '#A9CDF3', p.seed);
+      g.fillStyle = '#6FA4DC'; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * 0.18, 0.2); g.lineTo(s * 0.36, 0.3); g.lineTo(s * 0.18, 0.4); g.closePath(); g.fill(); }
+    },
+    v(g, p) {   // 한 번 밟으면 사라지는 분홍 솜구름
+      cloud(g, p.w, '#FFD9E6', '#F7B9CE', p.seed);
+      g.strokeStyle = 'rgba(214,110,150,.7)'; g.lineWidth = 0.045; g.setLineDash([0.12, 0.12]); g.lineCap = 'round'; rr(g, -p.w / 2 + 0.14, 0.2, p.w - 0.28, 0.2, 0.1); g.stroke(); g.setLineDash([]);
+    },
+    s(g, p) {   // 높이 튀는 쿠션
+      const w = p.w, q = p.sq;
+      g.fillStyle = 'rgba(40,60,130,.14)'; g.beginPath(); g.ellipse(0, 0.7, w * 0.44, 0.1, 0, 0, TAU); g.fill();
+      g.save(); g.translate(0, 0.62); g.scale(1 + q * 0.12, 1 - q * 0.4); g.translate(0, -0.62);
+      g.fillStyle = '#F29A6B'; rr(g, -w / 2, 0.06, w, 0.56, 0.24); g.fill();
+      g.fillStyle = '#FFB98A'; rr(g, -w / 2, 0, w, 0.52, 0.24); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.4)'; rr(g, -w / 2 + 0.16, 0.07, w - 0.32, 0.1, 0.05); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 0.035; g.setLineDash([0.09, 0.09]); rr(g, -w / 2 + 0.09, 0.07, w - 0.18, 0.38, 0.18); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#FFF3C4'; g.beginPath(); g.arc(0, 0.27, 0.085, 0, TAU); g.fill();
+      g.fillStyle = '#E58352'; g.beginPath(); g.arc(0, 0.27, 0.04, 0, TAU); g.fill();
+      g.restore();
+      g.fillStyle = '#FFFFFF'; g.globalAlpha *= 0.9; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * (w / 2 - 0.34), -0.12); g.lineTo(s * (w / 2 - 0.34) - 0.1, 0); g.lineTo(s * (w / 2 - 0.34) + 0.1, 0); g.closePath(); g.fill(); }
+    }
+  };
+  function bone(g, t, seed) {
+    g.rotate(-0.6 + (reduceMotion ? 0 : Math.sin(t * 3 + seed) * 0.12));
+    g.fillStyle = 'rgba(255,220,130,.35)'; g.beginPath(); g.arc(0, 0, 0.46, 0, TAU); g.fill();
+    for (const [col, k2] of [['#D9B98A', 1.18], ['#FFF8EA', 1]]) {
+      g.fillStyle = col; g.beginPath(); g.rect(-0.26 * k2, -0.085 * k2, 0.52 * k2, 0.17 * k2);
+      for (const sxn of [-1, 1]) for (const syn of [-1, 1]) { g.moveTo(sxn * 0.27 + 0.13 * k2, syn * 0.1); g.arc(sxn * 0.27, syn * 0.1, 0.125 * k2, 0, TAU); }
+      g.fill();
+    }
+  }
+  function drawGround(g, y) {   // 처음 서 있는 잔디 언덕 (놀이 칸 너비 가득)
+    const gg = g.createLinearGradient(0, y, 0, y + U * 3); gg.addColorStop(0, '#8FD071'); gg.addColorStop(1, '#6FB157');
+    g.fillStyle = gg; g.beginPath(); g.moveTo(FX0, H + 4); g.lineTo(FX0, y + 4);
+    for (let i = 0; i <= 24; i++) { const u = i / 24; g.lineTo(FX0 + FWPX * u, y + 3 - Math.sin(u * Math.PI) * 3 + Math.sin(u * 23) * 1.2); }
+    g.lineTo(FX0 + FWPX, H + 4); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(FX0, y + 2, FWPX, 2);
+    const r = mulberry32(7);
+    for (let i = 0; i < 16; i++) { const x = FX0 + r() * FWPX, yy = y + 14 + r() * Math.max(10, H - y - 24), col = ['#FFFFFF', '#FFD966', '#FF9FB6'][Math.floor(r() * 3)]; if (yy > H) continue; g.fillStyle = col; for (let q = 0; q < 5; q++) { const a = q / 5 * TAU; g.beginPath(); g.arc(x + Math.cos(a) * 3, yy + Math.sin(a) * 3, 2.1, 0, TAU); g.fill(); } g.fillStyle = '#FFE9A8'; g.beginPath(); g.arc(x, yy, 1.6, 0, TAU); g.fill(); }
+  }
+
+  const hudCache = { s: -1, b: -1 };
+  function draw() {
+    const t = S.t, sk = skyAt(S.mode === 'ready' ? 0 : S.high);
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, rgb(sk.top)); g.addColorStop(1, rgb(sk.bot)); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    // 별 · 먼 구름 (화면보다 천천히 흐른다)
+    if (sk.night > 0.03) { c.fillStyle = '#fff'; for (const s of STARS) { c.globalAlpha = sk.night * (reduceMotion ? 0.8 : 0.55 + 0.45 * Math.sin(t * 1.6 + s.p)); c.beginPath(); c.arc(s.x * W, mod(s.y * H + S.cam * U * 0.08, H), s.r, 0, TAU); c.fill(); } c.globalAlpha = 1; }
+    const span = H + 160; c.fillStyle = 'rgba(255,255,255,' + (0.3 - sk.night * 0.2).toFixed(2) + ')';
+    for (const d of FAR) { const kk = 26 * d.s, x = d.x * (W + 160) - 80, y = mod(d.y * span + S.cam * U * 0.25, span) - 80; c.beginPath(); c.moveTo(x + kk, y); c.arc(x, y, kk, 0, TAU); c.moveTo(x - kk * 0.25, y + kk * 0.3); c.arc(x - kk * 0.95, y + kk * 0.3, kk * 0.7, 0, TAU); c.moveTo(x + kk * 1.7, y + kk * 0.3); c.arc(x + kk * 0.95, y + kk * 0.3, kk * 0.75, 0, TAU); c.rect(x - kk * 0.95, y + kk * 0.25, kk * 1.9, kk * 0.75); c.fill(); }
+
+    c.save(); c.beginPath(); c.rect(FX0, 0, FWPX, H); c.clip();
+    // 높이 눈금 (50m 마다)
+    c.font = '600 11px ' + FONT; c.textAlign = 'right'; c.textBaseline = 'bottom';
+    for (let m = Math.max(50, Math.ceil(S.cam / 50) * 50); m < S.cam + VH; m += 50) { const y = Math.round(sy(m)) + 0.5; c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 1; c.setLineDash([5, 7]); c.beginPath(); c.moveTo(FX0, y); c.lineTo(FX0 + FWPX, y); c.stroke(); c.setLineDash([]); c.fillStyle = 'rgba(255,255,255,.8)'; c.fillText(m + 'm', FX0 + FWPX - 8, y - 3); }
+    // 발판
+    for (const p of S.plats) {
+      const y = sy(p.y); if (y < -U * 1.2 || y > H + U * 1.2) continue;
+      if (p.type === 'g') { drawGround(c, y); continue; }
+      if (p.gone && p.fade >= 1) continue;
+      c.save(); c.translate(sx(pxAt(p, t)), y + (p.type === 's' ? 0 : p.sq * U * 0.1)); c.scale(U, U);
+      if (p.gone) { c.globalAlpha = 1 - p.fade; c.scale(1 + p.fade * 0.35, 1 - p.fade * 0.4); }
+      PLAT[p.type](c, p, t); c.restore();
+    }
+    for (const it of S.items) { if (it.got) continue; const y = sy(it.y); if (y < -U || y > H + U) continue; c.save(); c.translate(sx(it.x), y + (reduceMotion ? 0 : Math.sin(t * 3.4 + it.seed) * U * 0.06)); c.scale(U, U); bone(c, t, it.seed); c.restore(); }
+    c.restore();
+    // 가로 화면: 놀이 칸 밖은 살짝 어둡게 (양옆은 단추 자리)
+    if (FX0 > 0) { c.fillStyle = 'rgba(11,16,48,.24)'; c.fillRect(0, 0, FX0, H); c.fillRect(FX0 + FWPX, 0, W - FX0 - FWPX, H); c.fillStyle = 'rgba(255,255,255,.3)'; c.fillRect(FX0 - 1, 0, 1, H); c.fillRect(FX0 + FWPX, 0, 1, H); }
+
+    // 콩이 (놀이 칸 기준 좌표)
+    if (S.sat) {
+      const rise = clamp((S.endT - 0.6) / 0.35, 0, 1), e = 1 - (1 - rise) * (1 - rise), bx = FWPX / 2, by = H - SAFE.b - (PORT ? 22 : 12) + (1 - e) * KS * 1.2;
+      k.place(bx, by); k2.el.style.display = 'none'; dogBox.classList.remove('air');
+      k.render(S.newBest ? { t, eyes: 'happy', mouth: 'open', blush: true, tailAmp: 24, tailRate: 4.2, earLift: 6 }
+        : { t, eyes: S.endT < 1.5 ? 'closed' : 'open', mouth: 'closed', tilt: reduceMotion ? -6 : -6 + Math.sin(t * 2) * 2, earLift: -6, tailAmp: 3, tailRate: 1, look: [0, 0.6] });
+    } else {
+      const X = S.x * U, Y = H - (S.y - S.cam) * U, air = S.mode === 'play' || S.mode === 'ending' || S.mode === 'pause';
+      const o = { t, facing: S.face, walk: 0, frame: !air ? undefined : S.landT > 0 ? 'land' : 'jump', squash: S.landT > 0 ? S.landT * 4 : 0,
+        roll: air && S.landT <= 0 ? clamp(-S.vy * 1.6, -16, 24) * (reduceMotion ? 0.3 : 1) : 0, rollPivot: [200, 300],
+        eyes: S.happy > 0 ? 'happy' : 'open', mouth: S.munch > 0 || S.happy > 0 || S.scare > 0.4 ? 'open' : 'closed', blush: S.happy > 0,
+        earLift: air ? clamp(4 - S.vy * 0.9, -6, 16) : 3, tailAmp: air ? 10 : 16, tailRate: air ? 5 : 3 };
+      k.place(X, Y + KS * 0.03); k.render(o); dogBox.classList.toggle('air', air);
+      const gx = X < KS * 0.7 ? X + FWPX : X > FWPX - KS * 0.7 ? X - FWPX : null;
+      if (gx == null) k2.el.style.display = 'none'; else { k2.el.style.display = ''; k2.place(gx, Y + KS * 0.03); k2.render(o); }
+    }
+
+    // 효과
+    f.clearRect(0, 0, W, H);
+    for (const p of S.parts) {
+      const a = 1 - p.life / p.max;
+      if (p.kind === 'dot') { f.globalAlpha = a; f.fillStyle = p.col; f.beginPath(); f.arc(p.x, p.y, p.r * (0.6 + 0.6 * (1 - a)), 0, TAU); f.fill(); }
+      else if (p.kind === 'star') { f.globalAlpha = a; f.fillStyle = p.col; const r = p.r * (0.5 + a * 0.7); f.beginPath(); f.moveTo(p.x, p.y - r * 1.5); f.quadraticCurveTo(p.x, p.y, p.x + r * 1.5, p.y); f.quadraticCurveTo(p.x, p.y, p.x, p.y + r * 1.5); f.quadraticCurveTo(p.x, p.y, p.x - r * 1.5, p.y); f.quadraticCurveTo(p.x, p.y, p.x, p.y - r * 1.5); f.fill(); }
+      else { f.globalAlpha = Math.min(1, a * 2.2); f.font = '700 ' + p.size + 'px ' + FONT; f.textAlign = 'center'; f.textBaseline = 'middle'; f.lineJoin = 'round'; f.lineWidth = 4; f.strokeStyle = 'rgba(30,36,70,.55)'; f.strokeText(p.text, p.x, p.y); f.fillStyle = p.col; f.fillText(p.text, p.x, p.y); }
+    }
+    f.globalAlpha = 1;
+    // 화면 아래로 떨어지려 할 때: 바닥에 붉은 기운
+    if (S.scare > 0.02 && S.mode === 'play') { const wg = f.createLinearGradient(0, H - 90, 0, H); wg.addColorStop(0, 'rgba(229,72,77,0)'); wg.addColorStop(1, 'rgba(229,72,77,' + (0.32 * S.scare).toFixed(3) + ')'); f.fillStyle = wg; f.fillRect(FX0, H - 90, FWPX, 90); }
+    if (S.sat && S.say > 0 && S.mode === 'ending') bubble(S.sayTxt, FX0 + FWPX / 2, H - SAFE.b - (PORT ? 22 : 12) - KS * 0.92, Math.min(1, S.say * 4, (1.5 - S.say) * 6));
+    if (S.freeze > 0 && S.mode === 'play') bubble('준비…', W / 2, Math.max(H * 0.36, 150), 1);
+
+    if (S.mode !== 'ready') {
+      if (hudCache.s !== S.score) { hudCache.s = S.score; $('hScore').textContent = S.score.toLocaleString(); }
+      if (hudCache.b !== S.bones) { hudCache.b = S.bones; $('hBone').textContent = S.bones; }
+    }
+  }
+  function bubble(text, x, y, a) {
+    f.save(); f.globalAlpha = clamp(a, 0, 1); const fs = clamp(U * 0.42, 15, 22); f.font = '700 ' + fs + 'px ' + FONT;
+    const tw = f.measureText(text).width, bw = tw + fs * 1.5, bh = fs * 2.1; x = clamp(x, bw / 2 + 8, W - bw / 2 - 8);
+    f.fillStyle = 'rgba(0,0,0,.12)'; rr(f, x - bw / 2, y - bh + 3, bw, bh, bh / 2); f.fill();
+    f.fillStyle = '#fff'; rr(f, x - bw / 2, y - bh, bw, bh, bh / 2); f.fill();
+    f.beginPath(); f.moveTo(x - 7, y - 2); f.lineTo(x, y + 8); f.lineTo(x + 7, y - 2); f.closePath(); f.fill();
+    f.fillStyle = '#191F28'; f.textAlign = 'center'; f.textBaseline = 'middle'; f.fillText(text, x, y - bh / 2 + 1); f.restore();
+  }
+
+  // ── 흐름
+  const showCtl = on => { $('btnL').hidden = $('btnR').hidden = !on; };
+  function start(id) {
+    const did = DIFF[id] ? id : KG.diff();
+    D = DIFF[did] || DIFF.normal; runKey = KG.dkey(KEY, did); S.diffId = did; $('hDiff').textContent = KG.diffLabel(did);
+    reset(); S.mode = 'play'; S.vy = VJ; S.landT = 0; BOT.tgt = null; BOT.fresh = -1; BOT.wait = 0;
+    k.setPose('stand'); hudCache.s = hudCache.b = -1; unhold();
+    $('cardStart').hidden = true; $('cardOver').hidden = true; $('cardPause').hidden = true; $('hud').hidden = false; btnPause.hidden = false; showCtl(true);
+    if (!S.simulating) { tone(400, 0.12, 'sine', 0.07, 0, 680); note('출발! ◀ ▶ 로 구름을 밟아요'); }
+    last = 0;
+  }
+  function fall() {
+    if (S.mode !== 'play') return;
+    S.mode = 'ending'; S.endT = 0; S.scare = 0; S.newBest = S.score > 0 && S.score > KG.best(runKey); btnPause.hidden = true; showCtl(false); unhold();
+    if (!S.simulating) { sfx('lose'); tone(520, 0.4, 'sine', 0.06, 0, 160); }
+  }
+  let ovNew = false, overAt = 0;   // 이번 판이 새 기록이었나 · 결과 카드가 뜬 때(두드리던 손가락에 카드가 바로 넘어가지 않게)
+  function showOver() {
+    if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now();
+    ovNew = S.score > 0 && KG.setBest(runKey, S.score);
+    $('ovTitle').textContent = ovNew ? '하늘 높이 올라갔어요!' : S.score >= 100 ? '높이 올라갔어요!' : '아쉬워요, 한 번 더!';
+    $('ovSub').textContent = ovNew ? J(name, '이/가') + ' 신나서 꼬리를 흔들어요' : J(name, '이/가') + ' 다시 올라가고 싶대요';
+    $('ovScore').textContent = S.score.toLocaleString(); $('ovHigh').textContent = Math.floor(S.high).toLocaleString() + 'm'; $('ovBone').textContent = S.bones.toLocaleString() + '개'; paintBest();
+    $('cardOver').hidden = false;
+    try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
+  }
+  // 난이도 고르기: 시작 · 결과 카드에만. 결과 카드에는 늘 방금 판 난이도의 기록을 보여 준다(다른 난이도를 골라도 섞이지 않게 이름을 붙인다)
+  function paintBest() {
+    $('stKey').textContent = keyTxt(); $('stKey').hidden = !keyTxt();
+    const b = KG.best(runKey);
+    $('ovBest').textContent = Math.round(S.mode === 'over' ? Math.max(b, S.score) : b).toLocaleString() + '점';
+    $('ovBestL').textContent = KG.diffLabel(S.diffId) + ' 최고';
+    $('ovBadge').hidden = !ovNew;
+  }
+  for (const id of ['cardStart', 'cardOver']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
+  function pause() {
+    if (S.mode !== 'play') return; S.mode = 'pause'; unhold();
+    $('paSub').textContent = '지금까지 ' + Math.floor(S.high).toLocaleString() + 'm · ' + S.score.toLocaleString() + '점이에요';
+    $('cardPause').hidden = false;
+    try { $('btnResume').focus({ preventScroll: true }); } catch (e) {}
+  }
+  function resume() { if (S.mode !== 'pause') return; S.mode = 'play'; S.freeze = 0.7; $('cardPause').hidden = true; last = 0; }
+  function quit() {   // 그만하기: 지금까지 점수로 결과를 본다
+    if (S.mode !== 'pause') return; $('cardPause').hidden = true; S.mode = 'play'; S.freeze = 0; fall(); S.endT = 0.6; last = 0;
+  }
+  function toReady() { S.mode = 'ready'; reset(); k.setPose('stand'); $('hud').hidden = true; btnPause.hidden = true; showCtl(false); $('cardOver').hidden = true; $('cardPause').hidden = true; $('cardStart').hidden = false; paintBest(); }
+
+  // ── 입력
+  function bindCtl(el, dir) {
+    el.addEventListener('pointerdown', e => { if (e.button > 0) return; e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {} hold('p' + e.pointerId, dir); });
+    const up = e => unhold('p' + e.pointerId);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+    el.addEventListener('click', e => e.preventDefault());
+  }
+  bindCtl($('btnL'), -1); bindCtl($('btnR'), 1);
+  addEventListener('blur', () => unhold());
+  $('btnStart').addEventListener('click', () => { sfx('tap'); start(); });
+  $('btnRules').addEventListener('click', () => { sfx('tap'); KG.rules(RULES, true).then(() => { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} }); });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  // 결과 카드가 뜬 직후에는 카드 안 어떤 단추도 눌리지 않는다 (난이도는 여러 게임이 함께 쓰니 두드리던 손가락에 바뀌면 안 된다)
+  $('cardOver').addEventListener('click', e => { if (performance.now() - overAt < 450) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); quit(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  const LKEYS = new Set(['ArrowLeft', 'KeyA']), RKEYS = new Set(['ArrowRight', 'KeyD']);
+  addEventListener('keydown', e => {
+    if (KG.rulesOpen) return;
+    const mv = LKEYS.has(e.code) ? -1 : RKEYS.has(e.code) ? 1 : 0;
+    if (mv) { if (S.mode === 'play') { e.preventDefault(); if (!e.repeat || !holds.some(h => h.id === e.code)) { KG.unlockAudio(); hold(e.code, mv); } } return; }   // 누른 채 멈췄다 계속하면 반복 입력으로 다시 잡는다
+    if (e.repeat) return;
+    const onBtn = e.target && e.target.closest && e.target.closest('button, a');
+    if (e.code === 'Enter' || e.code === 'Space') {
+      if (S.mode === 'play') { if (e.code === 'Space') e.preventDefault(); return; }
+      if (onBtn) return;   // 단추에 초점이 있으면 단추가 알아서
+      e.preventDefault(); KG.unlockAudio();
+      if (S.mode === 'ready' && !$('cardStart').hidden) start();
+      else if (S.mode === 'over') { if (performance.now() - overAt >= 450) start(); }
+      else if (S.mode === 'pause') resume();
+    } else if (e.code === 'KeyP' || e.code === 'Escape') { if (S.mode === 'play') pause(); else if (S.mode === 'pause') resume(); }
+  });
+  addEventListener('keyup', e => { if (LKEYS.has(e.code) || RKEYS.has(e.code)) unhold(e.code); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); last = 0; });
+  let rz = 0; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  // ── 돌리기
+  let last = 0;
+  function frame(ms) {
+    requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.034, (ms - last) / 1000) : 0.016; last = ms;
+    if (dt <= 0) return;
+    if (S.mode === 'pause') return;
+    if (S.mode === 'over' || S.mode === 'ready') { S.t += dt; draw(); return; }
+    if (S.freeze > 0) { S.freeze -= dt; draw(); return; }
+    step(dt); draw();
+  }
+  reset(); layout(); S.cam = -GROUND;
+  requestAnimationFrame(frame);
+  // 쪽을 열면: 규칙 안내(앱을 켠 뒤 처음 한 번) → 시작 카드
+  (async function () {
+    await KG.rules(RULES);
+    paintBest(); $('cardStart').hidden = false;
+    try { $('btnStart').focus({ preventScroll: true }); } catch (e) {}
+  })();
+
+  // ── 시험용
+  window.GAME = {
+    S, BOT, DIFF, get state() { return S.mode; }, get score() { return S.score; }, get high() { return S.high; }, get bones() { return S.bones; },
+    get metrics() { return { W, H, U, FX0, FWPX, VH, FOLLOW, GROUND, KS, diff: S.diffId }; },
+    start, end: fall, over: showOver, pause, resume, quit, step, draw, toReady,
+    left(on) { if (on === false) unhold('api'); else hold('api', -1); }, right(on) { if (on === false) unhold('api'); else hold('api', 1); }, stop() { unhold('api'); },
+    bot(on, o) { BOT.on = !!on; Object.assign(BOT, { err: 0, lag: 0, slip: 0 }, o); },
+    verify, jumpTest,
+    // 자동 놀이로 한 판을 빨리 돌려 본다 (기록은 남기지 않는다): sim('easy', { err, lag, slip }, 최대 초)
+    sim(id, o, maxT) {
+      const was = BOT.on; S.simulating = true; BOT.on = true; Object.assign(BOT, { err: 0, lag: 0, slip: 0 }, o); start(id);
+      const lim = maxT || 180; while (S.mode === 'play' && S.t < lim) step(1 / 60);
+      const r = { score: S.score, high: Math.floor(S.high), bones: S.bones, time: +S.t.toFixed(1), alive: S.mode === 'play', bounces: S.bounces };
+      S.simulating = false; BOT.on = was; toReady(); return r;
+    }
+  };
+})();
+</script>
+</body>
+</html>

@@ -36,15 +36,14 @@ button { border: 0; background: none; }
 .pick small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.4; color: var(--sub); }
 .pick .rec { flex: none; text-align: right; font-size: 12px; color: var(--sub); line-height: 1.5; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pick .rec strong { display: block; font-size: 15px; color: var(--pri); }
-.pick .rec span { display: block; }
-.pick .rec span i { font-style: normal; font-weight: 700; color: var(--pri); }
+.picks .kg-diff { margin-top: 6px; }
+body.land .picks .kg-diff { margin-top: 0; }
 body.land .minner { max-width: 760px; display: grid; grid-template-columns: 1fr 1.25fr; gap: 28px; align-items: center; }
 body.land .hero { height: auto; margin: 0; padding-top: 140px; text-align: center; }
 body.land .hero h1, body.land .hero p { position: static; max-width: none; }
 body.land .hero h1 { font-size: 22px; }
 body.land .hero p { margin-top: 6px; }
 body.land .hero .kspot { right: auto; left: 50%; bottom: auto; top: 136px; }
-body.land .pick:first-child { margin-top: 0; }
 
 /* ── 놀이 화면 (자리는 layout() 이 잡는다) */
 #play { position: fixed; inset: 0; z-index: 1; }
@@ -65,6 +64,7 @@ body.land .pick:first-child { margin-top: 0; }
 .tile .in { position: absolute; inset: 3px; border-radius: 30%; display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell) * .54); line-height: 1; transition: transform .16s, opacity .16s, box-shadow .16s; }
 .tile.t0 .in { background: #F3E6FA; } .tile.t1 .in { background: #FFEAD6; } .tile.t2 .in { background: #FFE1E4; }
 .tile.t3 .in { background: #FFF3C4; } .tile.t4 .in { background: #E2ECFC; } .tile.t5 .in { background: #DFF3E1; }
+.tile.t6 .in { background: #D5F2F4; }
 .tile.sel .in { transform: scale(1.08); box-shadow: 0 0 0 3px var(--pri); }
 .tile.pop .in { transform: scale(.25); opacity: 0; transition-duration: .22s; }
 .tile.hint .in { animation: wig .7s ease-in-out infinite; }
@@ -113,17 +113,16 @@ body.land .pick:first-child { margin-top: 0; }
 .kg-card .paws svg { width: 100%; height: 100%; fill: #FFB938; }
 .kg-card .paws .off svg { fill: #E8EBF0; }
 .kg-card .tip { font-size: 13px; background: var(--soft); border-radius: 12px; padding: 9px 12px; margin-top: 10px; color: var(--sub); }
-.kg-card .opts { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
-.kg-card .opt { display: flex; align-items: center; gap: 10px; height: 58px; padding: 0 16px; border-radius: 16px; background: var(--soft); color: var(--ink); text-align: left; }
-.kg-card .opt:active { filter: brightness(.96); }
-.kg-card .opt b { font-size: 16px; font-weight: 700; }
-.kg-card .opt span { font-size: 13px; color: var(--sub); }
-.kg-card .opt em { margin-left: auto; font-style: normal; font-size: 13px; color: var(--pri); font-weight: 700; font-variant-numeric: tabular-nums; }
-.kg-card .opt.rc { background: var(--pri); color: #fff; }
-.kg-card .opt.rc span { color: #C9D1F2; } .kg-card .opt.rc em { color: var(--gold); }
 .kg-card .link { display: block; margin: 10px auto 0; height: 40px; padding: 0 14px; font-size: 14px; font-weight: 600; color: var(--sub); border-radius: 12px; }
 .kg-card a.kg-btn { text-decoration: none; }
-@media (max-height: 420px) { .kg-card { padding: 16px 18px 12px; } .kg-card .ico-lg { display: none; } .kg-card .row { margin-top: 12px; } .kg-card .big { font-size: 34px; margin: 4px 0 0; } .kg-card .opts { flex-direction: row; } .kg-card .opt { flex: 1; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; padding: 0 12px; } .kg-card .opt em { margin-left: 0; } .kg-card .link { margin-top: 6px; height: 34px; } .kg-card .tip { margin-top: 6px; padding: 6px 10px; } }
+.kg-card .links { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+.kg-card .links .link { margin: 0; height: 44px; flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+.kg-card .links .link:active { background: var(--soft); }
+@media (max-height: 420px) { .kg-card { padding: 16px 18px 12px; } .kg-card .ico-lg { display: none; } .kg-card .row { margin-top: 12px; } .kg-card .big { font-size: 34px; margin: 4px 0 0; } .kg-card .kg-diff { margin-top: 8px; } .kg-card .dslot.res { display: none; } .kg-card .link { margin-top: 6px; height: 34px; } .kg-card .links { margin-top: 4px; } .kg-card .tip { margin-top: 6px; padding: 6px 10px; } }
+/* 아주 낮은 가로 화면(568×320): 난이도 단추가 든 시작 카드가 화면 안에 들어오게 조금 더 줄인다 (공통 CSS 가 뒤에 붙으므로 겹치는 규칙은 .kg-scrim 을 앞에 붙여야 먹는다) */
+@media (max-height: 340px) { .kg-scrim .kg-card { padding: 16px 18px 12px; } .kg-scrim .kg-card h2 { margin-bottom: 4px; } .kg-scrim .kg-card .row { margin-top: 8px; } .kg-card .kg-diff { margin-top: 6px; } .kg-card .link { margin-top: 4px; } .kg-card .tip { margin-top: 4px; } }
+/* 좁은 화면(320): 카드 안 난이도 단추 가운데 글자가 긴 'Very Hard' 칸만 조금 넓혀 넘치지 않게 */
+@media (max-width: 340px) { .kg-card .kg-diff [data-d=vhard] { flex: 1.25 1 0; } }
 @media (prefers-reduced-motion: reduce) { .tile.hint .in, .pcard.yay .flip, .pcard.nope .flip, .pcard { animation: none; } }
 </style>
 </head>
@@ -137,7 +136,7 @@ body.land .pick:first-child { margin-top: 0; }
       <p id="mSub">콩이가 옆에서 구경할게요</p>
       <div class="kspot" id="spotMenu"></div>
     </div>
-    <div class="picks">
+    <div class="picks" id="picks">
       <button class="pick" id="pickM3"><span class="ico emo" style="background:#FFF1E3">🍠</span><span class="txt"><b>간식 3개 맞추기</b><small>같은 간식을 3개 이어서 냠냠</small></span><span class="rec" id="recM3"></span></button>
       <button class="pick" id="pickPairs"><span class="ico emo" style="background:#E9ECFB">🐾</span><span class="txt"><b>카드 짝 맞추기</b><small>카드를 뒤집어 같은 그림 찾기</small></span><span class="rec" id="recPairs"></span></button>
     </div>
@@ -187,7 +186,6 @@ body.land .pick:first-child { margin-top: 0; }
   const S = { playing: false, paused: false };
   let W = 0, H = 0, land = false, cell = 50;
   let M = null, P = null;       // 3개 맞추기 판 / 짝 맞추기 판
-  let lastDiff = 'easy';
   let lastInput = 0, T = 0;
   const cur = { r: 0, c: 0, on: false };   // 키보드 커서
 
@@ -233,19 +231,44 @@ body.land .pick:first-child { margin-top: 0; }
   // ── 카드(시작·결과·멈춤)
   let cardAct = null, cardKind = '';   // cardKind: 'pause'(멈춤·그만할까요) 일 때만 Esc·계속하기로 닫힌다
   function showCard(html, onAct, kind) {
-    scrim.innerHTML = '<div class="kg-card" role="dialog" aria-modal="true">' + html + '</div>'; scrim.hidden = false; cardAct = onAct; cardKind = kind || '';
-    const f = scrim.querySelector('.pri, .rc, button'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
+    scrim.innerHTML = '<div class="kg-card" role="dialog" aria-modal="true">' + html + '</div>'; scrim.hidden = false; cardAct = onAct; cardKind = kind || ''; cardDiff = null;
+    const sl = scrim.querySelector('.dslot'); if (sl) sl.appendChild(cardPick);
+    const f = scrim.querySelector('.pri') || scrim.querySelector('.row .kg-btn, .link'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
   }
-  function hideCard() { scrim.hidden = true; scrim.innerHTML = ''; cardAct = null; cardKind = ''; }
+  function hideCard() { scrim.hidden = true; scrim.innerHTML = ''; cardAct = null; cardKind = ''; cardDiff = null; }
   scrim.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && cardAct) { sfx('tap'); cardAct(b.dataset.act); } });
+  // 난이도 고르기: 고르는 화면에 하나, 카드(시작·결과)에 하나 — 카드 것은 카드가 뜰 때마다 .dslot 자리로 옮겨 붙인다
+  //   cardDiff: 시작 카드가 떠 있을 때 난이도가 바뀌면 판을 새로 깔 함수 (결과 카드에서는 다음 판에만 쓰인다)
+  let cardDiff = null;
+  const menuPick = KG.diffPicker(null, () => paintMenu()); menuPick.classList.add('dark'); $('picks').insertBefore(menuPick, $('picks').firstChild);
+  const cardPick = KG.diffPicker(null, () => { if (!cardDiff) return; cardDiff(); const b = cardPick.querySelector('.on'); if (b) try { b.focus({ preventScroll: true }); } catch (e) {} });
   const pawsHtml = n => '<div class="paws" role="img" aria-label="발바닥 셋 중 ' + n + '개">' + [0, 1, 2].map(i => '<span class="' + (i < n ? '' : 'off') + '">' + PAW + '</span>').join('') + '</div>';
-  const endRow = '<div class="row"><button class="kg-btn pri" data-act="again">다시 하기</button><a class="kg-btn" href="index.html">게임 고르기</a></div><button class="link" data-act="menu">다른 퍼즐 하기</button>';
+  const endRow = '<div class="dslot res"></div><div class="row"><button class="kg-btn pri" data-act="again">다시 하기</button><a class="kg-btn" href="index.html">게임 고르기</a></div><button class="link" data-act="menu">다른 퍼즐 하기</button>';
+
+  // ── 규칙 안내: 퍼즐을 고를 때 그 퍼즐의 규칙을 앱을 켠 뒤 한 번만 (KG.rules 가 sessionStorage 로 기억한다). 시작 카드의 「규칙 보기」 로 다시 볼 수 있다
+  const RULES = {
+    m3: { key: "match3", title: "간식 3개 맞추기", lead: "같은 간식을 이어 맞춰 점수를 모아요.", items: [
+      ["👆", "이웃한 간식 둘을 밀거나 차례로 눌러 자리를 바꿔요."],
+      ["🍠", "같은 간식이 3개 이어지면 " + nameGa + " 먹고 점수가 올라요. 연달아 이어지면 더 많이 올라요."],
+      ["✨", "4개를 맞추면 줄을 한 번에 치우는 반짝 간식이 생겨요."],
+      ["🏁", "바꿀 횟수를 다 쓰면 끝나요. 난이도가 높을수록 횟수가 적고 간식 종류가 많아요."]] },
+    pairs: { key: "pairs", title: "카드 짝 맞추기", lead: "뒤집어 본 카드의 자리를 기억해 같은 그림을 찾아요.", items: [
+      ["👆", "카드를 눌러 두 장씩 뒤집어요."],
+      ["🐾", "같은 그림이면 그대로 열려 있고, 다르면 다시 덮여요."],
+      ["🏁", "짝을 모두 찾으면 끝나요. 두 장을 뒤집을 때마다 한 번으로 세고, 적을수록 좋은 기록이에요."],
+      ["⭐", "난이도가 높을수록 카드가 많아져요. 12장부터 30장까지 있어요."]] }
+  };
+  // 안내를 닫으면 초점을 시작 카드의 「시작」 단추로 돌린다 (force: 봤어도 다시 보여 준다)
+  function showRules(which, force) {
+    return KG.rules(RULES[which], force).then(shown => { if (shown && !scrim.hidden && cardKind === "start") { const b = scrim.querySelector(".pri"); if (b) try { b.focus({ preventScroll: true }); } catch (e) {} } return shown; });
+  }
+  const startLinks = '<div class="links"><button class="link" data-act="rules">규칙 보기</button><button class="link" data-act="menu">다른 퍼즐 하기</button></div>';
 
   // ── 고르는 화면
   function paintMenu() {
-    const b = best('match3'); $('recM3').innerHTML = b > 0 ? '최고<strong>' + fmt(b) + '점</strong>' : '';
-    const rows = Object.keys(DIFF).filter(k => best('pairs.' + k) > 0).map(k => '<span>' + DIFF[k].label + ' <i>' + fmt(best('pairs.' + k)) + '번</i></span>');
-    $('recPairs').innerHTML = rows.join('');
+    // 지금 고른 난이도의 기록만 보여 준다
+    const b = best(KG.dkey('match3')); $('recM3').innerHTML = b > 0 ? '최고<strong>' + fmt(b) + '점</strong>' : '';
+    const p = best('pairs.' + KG.diff()); $('recPairs').innerHTML = p > 0 ? '최고<strong>' + fmt(p) + '번</strong>' : '';
   }
   function goMenu() {
     saveIfDone(); gen++; mode = 'menu'; S.playing = false; S.paused = false; M = null; P = null; cur.on = false;
@@ -265,11 +288,11 @@ body.land .pick:first-child { margin-top: 0; }
   // 멈춰 있는 동안은 판의 흐름(지우기·떨어지기·결과)이 기다린다
   async function whilePaused(g) { while (S.paused && g === gen) await sleep(80); }
   // 다 끝난 판인데 결과 카드가 뜨기 전에 나가도 기록은 남긴다
-  function saveIfDone() { if (mode === 'm3' && M && M.moves <= 0 && !M.saved && M.score > 0) { M.saved = true; setBest('match3', M.score); } }
+  function saveIfDone() { if (mode === 'm3' && M && M.moves <= 0 && !M.saved && M.score > 0) { M.saved = true; setBest(M.key, M.score); } }
   addEventListener('pagehide', saveIfDone);
   // 놀이 중 「다른 퍼즐」: 이미 둔 판이면 한 번 묻는다
   function askQuit() {
-    const going = S.playing && !S.paused && (mode === 'm3' ? M && M.moves < MOVES : P && P.started);
+    const going = S.playing && !S.paused && (mode === 'm3' ? M && M.moves < M.max : P && P.started);
     if (!going) { goMenu(); return; }
     S.paused = true;
     showCard('<h2>이 판을 그만할까요?</h2><p>지금 하던 판은 사라져요.</p><div class="row"><button class="kg-btn pri" data-act="resume">계속하기</button><button class="kg-btn" data-act="menu">다른 퍼즐</button></div>',
@@ -282,7 +305,9 @@ body.land .pick:first-child { margin-top: 0; }
   $('pickPairs').addEventListener('click', () => { sfx('tap'); openPairs(); });
 
   // ════════════════════════════════════════════ A. 간식 3개 맞추기
-  const EMO = ['🍠', '🍗', '🍎', '🧀', '🦴', '🥦'], NT = EMO.length, MOVES = 25, PAW3 = [900, 1600, 2500];
+  const EMO = ['🍠', '🍗', '🍎', '🧀', '🦴', '🥦', '🐟'];
+  // 난이도: 간식 종류 수 · 움직임 수 · 귀띔까지 기다리는 초(0 = 귀띔 없음) · 발바닥 1~3개 점수. Normal 은 예전 그대로
+  const M3D = { easy: { nt: 5, moves: 30, hint: 4, paw: [900, 1600, 2500] }, normal: { nt: 6, moves: 25, hint: 7, paw: [900, 1600, 2500] }, hard: { nt: 7, moves: 22, hint: 12, paw: [700, 1250, 1950] }, vhard: { nt: 7, moves: 18, hint: 0, paw: [600, 1050, 1650] } };
   const key = (r, c) => r * M.cols + c, tileAt = k => M.grid[Math.floor(k / M.cols)][k % M.cols];
   const typeAt = (r, c) => { const t = M.grid[r][c]; return t ? t.type : -1; };
   function mkTile(type, r, c) {
@@ -310,7 +335,8 @@ body.land .pick:first-child { margin-top: 0; }
   }
   function m3New() {
     gen++; const cols = land ? 7 : 6, rows = land ? 6 : 7;
-    M = { cols, rows, grid: [], score: 0, shown: 0, moves: MOVES, chain: 0, bestChain: 0, busy: true, sel: null, eaten: 0, over: false, hinted: false };
+    const diff = KG.diff(), d = M3D[diff] || M3D.normal, NT = d.nt;   // 난이도는 판을 깔 때 한 번 읽어 그 판 동안 그대로 쓴다
+    M = { cols, rows, grid: [], diff, key: KG.dkey('match3', diff), nt: NT, max: d.moves, hint: d.hint, paw: d.paw, score: 0, shown: 0, moves: d.moves, chain: 0, bestChain: 0, busy: true, sel: null, eaten: 0, over: false, hinted: false };
     gridEl.innerHTML = ''; fxEl.innerHTML = '';
     let types;
     for (let tries = 0; tries < 50; tries++) {
@@ -336,8 +362,10 @@ body.land .pick:first-child { margin-top: 0; }
   function openM3() {
     enterPlay('m3', '간식 3개 맞추기'); lbA.textContent = '남은 횟수'; lbB.textContent = '점수'; valB.textContent = '0';
     S.playing = false; S.paused = false; m3New();
-    showCard('<div class="ico-lg emo" style="background:#FFF1E3">🍠</div><h2>간식 3개 맞추기</h2><p>이웃한 간식 둘을 밀어서 자리를 바꿔요.<br>같은 간식이 3개 이어지면 ' + nameGaH + ' 냠냠!</p><p class="tip">' + MOVES + '번 안에 점수를 모아요. 4개를 맞추면 줄을 한 번에 치우는 반짝 간식이 생겨요.</p><div class="row"><button class="kg-btn pri" data-act="start">시작</button></div><button class="link" data-act="menu">다른 퍼즐 하기</button>',
-      a => { if (a === 'start') { hideCard(); S.playing = true; lastInput = T; } else goMenu(); });
+    showCard('<div class="ico-lg emo" style="background:#FFF1E3">🍠</div><h2>간식 3개 맞추기</h2><p>같은 간식을 3개 이어 맞추면 ' + nameGaH + ' 냠냠!</p><p class="tip">' + M.max + '번 안에 점수를 모아요.' + (M.hint ? '' : ' 이 난이도는 귀띔이 없어요.') + '</p><div class="dslot"></div><div class="row"><button class="kg-btn pri" data-act="start">시작</button></div>' + startLinks,
+      a => { if (a === 'start') { hideCard(); S.playing = true; lastInput = T; } else if (a === 'rules') showRules('m3', true); else goMenu(); }, 'start');
+    cardDiff = openM3;   // 시작 전에 난이도를 바꾸면 그 난이도로 판을 다시 깐다
+    showRules('m3');  // 앱을 켠 뒤 처음 고를 때만 뜬다 (시작 카드 위에 덮인다)
   }
   function startM3() { enterPlay('m3', '간식 3개 맞추기'); lbA.textContent = '남은 횟수'; lbB.textContent = '점수'; valB.textContent = '0'; hideCard(); m3New(); S.playing = true; S.paused = false; }
 
@@ -409,7 +437,7 @@ body.land .pick:first-child { margin-top: 0; }
         let w = rows - 1;
         for (let r = rows - 1; r >= 0; r--) { const t = M.grid[r][c]; if (!t) continue; if (r !== w) { M.grid[w][c] = t; M.grid[r][c] = null; const d = 0.14 + 0.05 * (w - r); maxD = Math.max(maxD, d); setPos(t, w, c, d); } w--; }
         const nNew = w + 1;
-        for (let r = 0; r < nNew; r++) { const t = mkTile(Math.floor(Math.random() * NT), r - nNew, c); t.el.classList.add('now'); M.grid[r][c] = t; fresh.push([t, r, nNew]); }
+        for (let r = 0; r < nNew; r++) { const t = mkTile(Math.floor(Math.random() * M.nt), r - nNew, c); t.el.classList.add('now'); M.grid[r][c] = t; fresh.push([t, r, nNew]); }
       }
       void gridEl.offsetWidth;
       for (const [t, r, d] of fresh) { t.el.classList.remove('now'); const du = 0.14 + 0.05 * d; maxD = Math.max(maxD, du); setPos(t, r, t.c, du); }
@@ -426,7 +454,7 @@ body.land .pick:first-child { margin-top: 0; }
     for (let tries = 0; tries < 200; tries++) {
       shuffle(tiles); for (let i = 0; i < tiles.length; i++) M.grid[Math.floor(i / cols)][i % cols] = tiles[i];
       if (!runs().length && findMove()) break;
-      if (tries === 199) { for (const t of tiles) { t.type = Math.floor(Math.random() * NT); t.el.className = 'tile t' + t.type; t.el.firstChild.textContent = EMO[t.type]; paintSp(t); } tries = 0; }   // 아주 드물게: 간식을 새로 뽑는다
+      if (tries === 199) { for (const t of tiles) { t.type = Math.floor(Math.random() * M.nt); t.el.className = 'tile t' + t.type; t.el.firstChild.textContent = EMO[t.type]; paintSp(t); } tries = 0; }   // 아주 드물게: 간식을 새로 뽑는다
     }
     toast('움직일 곳이 없어서 간식을 섞었어요'); sfx('swap');
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) setPos(M.grid[r][c], r, c, 0.4);
@@ -435,12 +463,12 @@ body.land .pick:first-child { margin-top: 0; }
   async function m3End(g) {
     M.over = true; M.busy = true; S.playing = false; S.paused = false; if (cardKind === 'pause') hideCard(); setSel(null); clearHint();
     // 기록은 끝이 정해진 바로 지금 남기고, 카드만 조금 뒤에 띄운다
-    const prev = best('match3'), rec = !M.saved && M.score > 0 && setBest('match3', M.score); M.saved = true;
+    const prev = best(M.key), rec = !M.saved && M.score > 0 && setBest(M.key, M.score); M.saved = true;
     await sleep(650); if (g !== gen) return;
-    const paws = PAW3.filter(v => M.score >= v).length;
+    const paws = M.paw.filter(v => M.score >= v).length;
     sfx('win'); kongHappy(3); kongHop(70); hearts(4);
     showCard((rec ? '<div class="newrec">새 기록이에요!</div>' : '') + '<h2>' + (paws >= 3 ? '정말 대단해요!' : paws >= 2 ? '참 잘했어요!' : '잘 놀았어요!') + '</h2>' + pawsHtml(paws) +
-      '<div class="big">' + fmt(M.score) + '<small>점</small></div><p>' + (rec ? (prev > 0 ? '지난 최고 ' + fmt(prev) + '점을 넘었어요' : '첫 기록을 남겼어요') : '최고 기록 ' + fmt(best('match3')) + '점') + '</p><p>' + nameGaH + ' 간식 ' + fmt(M.eaten) + '개를 냠냠했어요</p>' + endRow,
+      '<div class="big">' + fmt(M.score) + '<small>점</small></div><p>' + KG.diffLabel(M.diff) + ' · ' + (rec ? (prev > 0 ? '지난 최고 ' + fmt(prev) + '점을 넘었어요' : '첫 기록을 남겼어요') : '최고 기록 ' + fmt(best(M.key)) + '점') + '</p><p>' + nameGaH + ' 간식 ' + fmt(M.eaten) + '개를 냠냠했어요</p>' + endRow,
       a => { if (a === 'again') startM3(); else goMenu(); });
   }
   // 입력: 밀기 또는 차례로 누르기
@@ -481,11 +509,12 @@ body.land .pick:first-child { margin-top: 0; }
   }
 
   // ════════════════════════════════════════════ B. 카드 짝 맞추기
-  const DIFF = { easy: { a: 3, b: 4, label: '쉬움' }, normal: { a: 4, b: 4, label: '보통' }, hard: { a: 4, b: 5, label: '어려움' } };
-  const FACES = ['🦴', '🎾', '🧸', '🍖', '🍠', '🧀', '🍎', '🥕', '🎀', '🧦', '🛁', '🍪', '🦆', '🧶'];
+  // 난이도: 세로 판 a 칸 × b 줄, back = 틀린 짝을 다시 덮기까지(ms)
+  const DIFF = { easy: { a: 3, b: 4, back: 1000 }, normal: { a: 4, b: 4, back: 1000 }, hard: { a: 4, b: 5, back: 850 }, vhard: { a: 5, b: 6, back: 750 } };
+  const FACES = ['🦴', '🎾', '🧸', '🍖', '🍠', '🧀', '🍎', '🥕', '🎀', '🧦', '🛁', '🍪', '🦆', '🧶', '🐟', '🥦', '🥚', '🍉'];
   const PAW = '<svg viewBox="0 0 48 48" fill="#fff"><ellipse cx="24" cy="31" rx="10.5" ry="8.5"/><ellipse cx="9.5" cy="22" rx="4.4" ry="5.6" transform="rotate(-18 9.5 22)"/><ellipse cx="18.5" cy="13" rx="4.6" ry="6"/><ellipse cx="29.5" cy="13" rx="4.6" ry="6"/><ellipse cx="38.5" cy="22" rx="4.4" ry="5.6" transform="rotate(18 38.5 22)"/></svg>';
   function pairsNew(diff) {
-    gen++; const d = DIFF[diff], n = d.a * d.b; lastDiff = diff;
+    gen++; const d = DIFF[diff], n = d.a * d.b;
     P = { diff, n, cols: land ? d.b : d.a, rows: land ? d.a : d.b, cards: [], open: [], tries: 0, found: 0, time: 0, shownS: -1, started: false, over: false, backT: 0 };
     const deck = shuffle(shuffle(FACES.slice()).slice(0, n / 2).flatMap(e => [e, e]));
     pboardEl.innerHTML = ''; fxEl.innerHTML = '';
@@ -519,7 +548,7 @@ body.land .pick:first-child { margin-top: 0; }
       }, 300);
     } else {
       setTimeout(() => { if (g !== gen || P.open[0] !== x || P.open[1] !== y) return; sfx('wrong'); kongWrong(); x.el.classList.add('nope'); y.el.classList.add('nope'); }, 340);
-      P.backT = setTimeout(() => { if (g === gen && P.open[0] === x && P.open[1] === y) closeOpen(); }, 1000);
+      P.backT = setTimeout(() => { if (g === gen && P.open[0] === x && P.open[1] === y) closeOpen(); }, DIFF[P.diff].back);
     }
   }
   // 기록은 마지막 짝을 맞춘 순간 남긴다 (결과 카드가 뜨기 전에 나가도 남게)
@@ -529,17 +558,20 @@ body.land .pick:first-child { margin-top: 0; }
     const k = 'pairs.' + P.diff, prev = P.prev, rec = P.rec, pairs = P.n / 2;
     const paws = P.tries <= Math.ceil(pairs * 1.5) ? 3 : P.tries <= Math.ceil(pairs * 2.2) ? 2 : 1;
     sfx('win'); kongHappy(3); kongHop(70); hearts(4); voice('bark', 0.5, 1.2);
-    showCard((rec ? '<div class="newrec">새 기록이에요!</div>' : '') + '<h2>다 맞췄어요!</h2>' + pawsHtml(paws) + '<div class="big">' + P.tries + '<small>번</small></div><p>' + DIFF[P.diff].label + ' · 걸린 시간 ' + mmss(P.time) + '</p><p>' +
+    showCard((rec ? '<div class="newrec">새 기록이에요!</div>' : '') + '<h2>다 맞췄어요!</h2>' + pawsHtml(paws) + '<div class="big">' + P.tries + '<small>번</small></div><p>' + KG.diffLabel(P.diff) + ' · 걸린 시간 ' + mmss(P.time) + '</p><p>' +
       (rec ? (prev > 0 ? '지난 최고 ' + fmt(prev) + '번보다 적게 뒤집었어요' : '첫 기록을 남겼어요') : '최고 기록 ' + fmt(best(k)) + '번') + '</p>' + endRow,
-      a => { if (a === 'again') startPairs(P.diff); else goMenu(); });
+      a => { if (a === 'again') startPairs(); else goMenu(); });
   }
   function openPairs() {
-    enterPlay('pairs', '카드 짝 맞추기'); lbA.textContent = '뒤집기'; lbB.textContent = '시간'; S.playing = false; S.paused = false; pairsNew(lastDiff);
-    const opts = Object.keys(DIFF).map(k => { const d = DIFF[k], b = best('pairs.' + k); return '<button class="opt' + (k === lastDiff ? ' rc' : '') + '" data-act="' + k + '"><b>' + d.label + '</b><span>' + d.a + '×' + d.b + ' · ' + (d.a * d.b / 2) + '쌍</span><em>' + (b > 0 ? '최고 ' + fmt(b) + '번' : '') + '</em></button>'; }).join('');
-    showCard('<div class="ico-lg emo" style="background:#E9ECFB">🐾</div><h2>카드 짝 맞추기</h2><p>두 장씩 뒤집어 같은 그림을 찾아요.<br>적게 뒤집을수록 좋은 기록이에요.</p><div class="opts">' + opts + '</div><button class="link" data-act="menu">다른 퍼즐 하기</button>',
-      a => { if (DIFF[a]) startPairs(a); else goMenu(); });
+    enterPlay('pairs', '카드 짝 맞추기'); lbA.textContent = '뒤집기'; lbB.textContent = '시간'; S.playing = false; S.paused = false; pairsNew(KG.diff());
+    const d = DIFF[P.diff], b = best('pairs.' + P.diff);
+    showCard('<div class="ico-lg emo" style="background:#E9ECFB">🐾</div><h2>카드 짝 맞추기</h2><p>두 장씩 뒤집어 같은 그림을 찾아요.</p><p class="tip">' + d.a + '×' + d.b + ' · ' + (P.n / 2) + '쌍' + (b > 0 ? ' · 최고 ' + fmt(b) + '번' : '') + '</p><div class="dslot"></div><div class="row"><button class="kg-btn pri" data-act="start">시작</button></div>' + startLinks,
+      a => { if (a === 'start') { hideCard(); S.playing = true; } else if (a === 'rules') showRules('pairs', true); else goMenu(); }, 'start');
+    cardDiff = openPairs;   // 시작 전에 난이도를 바꾸면 그 크기로 판을 다시 깐다
+    showRules('pairs');
   }
-  function startPairs(diff) { enterPlay('pairs', '카드 짝 맞추기'); lbA.textContent = '뒤집기'; lbB.textContent = '시간'; hideCard(); pairsNew(DIFF[diff] ? diff : 'easy'); S.playing = true; S.paused = false; }
+  // diff 를 주지 않으면 지금 고른 난이도 (판을 깔 때 한 번 읽어 그 판 동안 그대로)
+  function startPairs(diff) { enterPlay('pairs', '카드 짝 맞추기'); lbA.textContent = '뒤집기'; lbB.textContent = '시간'; hideCard(); pairsNew(DIFF[diff] ? diff : KG.diff()); S.playing = true; S.paused = false; }
   pboardEl.addEventListener('pointerdown', e => {
     const el = e.target.closest('.pcard'); if (!el) return; cur.on = false; paintCur();
     K.lookAt = { x: e.clientX, y: e.clientY }; K.lookT = 2; flipCard(+el.dataset.i);
@@ -548,6 +580,7 @@ body.land .pick:first-child { margin-top: 0; }
   // ── 키보드
   addEventListener('keydown', e => {
     const k = e.key;
+    if (KG.rulesOpen) return;   // 규칙 안내가 떠 있으면 키는 안내 것 (공통이 먼저 막지만 한 번 더)
     if (k === 'Escape' || k === 'p' || k === 'P' || k === 'ㅔ') { if (S.paused) resume(); else pause(); return; }
     if (!scrim.hidden || mode === 'menu') return;   // 카드·고르는 화면은 단추에 초점이 가 있다 (Enter·Tab)
     const dir = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[k], act = k === ' ' || k === 'Enter';
@@ -592,7 +625,7 @@ body.land .pick:first-child { margin-top: 0; }
     // 판 크기: 칸 수·칸 모양에 맞춰 화면 안에 들어가게
     let cols, rows, asp, gap, pad, maxW;
     if (mode === 'm3') { cols = M.cols; rows = M.rows; asp = 1; gap = 0; pad = 8; maxW = 70; }
-    else { const d = DIFF[P.diff]; cols = land ? d.b : d.a; rows = land ? d.a : d.b; if (P.cols !== cols && d.a !== d.b) { const t = cur.r; cur.r = cur.c; cur.c = t; } P.cols = cols; P.rows = rows; asp = 1.2; gap = W < 500 || H < 500 ? 8 : 12; pad = 0; maxW = 118; }
+    else { const d = DIFF[P.diff]; cols = land ? d.b : d.a; rows = land ? d.a : d.b; if (P.cols !== cols && d.a !== d.b) { const t = cur.r; cur.r = cur.c; cur.c = t; } P.cols = cols; P.rows = rows; asp = 1.2; gap = W < 500 || H < 500 ? (P.n >= 30 ? 6 : 8) : 12; pad = 0; maxW = 118; }
     const fit = (aw, ah) => Math.max(20, Math.min((aw - 2 * pad - (cols - 1) * gap) / cols, (ah - 2 * pad - (rows - 1) * gap) / rows / asp, maxW));
     let cw, bw, bh, bx, by, kx, ky, ksize;
     const size = () => { bw = cols * cw + (cols - 1) * gap + 2 * pad; bh = rows * cw * asp + (rows - 1) * gap + 2 * pad; };
@@ -638,7 +671,7 @@ body.land .pick:first-child { margin-top: 0; }
     if (mode === 'pairs' && P && P.started && !P.over && !S.paused) { P.time += dt; const s = Math.floor(P.time); if (s !== P.shownS) { P.shownS = s; valB.textContent = mmss(s); } }
     if (mode === 'm3' && M) {
       if (M.shown !== M.score) { M.shown += (M.score - M.shown) * Math.min(1, dt * 9); if (Math.abs(M.score - M.shown) < 1) M.shown = M.score; valB.textContent = fmt(M.shown); }
-      if (canM3() && !M.hinted && T - lastInput > 7) { const mv = findMove(); if (mv) { M.hinted = true; for (const [r, c] of mv) M.grid[r][c].el.classList.add('hint'); } }
+      if (canM3() && !M.hinted && M.hint && T - lastInput > M.hint) { const mv = findMove(); if (mv) { M.hinted = true; for (const [r, c] of mv) M.grid[r][c].el.classList.add('hint'); } }
     }
     K.happy = Math.max(0, K.happy - dt); K.wrong = Math.max(0, K.wrong - dt); K.munch = Math.max(0, K.munch - dt); K.lookT = Math.max(0, K.lookT - dt);
     let hop = 0, squash = 0;
@@ -658,7 +691,7 @@ body.land .pick:first-child { margin-top: 0; }
     get mode() { return mode; }, get playing() { return S.playing; }, get paused() { return S.paused; },
     get state() {
       return { mode, playing: S.playing, paused: S.paused, land,
-        match3: M && { score: M.score, moves: M.moves, chain: M.chain, bestChain: M.bestChain, eaten: M.eaten, busy: M.busy, over: M.over, cols: M.cols, rows: M.rows },
+        match3: M && { diff: M.diff, key: M.key, nt: M.nt, max: M.max, hint: M.hint, score: M.score, moves: M.moves, chain: M.chain, bestChain: M.bestChain, eaten: M.eaten, busy: M.busy, over: M.over, cols: M.cols, rows: M.rows },
         pairs: P && { diff: P.diff, tries: P.tries, found: P.found, pairs: P.n / 2, time: P.time, over: P.over, cols: P.cols, rows: P.rows } };
     },
     menu: goMenu, openMatch3: openM3, startMatch3: startM3, openPairs, startPairs, pause, resume,

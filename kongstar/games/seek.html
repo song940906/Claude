@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 숨바꼭질</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 숨바꼭질: 벽·바닥(bg) → 숨은 콩이(stage) → 가구·숨은 물건·반짝이(fx) → 점수판·찾을 목록 순서로 겹친다.
+   콩이를 찾으면 stage 가 가구 위로 올라온다(.out) */
+#bg, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#stage { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+#stage.out { z-index: 12; }
+#fx { z-index: 2; touch-action: none; cursor: pointer; }
+body.paused #bg, body.paused #fx, body.paused #stage { filter: blur(14px); }
+#hud { position: fixed; z-index: 21; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.66); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud .rm { color: #D5DBFF; font-weight: 500; }
+#hud .tm { flex: 1; min-width: 0; padding: 0 10px 0 9px; gap: 7px; }
+#hud .tm svg { width: 15px; height: 15px; flex: none; }
+#hud .tm i { flex: 1; min-width: 0; height: 7px; border-radius: 4px; background: rgba(255,255,255,.2); overflow: hidden; }
+#hud .tm i u { display: block; height: 100%; width: 100%; border-radius: 4px; background: #8FE3B4; transform-origin: 0 50%; text-decoration: none; }
+#hud .tm.low i u { background: #FF8D8D; }
+#hud .tm.low #hudTime { color: #FFC9C9; }
+#hud .tm.hit { animation: tmHit .4s; }
+@keyframes tmHit { 0%,100% { transform: none; } 25% { transform: translateX(-4px); } 60% { transform: translateX(4px); } }
+#hudTime { min-width: 22px; text-align: right; }
+#hud .sc small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+/* 찾을 목록: 아래에 붙은 흰 판 */
+#tray { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; box-sizing: border-box; height: calc(64px + var(--sab)); padding: 9px calc(var(--sar) + 10px) calc(var(--sab) + 9px) calc(var(--sal) + 10px); background: #fff; border-radius: 20px 20px 0 0; box-shadow: 0 -6px 22px rgba(20,24,60,.16); display: flex; align-items: center; gap: 8px; color: var(--ink); }
+#list { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; height: 46px; }
+#list .it { position: relative; flex: 0 1 44px; min-width: 26px; max-width: 46px; aspect-ratio: 1; border-radius: 12px; background: var(--soft); }
+#list .it canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; transition: opacity .25s; }
+#list .it b { position: absolute; right: -3px; bottom: -3px; width: 17px; height: 17px; border-radius: 50%; background: #34C38F; display: none; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
+#list .it b svg { width: 11px; height: 11px; }
+#list .it.found canvas { opacity: .3; }
+#list .it.found b { display: flex; }
+#list .it.pop { animation: itPop .45s; }
+@keyframes itPop { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
+#list .it.kong { background: #FFF1DE; }
+#list .it.kong.found canvas { opacity: 0; }
+#list .it.kong.found.away canvas { opacity: .3; }   /* 결과 화면: 콩이가 칸을 떠나면 그림을 다시 흐리게 보여 준다 */
+#list .ph { font-size: 14px; color: var(--sub); }
+#btnHint { flex: none; height: 46px; border: 0; border-radius: 14px; padding: 0 13px 0 10px; background: #FFF4D6; color: #9A6A00; font-size: 14px; font-weight: 700; letter-spacing: -.2px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; transition: opacity .2s; }
+#btnHint svg { width: 18px; height: 18px; }
+#btnHint:disabled { opacity: .42; cursor: default; }
+#btnHint.ready { animation: hintGlow 1.6s infinite; }
+@keyframes hintGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(255,200,97,.0); } 50% { box-shadow: 0 0 0 5px rgba(255,200,97,.45); } }
+#banner { position: fixed; z-index: 11; left: 0; right: 0; text-align: center; pointer-events: none; opacity: 0; transform: translateY(8px); transition: opacity .28s, transform .28s; }
+#banner.show { opacity: 1; transform: none; }
+#banner div { display: inline-block; padding: 12px 22px; border-radius: 20px; background: rgba(255,255,255,.95); box-shadow: 0 8px 26px rgba(20,24,60,.2); }
+#banner b { display: block; font-size: 20px; font-weight: 700; letter-spacing: -.4px; color: var(--ink); }
+#banner span { display: block; margin-top: 2px; font-size: 14px; font-weight: 500; color: var(--sub); }
+#banner span:empty { display: none; }
+/* 카드 안 */
+.kg-card .tip { margin: 12px 0 0; padding: 8px 8px 8px 14px; background: var(--soft); border-radius: 14px; font-size: 14px; line-height: 1.5; color: #3A4552; text-align: left; display: flex; align-items: center; gap: 10px; }
+.kg-card .tip span { flex: 1; min-width: 0; }
+.kg-card .tip b { color: var(--pri); font-weight: 700; }
+#btnRules { flex: none; height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--card); color: var(--pri); font-size: 13.5px; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+#btnRules:active { filter: brightness(.96); }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-bottom: 6px; background: #FFF1D6; color: #B36B00; font-size: 13px; font-weight: 700; border-radius: 12px; padding: 5px 11px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+/* 세로 화면: 알림이 시간·점수판(위 줄 바로 아래)을 덮지 않게 그 밑에 띄운다 */
+body.tall .kg-toast { top: calc(var(--sat) + 102px); }
+/* 세로 화면: 카드를 조금 위로 올려 아래에서 기다리는 콩이가 보이게 */
+@media (orientation: portrait) and (min-height: 620px) { body .kg-scrim:not(.kg-rules) { align-items: flex-start; padding-top: calc(var(--sat) + 96px); } }
+@media (max-width: 340px) {
+  body .kg-card .kg-diff button { font-size: 12px; letter-spacing: -.5px; }
+  body .kg-card .rec span { padding: 7px 9px; font-size: 12.5px; letter-spacing: -.3px; }
+  #btnHint { padding: 0 10px 0 8px; font-size: 13px; }
+  #list { gap: 4px; }
+}
+/* 낮은 화면(가로 휴대폰): 목록 판을 낮추고 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  #tray { height: calc(54px + var(--sab)); padding-top: 6px; padding-bottom: calc(var(--sab) + 6px); }
+  #list { height: 42px; }
+  #list .it { max-width: 42px; }
+  #btnHint { height: 42px; }
+  body .kg-card { box-sizing: border-box; width: min(100%, 420px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; font-size: 19px; }
+  #stLead, #edText { display: none; }
+  body .kg-card .tip { margin-top: 6px; padding: 4px 6px 4px 12px; }
+  #btnRules { height: 40px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 34px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .rec span { padding: 5px 10px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 32px; margin: 0; }
+  body .kg-card .new { margin-bottom: 2px; padding: 3px 10px; }
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="stage"></div>
+<canvas id="fx"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="rm" id="hudRoom">첫째 방</div>
+  <div class="tm" id="hudTm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><i><u id="hudBar"></u></i><span id="hudTime">0</span></div>
+  <div class="sc"><span id="hudScore">0</span><small>점</small></div>
+</div>
+<div id="tray">
+  <div id="list" role="list" aria-label="찾을 것들"><span class="ph">찾을 것들이 여기에 나와요</span></div>
+  <button type="button" id="btnHint" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.300 1 2.100h5c0-.8.4-1.600 1-2.100A6 6 0 0 0 12 3z"/></svg>힌트</button>
+</div>
+<div id="banner" role="status" aria-live="polite"><div><b></b><span></span></div></div>
+
+<div class="kg-scrim" id="cardStart">
+  <div class="kg-card" role="dialog" aria-labelledby="stTitle">
+    <h2 id="stTitle">콩이의 숨바꼭질</h2>
+    <p id="stLead"></p>
+    <div class="tip"><span><b>목록의 그림</b>을 방에서 찾아 눌러요</span><button type="button" id="btnRules">규칙 보기</button></div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="psTitle">
+    <h2 id="psTitle">잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><a class="kg-btn" href="index.html">그만하기</a><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="edTitle">
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <h2 id="edTitle">모두 찾았어요!</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
+    <div class="rec"><span>찾은 것<b id="edFound"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+
+  // ═══════ 난이도 표 (수치는 모두 여기) ═══════
+  //   rooms 한 판의 방 수 · items 방마다 찾을 물건 수(콩이는 따로 하나 더) · decoys 색만 다른 가짜 물건 수
+  //   time 방마다 주는 시간(초) · miss 엉뚱한 곳을 누르면 깎이는 시간(초) · size 숨은 물건 크기 배율
+  //   minVis 물건이 적어도 이만큼은 보여야 한다(0~1) · bias 덜 보이는 자리를 고르는 정도(0 고루 ~ 1 많이 가린 자리 위주)
+  //   kongHide 콩이가 가구 뒤로 들어가는 정도(0~1) · kongMin 콩이가 적어도 이만큼은 보여야 한다 · peek 콩이가 이 초마다 빼꼼 움직인다(0 이면 가만히)
+  //   hintAfter 못 찾고 이 초가 지나면 힌트 단추가 켜진다 · hintCost 힌트 한 번에 깎이는 점수 · hintJit 힌트 원이 실제 자리에서 벗어나는 정도
+  const DIFF = {
+    easy:   { rooms: 3, items: 3, decoys: 0, time: 90, miss: 2, size: 1.25, minVis: 0.70, bias: 0,    kongHide: 0,    kongMin: 0.22, peek: 5,  hintAfter: 5,  hintCost: 20, hintJit: 6 },
+    normal: { rooms: 3, items: 4, decoys: 2, time: 70, miss: 3, size: 1.10, minVis: 0.50, bias: 0.4,  kongHide: 0.4,  kongMin: 0.15, peek: 9,  hintAfter: 9,  hintCost: 40, hintJit: 14 },
+    hard:   { rooms: 3, items: 5, decoys: 4, time: 55, miss: 5, size: 1.00, minVis: 0.38, bias: 0.75, kongHide: 0.75, kongMin: 0.10, peek: 15, hintAfter: 13, hintCost: 60, hintJit: 22 },
+    vhard:  { rooms: 3, items: 6, decoys: 6, time: 45, miss: 7, size: 0.90, minVis: 0.30, bias: 1,    kongHide: 1,    kongMin: 0.07, peek: 0,  hintAfter: 17, hintCost: 80, hintJit: 30 }
+  };
+  const PTS = { item: 100, kong: 200, sec: 10, perfect: 100 };   // 물건 · 콩이 · 남은 1초 · 틀림·힌트 없이 방을 끝냄
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
+
+  // ═══════ 그림 도구 ═══════
+  function rr(g, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  const R = (g, c, x, y, w, h, r) => { g.fillStyle = c; rr(g, x, y, w, h, r || 0); g.fill(); };
+  const C = (g, c, x, y, r) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); };
+  const E = (g, c, x, y, rx, ry, rot) => { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, rx, ry, rot || 0, 0, TAU); g.fill(); };
+  const PG = (g, c, pts) => { g.fillStyle = c; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.closePath(); g.fill(); };
+  const LN = (g, c, w, pts) => { g.strokeStyle = c; g.lineWidth = w; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]); g.stroke(); };
+  const SH = 'rgba(40,30,60,.10)', DK = 'rgba(40,30,60,.14)', LT = 'rgba(255,255,255,.35)';
+  const shadow = (g, w) => E(g, SH, 0, 1, w / 2, 5);
+  function heartPath(g, x, y, s) { g.beginPath(); g.moveTo(x, y + s * 0.9); g.bezierCurveTo(x - s * 1.5, y - s * 0.1, x - s * 0.8, y - s * 1.15, x, y - s * 0.35); g.bezierCurveTo(x + s * 0.8, y - s * 1.15, x + s * 1.5, y - s * 0.1, x, y + s * 0.9); g.closePath(); }
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  // ═══════ 숨은 물건 (가운데가 0,0 · 반지름 13 안에 그린다) — 종류마다 색 세 가지: 하나는 찾을 것, 나머지는 가짜로 쓴다 ═══════
+  const EYE = '#4A3728';
+  const ITEMS = {
+    ball: { cols: [['#FF8A80', '#FFFFFF'], ['#64B5F6', '#FFFFFF'], ['#FFD54F', '#FFFFFF']], d(g, c) {
+      C(g, c[0], 0, 0, 12); g.save(); g.beginPath(); g.arc(0, 0, 12, 0, TAU); g.clip();
+      g.strokeStyle = c[1]; g.lineWidth = 3.4; g.beginPath(); g.moveTo(-13, -2); g.quadraticCurveTo(0, 7, 13, -2); g.stroke(); g.beginPath(); g.moveTo(-10, -11); g.quadraticCurveTo(0, -5, 10, -11); g.stroke(); g.restore();
+      C(g, 'rgba(255,255,255,.55)', -4.5, -5.5, 2.6); } },
+    bone: { cols: [['#FFF1D0', '#E3C083'], ['#F9B9A6', '#DC8F78'], ['#BFE3F5', '#84B9D8']], d(g, c) {
+      g.rotate(-0.5); g.fillStyle = c[0]; g.strokeStyle = c[1]; g.lineWidth = 1.3;
+      for (const [x, y] of [[-8.5, -3.2], [-8.5, 3.2], [8.5, -3.2], [8.5, 3.2]]) { g.beginPath(); g.arc(x, y, 4, 0, TAU); g.fill(); g.stroke(); }
+      rr(g, -9, -3.1, 18, 6.2, 2); g.fill(); LN(g, c[1], 1.3, [-5, -3.1, 5, -3.1]); LN(g, c[1], 1.3, [-5, 3.1, 5, 3.1]); } },
+    sock: { cols: [['#FF9DB0', '#FFFFFF'], ['#7FD0C3', '#FFFFFF'], ['#B9A4E6', '#FFFFFF']], d(g, c) {
+      g.fillStyle = c[0]; g.beginPath(); g.moveTo(-6, -9); g.lineTo(5, -9); g.lineTo(5, 1); g.quadraticCurveTo(13, 2, 12.5, 8); g.quadraticCurveTo(12, 13, 4, 12.5); g.lineTo(-1, 12); g.quadraticCurveTo(-7, 11, -6, 4); g.closePath(); g.fill();
+      R(g, c[1], -7, -13, 13, 5.5, 2); LN(g, c[1], 2, [-5.5, -3.5, 4.5, -3.5]); LN(g, c[1], 2, [-5.5, 0.8, 4.5, 0.8]); g.strokeStyle = c[0]; g.lineWidth = 1; rr(g, -7, -13, 13, 5.5, 2); g.stroke(); } },
+    duck: { cols: [['#FFD54F', '#FF9A3C'], ['#FF9DB0', '#FF9A3C'], ['#8FC9F2', '#FF9A3C']], d(g, c) {
+      PG(g, c[1], [10.5, -8, 16.5, -5.5, 10.5, -3.5]); E(g, c[0], -1.5, 4.5, 11, 8); C(g, c[0], 6, -6, 6.4); PG(g, c[0], [-12, 2, -15, -4, -8, -1]);
+      E(g, DK, -3, 5, 5.5, 3.6, -0.2); C(g, EYE, 7.6, -7.6, 1.15); } },
+    rope: { cols: [['#FF8A80', '#FFFFFF'], ['#7FC8A9', '#FFFFFF'], ['#7FB7E6', '#FFFFFF']], d(g, c) {
+      LN(g, c[0], 1.6, [-10, 7, -14, 11]); LN(g, c[0], 1.6, [-10, 7, -13, 5]); LN(g, c[0], 1.6, [10, -7, 14, -11]); LN(g, c[0], 1.6, [10, -7, 13, -5]);
+      LN(g, c[0], 6.4, [-8, 5.5, 8, -5.5]); for (const t of [-0.5, 0, 0.5]) LN(g, c[1], 1.7, [t * 12 - 1.5, -t * 8.2 - 2.6, t * 12 + 1.5, -t * 8.2 + 2.6]);
+      C(g, c[0], -9.5, 6.5, 5.2); C(g, c[0], 9.5, -6.5, 5.2); C(g, DK, -9.5, 6.5, 2); C(g, DK, 9.5, -6.5, 2); } },
+    cookie: { cols: [['#D9A066', '#8B5E3C'], ['#F6A6C1', '#FFFFFF'], ['#A8D08D', '#FFFFFF']], d(g, c) {
+      g.fillStyle = c[0]; heartPath(g, 0, 0.5, 9.4); g.fill(); for (const [x, y] of [[-4.5, -3], [3.5, -4], [0, 2.5], [5, 1], [-5, 2]]) C(g, c[1], x, y, 1.35); } },
+    frisbee: { cols: [['#FF9A3C', '#FFE0B2'], ['#5FC2C0', '#D5F2F0'], ['#B58AE0', '#EBDDF9']], d(g, c) {
+      g.rotate(-0.25); E(g, c[0], 0, 0, 13, 7.2); g.strokeStyle = c[1]; g.lineWidth = 1.8; g.beginPath(); g.ellipse(0, -0.6, 8.6, 4.2, 0, 0, TAU); g.stroke(); E(g, c[1], 0, -0.8, 3, 1.5); } },
+    teddy: { cols: [['#C89B6D', '#F3E0C5'], ['#F2B6C6', '#FFF0F4'], ['#A9C7F2', '#F2F7FF']], d(g, c) {
+      C(g, c[0], -6.6, -9.6, 3.7); C(g, c[0], 6.6, -9.6, 3.7); C(g, c[1], -6.6, -9.6, 1.7); C(g, c[1], 6.6, -9.6, 1.7);
+      C(g, c[0], -8, 5, 3.2); C(g, c[0], 8, 5, 3.2); E(g, c[0], 0, 7.5, 7.6, 6.2); E(g, c[1], 0, 8, 4, 3.6); C(g, c[0], 0, -4, 8.2);
+      E(g, c[1], 0, -2, 3.8, 3); C(g, EYE, -3.1, -6, 1.1); C(g, EYE, 3.1, -6, 1.1); C(g, EYE, 0, -3, 1.1); } },
+    slipper: { cols: [['#F28B82', '#FFD9D4'], ['#7FB7E6', '#DCEEFB'], ['#F6C453', '#FFF1C9']], d(g, c) {
+      g.rotate(-0.35); R(g, c[0], -13, -6.5, 26, 13, 6.5); R(g, DK, -13, 3, 26, 3.5, 1.7); R(g, c[1], -1, -7.6, 11, 12.4, 5); C(g, c[0], 4.5, -1.5, 1.8); } },
+    carrot: { cols: [['#FF9A3C', '#6BBF59'], ['#B58AE0', '#6BBF59'], ['#F2CF45', '#6BBF59']], d(g, c) {
+      g.rotate(0.65); E(g, c[1], -3, -11.5, 2.4, 4.6, -0.5); E(g, c[1], 3, -11.5, 2.4, 4.6, 0.5); E(g, c[1], 0, -12.5, 2.4, 5, 0);
+      g.fillStyle = c[0]; g.beginPath(); g.moveTo(-5.6, -8); g.quadraticCurveTo(0, -11, 5.6, -8); g.lineTo(1.2, 12); g.quadraticCurveTo(0, 13.6, -1.2, 12); g.closePath(); g.fill();
+      LN(g, DK, 1.1, [-3, -4, 0.5, -3.4]); LN(g, DK, 1.1, [0, 1, 2.6, 1.5]); LN(g, DK, 1.1, [-1.6, 5.5, 0.6, 6]); } },
+    bowl: { cols: [['#F28B82', '#C58A55'], ['#7FB7E6', '#C58A55'], ['#8CCB7E', '#C58A55']], d(g, c) {
+      for (const [x, y] of [[-6, -6], [0, -8], [6, -6], [-3, -5], [3, -5]]) C(g, c[1], x, y, 2.9);
+      PG(g, c[0], [-12, -4, 12, -4, 9.5, 8.5, -9.5, 8.5]); R(g, c[0], -13.5, -6, 27, 5, 2.5); R(g, LT, -11, -5, 22, 1.6, 0.8); g.fillStyle = LT; heartPath(g, 0, 2.6, 2.8); g.fill(); } }
+  };
+  const TYPES = Object.keys(ITEMS), IR = 13;
+  function drawItem(g, type, col, x, y, sc) {
+    g.save(); g.translate(x, y); g.scale(sc, sc); g.shadowColor = 'rgba(50,35,25,.35)'; g.shadowBlur = 2.5; g.shadowOffsetY = 0.8;
+    ITEMS[type].d(g, ITEMS[type].cols[col]); g.restore();
+  }
+
+  // ═══════ 소품 (발밑 가운데가 0,0 · 위쪽이 −y) ═══════
+  const WOOD = '#C99B6D', WOOD2 = '#B08257', GREEN = ['#7CC57A', '#69B56E', '#92D287'];
+  const P = {
+    sofa(g, a) { const w = a.w; shadow(g, w + 6); R(g, WOOD2, -w / 2 + 10, -7, 8, 7, 2); R(g, WOOD2, w / 2 - 18, -7, 8, 7, 2);
+      R(g, a.c2, -w / 2 + 6, -92, w - 12, 66, 18); R(g, LT, -w / 2 + 18, -86, w - 36, 4, 2); R(g, a.c, -w / 2 + 12, -50, w - 24, 30, 9); R(g, a.c, -w / 2 + 8, -28, w - 16, 22, 7); R(g, DK, -w / 2 + 8, -24, w - 16, 3, 1.5);
+      R(g, a.c2, -w / 2, -66, 24, 60, 11); R(g, a.c2, w / 2 - 24, -66, 24, 60, 11); R(g, LT, -w / 2 + 5, -62, 14, 4, 2); R(g, LT, w / 2 - 19, -62, 14, 4, 2); },
+    lamp(g, a) { shadow(g, 38); R(g, '#C9B79C', -2, -150, 4, 148, 2); E(g, '#B9A78F', 0, -3, 17, 5); PG(g, a.c, [-13, -192, 13, -192, 23, -146, -23, -146]); R(g, LT, -20, -151, 40, 4, 2); },
+    curtain(g, a) { const w = a.w, h = a.h, pw = w * 0.36; R(g, '#B9A78F', -w / 2 - 8, -h - 3, w + 16, 5, 2.5); C(g, '#B9A78F', -w / 2 - 9, -h - 0.5, 4); C(g, '#B9A78F', w / 2 + 9, -h - 0.5, 4);
+      for (const x0 of [-w / 2, w / 2 - pw]) { g.fillStyle = a.c; g.beginPath(); g.moveTo(x0, -h); g.lineTo(x0 + pw, -h); g.lineTo(x0 + pw, -10);
+        for (let i = 4; i >= 0; i--) g.quadraticCurveTo(x0 + pw * (i + 0.5) / 5, i % 2 ? -12 : -4, x0 + pw * i / 5, -9); g.closePath(); g.fill();
+        for (let i = 1; i < 5; i++) LN(g, a.c2, 1.4, [x0 + pw * i / 5, -h + 6, x0 + pw * i / 5, -14]); } },
+    plant(g, a) { shadow(g, 34); const k = a.k || 1;
+      if (k === 1) { const L = [[-1.25, 50], [-0.75, 62], [-0.3, 60], [0.15, 66], [0.6, 58], [1.1, 52], [-1.7, 34], [1.6, 34]]; L.forEach(([an, len], i) => { const cx = Math.sin(an) * len / 2, cy = -31 - Math.cos(an) * len / 2; E(g, GREEN[i % 3], cx, cy, 8.5, len / 2, an); LN(g, 'rgba(255,255,255,.25)', 1, [Math.sin(an) * 6, -31 - Math.cos(an) * 6, Math.sin(an) * (len - 8), -31 - Math.cos(an) * (len - 8)]); }); }
+      else if (k === 2) { LN(g, '#6FAE6B', 3, [0, -30, 2, -70, -2, -118]); [[-13, -52, -0.6], [14, -66, 0.6], [-13, -84, -0.5], [13, -100, 0.5], [-2, -122, 0]].forEach(([x, y, r], i) => E(g, GREEN[i % 3], x, y, 13, 9.5, r)); }
+      else { C(g, GREEN[0], -9, -40, 11); C(g, GREEN[1], 9, -41, 12); C(g, GREEN[2], 0, -50, 12); }
+      PG(g, a.c, [-15, -28, 15, -28, 11, 0, -11, 0]); R(g, a.c, -17, -34, 34, 8, 3); R(g, DK, -15, -27, 30, 2.5, 1); },
+    table(g, a) { const w = a.w, h = a.h; shadow(g, w); R(g, WOOD2, -w / 2 + 10, -h + 6, 7, h - 6, 2); R(g, WOOD2, w / 2 - 17, -h + 6, 7, h - 6, 2); R(g, a.c, -w / 2, -h, w, 9, 4); R(g, LT, -w / 2 + 6, -h + 2, w - 12, 2, 1); },
+    tcloth(g, a) { const w = a.w, h = a.h; shadow(g, w); R(g, WOOD2, -w / 2 + 12, -h + 6, 7, h - 6, 2); R(g, WOOD2, w / 2 - 19, -h + 6, 7, h - 6, 2);
+      g.fillStyle = a.c; g.beginPath(); g.moveTo(-w / 2 - 4, -h - 2); g.lineTo(w / 2 + 4, -h - 2); g.lineTo(w / 2 + 4, -42); const n = 8, sw = (w + 8) / n; for (let i = n - 1; i >= 0; i--) g.quadraticCurveTo(-w / 2 - 4 + sw * (i + 0.5), -32, -w / 2 - 4 + sw * i, -42); g.closePath(); g.fill();
+      for (let i = 0; i < n; i++) C(g, a.c2, -w / 2 - 4 + sw * (i + 0.5), -50, 3); R(g, a.c2, -w / 2 - 4, -h - 2, w + 8, 5, 2); },
+    vase(g, a) { LN(g, '#6FAE6B', 1.8, [0, -24, -8, -50]); LN(g, '#6FAE6B', 1.8, [0, -24, 1, -58]); LN(g, '#6FAE6B', 1.8, [0, -24, 9, -48]);
+      for (const [x, y] of [[-8, -52], [1, -60], [9, -50]]) { C(g, a.f, x, y, 6); C(g, '#FFF3C4', x, y, 2.2); }
+      R(g, a.c, -8, -24, 16, 24, 6); R(g, a.c, -5, -29, 10, 7, 2); R(g, LT, -5, -20, 3, 12, 1.5); },
+    books(g) { R(g, '#F28B82', -16, -7, 32, 7, 2); R(g, '#7FB7E6', -13, -14, 28, 7, 2); R(g, '#F6D36B', -15, -21, 30, 7, 2); R(g, LT, -10, -19, 12, 2, 1); },
+    box(g, a) { const w = a.w, h = a.h; shadow(g, w + 8); PG(g, '#E7C8A0', [-w / 2, -h, -w / 2 + 2, -h + 5, -w / 2 - 15, -h + 15, -w / 2 - 17, -h + 9]); PG(g, '#E7C8A0', [w / 2, -h, w / 2 - 2, -h + 5, w / 2 + 15, -h + 15, w / 2 + 17, -h + 9]);
+      R(g, '#D9B48A', -w / 2, -h, w, h, 3); R(g, '#C49A6C', -w / 2, -h, w, 5, 2); R(g, '#F1E3C8', -7, -h + 5, 14, h - 5, 0); R(g, DK, -w / 2 + 8, -22, 18, 3, 1.5); R(g, DK, -w / 2 + 8, -16, 12, 3, 1.5); },
+    basket(g, a) { const w = a.w, h = a.h; shadow(g, w + 4); R(g, a.c, -w / 2, -h, w, h, 9); for (let y = -h + 12; y < -4; y += 8) LN(g, DK, 1.4, [-w / 2 + 3, y, w / 2 - 3, y]); for (let x = -w / 2 + 8; x < w / 2 - 4; x += 9) LN(g, 'rgba(255,255,255,.22)', 1.4, [x, -h + 8, x, -3]); R(g, '#C49A5E', -w / 2 - 3, -h - 3, w + 6, 8, 4); },
+    cushion(g, a) { const w = a.w, h = w * 0.72; g.rotate(a.rot || 0); R(g, a.c, -w / 2, -h, w, h, w * 0.2); R(g, LT, -w / 2 + 6, -h + 5, w - 12, 3, 1.5); C(g, DK, 0, -h / 2, 2.6); },
+    bed(g, a) { const w = a.w; shadow(g, w + 6); R(g, WOOD2, -w / 2 + 6, -14, 8, 14, 2); R(g, WOOD2, w / 2 - 14, -14, 8, 14, 2);
+      R(g, WOOD, -w / 2, -116, 16, 112, 7); R(g, WOOD, w / 2 - 12, -64, 12, 60, 5); R(g, '#D8B48A', -w / 2 + 8, -36, w - 16, 24, 5);
+      R(g, '#FFFDF8', -w / 2 + 12, -60, w - 22, 28, 8); R(g, '#FFFFFF', -w / 2 + 18, -80, 54, 26, 11); R(g, DK, -w / 2 + 22, -58, 46, 2.5, 1);
+      R(g, a.c, -w / 2 + 70, -72, w - 78, 60, 12); R(g, a.c2, -w / 2 + 70, -72, 16, 60, 8); for (let i = 0; i < 5; i++) C(g, LT, -w / 2 + 104 + i * 26, -52 + (i % 2) * 18, 3.2); },
+    nightstand(g, a) { shadow(g, 52); R(g, WOOD2, -21, -6, 6, 6, 1); R(g, WOOD2, 15, -6, 6, 6, 1); R(g, a.c, -24, -50, 48, 46, 5); R(g, DK, -19, -44, 38, 15, 3); R(g, DK, -19, -25, 38, 15, 3); C(g, '#FFF3D6', 0, -36.5, 2.4); C(g, '#FFF3D6', 0, -17.5, 2.4);
+      R(g, '#C9B79C', -2, -70, 4, 20, 1); E(g, '#B9A78F', 0, -51, 9, 3); PG(g, '#FFE3A6', [-9, -94, 9, -94, 15, -70, -15, -70]); },
+    wardrobe(g, a) { const w = a.w, h = a.h; shadow(g, w + 6); R(g, WOOD2, -w / 2 + 5, -7, 8, 7, 2); R(g, WOOD2, w / 2 - 13, -7, 8, 7, 2); R(g, a.c, -w / 2, -h, w, h - 5, 7); R(g, LT, -w / 2 + 5, -h + 4, w - 10, 3, 1.5);
+      LN(g, DK, 1.6, [0, -h + 10, 0, -9]); g.strokeStyle = DK; g.lineWidth = 1.4; rr(g, -w / 2 + 6, -h + 14, w / 2 - 10, h - 30, 4); g.stroke(); rr(g, 4, -h + 14, w / 2 - 10, h - 30, 4); g.stroke(); C(g, WOOD2, -5, -h / 2, 2.6); C(g, WOOD2, 5, -h / 2, 2.6); },
+    chest(g, a) { const w = a.w, h = a.h; shadow(g, w + 6); R(g, a.c, -w / 2, -h, w, h, 7); R(g, a.c2, -w / 2, -h, w, 7, 3); R(g, a.c2, -w / 2 + 12, -h, 8, h, 0); R(g, a.c2, w / 2 - 20, -h, 8, h, 0);
+      g.fillStyle = '#FFF3C4'; g.beginPath(); for (let i = 0; i < 10; i++) { const an = i * TAU / 10 - Math.PI / 2, r = i % 2 ? 4 : 9.5; g.lineTo(Math.cos(an) * r, -h / 2 + 3 + Math.sin(an) * r); } g.closePath(); g.fill(); },
+    beanbag(g, a) { const r = a.r; shadow(g, r * 2 + 6); E(g, a.c, -r * 0.2, -r * 1.12, r * 0.52, r * 0.4); E(g, a.c, 0, -r * 0.64, r, r * 0.66); g.strokeStyle = DK; g.lineWidth = 1.6; g.beginPath(); g.arc(-r * 0.1, -r * 1.5, r * 0.9, 1.0, 2.0); g.stroke(); E(g, LT, -r * 0.4, -r * 0.9, r * 0.2, r * 0.1, -0.4); },
+    tent(g, a) { const w = a.w, h = a.h; shadow(g, w + 8); LN(g, WOOD2, 3, [-w / 2 + 4, 0, 6, -h - 10]); LN(g, WOOD2, 3, [w / 2 - 4, 0, -6, -h - 10]);
+      PG(g, a.c, [-w / 2, 0, 0, -h, -5, -h * 0.72, -20, 0]); PG(g, a.c, [w / 2, 0, 0, -h, 5, -h * 0.72, 26, 0]); PG(g, a.c2, [0, -h * 0.74, 26, 0, 6, 0]);
+      LN(g, a.c2, 2, [-w / 2 + 10, -8, -8, -h + 14]); LN(g, DK, 1.2, [w / 2 - 14, -10, 8, -h + 20]); PG(g, '#F28B82', [6, -h - 10, 22, -h - 5, 6, -h]); },
+    fridge(g, a) { const w = a.w, h = a.h, sp = -h * 0.62; shadow(g, w + 6); R(g, '#9AA7B2', -w / 2 + 6, -5, 9, 5, 1); R(g, '#9AA7B2', w / 2 - 15, -5, 9, 5, 1); R(g, a.c, -w / 2, -h, w, h - 4, 10); R(g, LT, -w / 2 + 6, -h + 5, w - 12, 3, 1.5);
+      LN(g, 'rgba(60,80,100,.22)', 1.6, [-w / 2, sp, w / 2, sp]); R(g, '#AEBBC6', w / 2 - 13, sp - 34, 4, 24, 2); R(g, '#AEBBC6', w / 2 - 13, sp + 10, 4, 30, 2);
+      R(g, '#FFF3C4', -w / 2 + 12, sp + 20, 18, 20, 2); C(g, '#F28B82', -w / 2 + 21, sp + 21, 3); C(g, '#7FB7E6', -4, sp - 30, 4); R(g, '#8CCB7E', -w / 2 + 12, sp - 52, 9, 9, 2); C(g, '#F6C453', 6, sp + 62, 4); },
+    counter(g, a) { const w = a.w, h = a.h; shadow(g, w + 6); R(g, '#8C7A66', -w / 2 + 4, -5, w - 8, 5, 0); R(g, a.c, -w / 2, -h + 7, w, h - 12, 3);
+      for (let i = 0; i < 4; i++) { const x = -w / 2 + 5 + i * (w - 10) / 4; g.strokeStyle = DK; g.lineWidth = 1.3; rr(g, x + 2, -h + 16, (w - 10) / 4 - 4, h - 26, 4); g.stroke(); C(g, '#FFFFFF', x + (i % 2 ? 9 : (w - 10) / 4 - 9), -h + 26, 2.6); }
+      R(g, a.top, -w / 2 - 4, -h, w + 8, 9, 3); R(g, DK, -w / 2 - 4, -h + 7, w + 8, 2, 1);
+      g.strokeStyle = '#AEBBC6'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.moveTo(w * 0.27, -h); g.lineTo(w * 0.27, -h - 16); g.quadraticCurveTo(w * 0.27, -h - 26, w * 0.27 - 12, -h - 24); g.stroke(); },
+    pot(g, a) { R(g, a.c, -22, -16, 44, 4.5, 2); R(g, a.c, -17, -20, 34, 20, 4); R(g, DK, -17, -5, 34, 3, 1.5); R(g, '#FFFFFF', -18.5, -24, 37, 5, 2.5); C(g, '#5F6B78', 0, -26.5, 3.2); },
+    kettle(g, a) { PG(g, a.c, [10, -16, 23, -24, 24, -20, 13, -8]); g.strokeStyle = '#5F6B78'; g.lineWidth = 2.6; g.beginPath(); g.arc(0, -22, 10, Math.PI * 1.08, Math.PI * 1.92); g.stroke(); E(g, a.c, 0, -12, 15, 12); R(g, a.c, -12, -4, 24, 4, 2); C(g, '#5F6B78', 0, -24.5, 2.6); E(g, LT, -6, -16, 3, 5, 0.4); },
+    jar(g, a) { R(g, a.c, -8, -23, 16, 23, 4); R(g, LT, -5, -19, 3, 12, 1.5); R(g, '#8C7A66', -9, -28, 18, 6.5, 2); },
+    fruit(g) { C(g, '#F28B82', -8, -13, 7); C(g, '#F6C453', 5, -14, 7.5); C(g, '#9CCC65', -1, -19, 6.5); C(g, '#B58AE0', 12, -11, 5); g.fillStyle = '#FFFFFF'; g.beginPath(); g.moveTo(-18, -11); g.quadraticCurveTo(-16, 0, 0, 0); g.quadraticCurveTo(16, 0, 18, -11); g.closePath(); g.fill(); R(g, '#A9C7F2', -18, -12.5, 36, 3, 1.5); },
+    chair(g, a) { shadow(g, 46); R(g, a.c, -19, -98, 5.5, 98, 2.5); R(g, a.c, 13.5, -98, 5.5, 98, 2.5); for (const y of [-93, -79, -65]) R(g, a.c, -17, y, 34, 7, 3); R(g, a.c2, -21, -51, 42, 9, 4); R(g, DK, -21, -44, 42, 2, 1); },
+    bin(g, a) { shadow(g, 44); PG(g, a.c, [-17, 0, 17, 0, 20, -54, -20, -54]); R(g, LT, -13, -46, 4, 36, 2); R(g, a.c2, -22, -62, 44, 10, 5); R(g, a.c2, -5, -66, 10, 5, 2); R(g, '#5F6B78', -9, -3, 18, 3, 1.5); },
+    paperbag(g, a) { const w = a.w, h = a.h; shadow(g, w + 4); g.save(); g.translate(8, -h + 4); g.rotate(0.3); R(g, '#E8B56A', -5, -32, 10, 36, 5); for (const y of [-25, -17, -9]) LN(g, '#C98F43', 1.4, [-3, y, 3, y - 3]); g.restore(); E(g, GREEN[0], -10, -h - 6, 6, 12, -0.4); E(g, GREEN[2], -3, -h - 9, 5.5, 12, 0.1);
+      g.fillStyle = '#D8B98C'; g.beginPath(); g.moveTo(-w / 2, 0); g.lineTo(w / 2, 0); g.lineTo(w / 2, -h); for (let i = 5; i >= 0; i--) g.lineTo(-w / 2 + w * i / 6, -h + (i % 2 ? 4 : 0)); g.closePath(); g.fill(); LN(g, DK, 1.2, [w / 2 - 10, -h + 4, w / 2 - 10, 0]); R(g, DK, -w / 2 + 7, -26, 16, 3, 1.5); },
+    crate(g, a) { const w = a.w, h = a.h; shadow(g, w + 4); C(g, '#F28B82', -12, -h - 2, 7); C(g, '#9CCC65', 1, -h - 4, 8); C(g, '#F6C453', 13, -h - 1, 6.5); R(g, '#D4A76A', -w / 2, -h, w, h, 2); for (let y = -h + h / 3; y < -2; y += h / 3) LN(g, DK, 1.6, [-w / 2 + 1, y, w / 2 - 1, y]); R(g, '#BF9156', -w / 2, -h, 5, h, 1); R(g, '#BF9156', w / 2 - 5, -h, 5, h, 1); },
+    blocks(g) { R(g, '#F28B82', -17, -16, 16, 16, 3); R(g, '#7FB7E6', 1, -16, 16, 16, 3); R(g, '#F6D36B', -8, -32, 16, 16, 3); R(g, LT, -14, -13, 10, 2, 1); R(g, LT, 4, -13, 10, 2, 1); R(g, LT, -5, -29, 10, 2, 1); },
+    tree(g) { shadow(g, 60); PG(g, '#A97C50', [-21, 0, 21, 0, 14, -40, 15, -134, -15, -134, -14, -40]); LN(g, DK, 1.4, [-4, -30, -5, -70]); LN(g, DK, 1.4, [6, -60, 5, -100]);
+      for (const [x, y, r, i] of [[-32, -140, 34, 1], [32, -144, 34, 0], [-8, -124, 28, 2], [20, -122, 26, 1], [0, -166, 39, 0]]) C(g, GREEN[i], x, y, r); C(g, GREEN[2], -12, -172, 16);
+      for (const [x, y] of [[-34, -150], [24, -160], [38, -128], [-6, -186]]) C(g, '#F2777A', x, y, 5); },
+    doghouse(g, a) { shadow(g, 116); g.fillStyle = a.c; g.beginPath(); g.rect(-52, -76, 104, 76); g.moveTo(-22, 0); g.lineTo(-22, -34); g.arc(0, -34, 22, Math.PI, 0); g.lineTo(22, 0); g.closePath(); g.fill('evenodd');
+      for (const y of [-58, -40, -22]) { LN(g, DK, 1.2, [-52, y, -24, y]); LN(g, DK, 1.2, [24, y, 52, y]); }
+      PG(g, a.roof, [-66, -70, 66, -70, 7, -128, -7, -128]); LN(g, LT, 2, [-50, -78, -6, -120]); R(g, '#FFF3D6', -15, -70, 30, 9, 4); },
+    bush(g, a) { const w = a.w, h = a.h; shadow(g, w); C(g, a.c, -w * 0.27, -h * 0.46, h * 0.46); C(g, a.c, w * 0.27, -h * 0.46, h * 0.46); C(g, GREEN[2], 0, -h * 0.6, h * 0.4); R(g, a.c, -w / 2 + 4, -h * 0.5, w - 8, h * 0.5, 10);
+      for (const [x, y, c] of [[-22, -40, '#FFFFFF'], [8, -52, '#FFD3E2'], [26, -26, '#FFFFFF'], [-8, -18, '#FFD3E2'], [-30, -16, '#FFF3C4']]) C(g, c, x, y, 3.4); },
+    stump(g) { shadow(g, 36); R(g, '#B98F63', -15, -20, 30, 20, 4); E(g, '#E6C59C', 0, -20, 15, 5); g.strokeStyle = DK; g.lineWidth = 1; g.beginPath(); g.ellipse(0, -20, 8, 2.6, 0, 0, TAU); g.stroke(); },
+    fpot(g, a) { shadow(g, 30); for (const [x, y] of [[-8, -46], [0, -58], [9, -44]]) { LN(g, '#6FAE6B', 1.8, [0, -20, x, y]); for (let i = 0; i < 5; i++) C(g, a.f, x + Math.cos(i * TAU / 5) * 3.6, y + Math.sin(i * TAU / 5) * 3.6, 3); C(g, '#FFF3C4', x, y, 2.2); }
+      E(g, GREEN[0], -7, -28, 6, 3, 0.5); E(g, GREEN[1], 7, -30, 6, 3, -0.5); PG(g, a.c, [-11, 0, 11, 0, 14, -22, -14, -22]); R(g, a.c, -15.5, -26, 31, 6.5, 3); R(g, DK, -14, -20.5, 28, 2, 1); },
+    barrow(g, a) { shadow(g, 110); E(g, '#9B7B63', 6, -60, 40, 15); E(g, GREEN[0], -12, -70, 9, 5, -0.5); E(g, GREEN[2], 20, -72, 9, 5, 0.4); LN(g, WOOD2, 4, [36, -34, 80, -50]); LN(g, '#8C7A66', 4, [30, -26, 38, -1]);
+      PG(g, a.c, [-48, -60, 58, -60, 40, -26, -30, -26]); R(g, LT, -40, -57, 88, 3, 1.5); C(g, '#5F6B78', -28, -13, 13); C(g, '#D7DCE3', -28, -13, 5); },
+    bench(g, a) { const w = a.w; shadow(g, w + 4); R(g, WOOD2, -w / 2 + 8, -40, 7, 40, 2); R(g, WOOD2, w / 2 - 15, -40, 7, 40, 2); R(g, WOOD2, -w / 2 + 9, -82, 6, 44, 2); R(g, WOOD2, w / 2 - 15, -82, 6, 44, 2);
+      R(g, a.c, -w / 2, -82, w, 9, 3); R(g, a.c, -w / 2, -66, w, 9, 3); R(g, a.c, -w / 2 - 3, -44, w + 6, 9, 3); R(g, LT, -w / 2 + 4, -42, w - 8, 2, 1); },
+    wcan(g, a) { shadow(g, 46); PG(g, a.c, [-16, -12, -38, -34, -34, -38, -12, -20]); C(g, a.c, -38, -37, 5.5); g.strokeStyle = a.c; g.lineWidth = 4; g.beginPath(); g.arc(18, -17, 11, -Math.PI / 2, Math.PI / 2); g.stroke(); R(g, a.c, -18, -32, 36, 32, 6); R(g, DK, -18, -34, 36, 4, 2); R(g, LT, -13, -27, 4, 20, 2); },
+    bucket(g, a) { shadow(g, 30); g.strokeStyle = '#8C7A66'; g.lineWidth = 2; g.beginPath(); g.arc(0, -24, 12, Math.PI, 0); g.stroke(); PG(g, a.c, [-10, 0, 10, 0, 14, -24, -14, -24]); R(g, DK, -14.5, -26, 29, 4, 2); R(g, LT, -9, -19, 3, 14, 1.5); }
+  };
+  // 벽 꾸밈 (bg 에 그린다 — 콩이보다 뒤)
+  const B = {
+    frame(g, x, y, w, h, c, k) { R(g, '#FFFFFF', x - w / 2 - 3, y - h / 2 - 3, w + 6, h + 6, 4); R(g, c, x - w / 2, y - h / 2, w, h, 2); if (k === 1) { PG(g, LT, [x - w / 2, y + h / 2, x - 4, y - 4, x + 6, y + 6, x + w / 4, y - 2, x + w / 2, y + h / 2]); C(g, '#FFF3C4', x + w / 4, y - h / 4, 4); } else if (k === 2) { g.fillStyle = '#FF9DB0'; heartPath(g, x, y, Math.min(w, h) * 0.22); g.fill(); } else { C(g, LT, x, y, Math.min(w, h) * 0.28); } },
+    window(g, x, y, w, h) { R(g, '#FFFFFF', x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8, 5); R(g, '#CDEBFB', x - w / 2, y - h / 2, w, h, 2); C(g, '#FFFFFF', x - 12, y - 18, 9); C(g, '#FFFFFF', x - 1, y - 21, 11); C(g, '#FFFFFF', x + 11, y - 17, 8); R(g, '#FFFFFF', x - 1.5, y - h / 2, 3, h, 0); R(g, '#FFFFFF', x - w / 2, y - 1.5, w, 3, 0); R(g, '#F3E7D6', x - w / 2 - 8, y + h / 2, w + 16, 6, 2); },
+    rug(g, x, y, rx, ry, c, c2) { E(g, c, x, y, rx, ry); g.strokeStyle = c2; g.lineWidth = 2.5; g.beginPath(); g.ellipse(x, y, rx - 9, ry - 5, 0, 0, TAU); g.stroke(); },
+    shelf(g, x, y, w) { R(g, WOOD, x - w / 2, y, w, 6, 2); R(g, '#F28B82', x - w / 2 + 8, y - 22, 7, 22, 2); R(g, '#7FB7E6', x - w / 2 + 16, y - 26, 8, 26, 2); R(g, '#F6D36B', x - w / 2 + 25, y - 20, 7, 20, 2); C(g, GREEN[0], x + w / 4, y - 16, 9); R(g, '#E9967A', x + w / 4 - 7, y - 10, 14, 10, 2); },
+    clock(g, x, y) { C(g, '#FFFFFF', x, y, 17); C(g, '#FFE9C4', x, y, 14); LN(g, '#5F6B78', 2, [x, y, x, y - 9]); LN(g, '#5F6B78', 2, [x, y, x + 6, y + 3]); },
+    garland(g, x0, x1, y) { g.strokeStyle = '#C9B79C'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x0, y); g.quadraticCurveTo((x0 + x1) / 2, y + 26, x1, y); g.stroke(); const cs = ['#F28B82', '#F6D36B', '#7FB7E6', '#8CCB7E', '#B9A4E6']; for (let i = 1; i < 8; i++) { const t = i / 8, x = lerp(x0, x1, t), yy = y + 26 * 2 * t * (1 - t) * 1; PG(g, cs[i % 5], [x - 6, yy + 1, x + 6, yy + 1, x, yy + 14]); } }
+  };
+
+  // ═══════ 방 네 가지 ═══════
+  //   방마다 두 묶음(A: 벽 쪽, B: 앞쪽 바닥). 세로 화면은 A 위·B 아래, 가로 화면은 A 왼쪽·B 오른쪽에 놓는다.
+  //   묶음 좌표: x 0~360, 발밑(바닥선) y=0, 위쪽이 −y (−205 ~ +46)
+  //   props: 그리는 순서대로 [소품, x, y, 값] · spots: 물건이 숨는 후보 자리 [x, y, z] — z 번째 소품보다 먼저 그린다(그 뒤 소품이 가린다). z 가 없으면 맨 위
+  //   kong: 콩이가 숨는 후보 { x, y(발밑), pose, f(보는 쪽), size, hx·hy(더 깊이 숨는 방향) } — 콩이는 모든 소품 뒤에 있다
+  //     바닥에 붙은 소품(상자·빈백·봉투·덤불) 뒤 자리는 y + hy 가 −3 이하여야 한다 (발과 발밑 그림자가 소품 밑으로 나오지 않게)
+  const SCENES = [
+    { id: 'living', name: '거실', wall: ['#FDF2E4', '#F9E4D0'], floor: ['#EBCFA9', '#DFBE93'], kind: 'wood',
+      A: { props: [['curtain', 290, 0, { w: 124, h: 196, c: '#F7C8B4', c2: '#EBAF98' }], ['lamp', 30, 0, { c: '#FFE3A6' }], ['sofa', 140, 0, { w: 176, c: '#A7CDD0', c2: '#8EBBC0' }], ['cushion', 96, -50, { w: 44, c: '#FFD98A', rot: -0.12 }], ['cushion', 180, -50, { w: 44, c: '#F6A6A0', rot: 0.14 }], ['plant', 262, 0, { k: 1, c: '#E9967A' }], ['basket', 334, 0, { w: 46, h: 36, c: '#DDB981' }]],
+        spots: [[22, -14, 1], [70, -97, 2], [138, -99, 2], [124, -60, 3], [150, 14], [212, 12], [246, -14, 5], [264, -72, 5], [306, -120, 0], [334, -40, 6], [274, -116], [296, 16], [80, 16]],
+        kong: [{ x: 176, y: -28, pose: 'sit', hy: 12 }, { x: 248, y: -4, pose: 'stand', f: 1, hx: -12 }],
+        back(g) { B.window(g, 290, -152, 84, 96); B.frame(g, 70, -160, 34, 42, '#B9D8F2', 1); B.frame(g, 122, -152, 26, 26, '#FFD3E0', 2); B.frame(g, 170, -164, 30, 24, '#CFE8C4', 0); } },
+      B: { props: [['sofa', 62, 0, { w: 88, c: '#F6C2AB', c2: '#EAAA90' }], ['table', 192, 0, { w: 118, h: 46, c: WOOD }], ['books', 166, -46], ['vase', 222, -46, { c: '#9BB7E8', f: '#FF9DB0' }], ['box', 310, 0, { w: 74, h: 58 }], ['blocks', 128, 30], ['cushion', 30, 32, { w: 42, c: '#B9A4E6', rot: 0.2 }]],
+        spots: [[192, -14, 1], [18, -42, 0], [62, -60], [272, -50, 4], [318, -63, 4], [236, -60, 3], [148, -58, 2], [200, 28], [330, 24], [106, 26, 5], [54, 20, 6], [122, -18, 1], [258, 14]],
+        kong: [{ x: 310, y: -10, pose: 'sit', size: 100, hy: 7 }, { x: 62, y: -28, pose: 'sit', hy: 12 }],
+        back(g, wide) { B.rug(g, 190, 12, 150, 22, '#F7D9C4', '#EFC3A6'); if (wide) { B.frame(g, 60, -156, 40, 32, '#FFE3A6', 1); B.shelf(g, 220, -140, 96); B.clock(g, 320, -160); } } } },
+    { id: 'bedroom', name: '침실', wall: ['#EFEBFC', '#E3DEF7'], floor: ['#ECDCC8', '#E1CCB2'], kind: 'wood',
+      A: { props: [['wardrobe', 322, 0, { w: 68, h: 196, c: '#DCC8AB' }], ['bed', 128, 0, { w: 232, c: '#A9C7F2', c2: '#8FB3EA' }], ['cushion', 204, -70, { w: 42, c: '#FFD3E0', rot: 0.1 }], ['nightstand', 266, 0, { c: '#C9A77D' }]],
+        spots: [[52, -86], [20, -120, 1], [130, -82], [180, -80, 2], [250, -58, 3], [286, -62], [170, -6, 1], [60, 18], [215, 20], [300, 10, 0], [286, -134, 0], [120, 16], [100, -128]],
+        kong: [{ x: 150, y: -4, pose: 'sit', hy: 10 }, { x: 300, y: 0, pose: 'stand', f: -1, hx: 14 }],
+        back(g) { B.frame(g, 100, -150, 44, 34, '#FFE3A6', 1); B.frame(g, 160, -160, 26, 30, '#FFD3E0', 2); C(g, '#FFFFFF', 236, -152, 33); C(g, '#2C3577', 236, -152, 28); C(g, '#FFE9A8', 242, -156, 12); C(g, '#2C3577', 248, -160, 10); for (const [x, y] of [[222, -164], [228, -140], [250, -138]]) C(g, '#FFFFFF', x, y, 1.6); R(g, WOOD, 78, -112, 44, 5, 2); } },
+      B: { props: [['tent', 80, 0, { w: 130, h: 150, c: '#FFE2A8', c2: '#F6B8B0' }], ['chest', 214, 0, { w: 92, h: 54, c: '#B7D7A8', c2: '#9CC48A' }], ['beanbag', 316, 0, { r: 44, c: '#C5B3F0' }], ['blocks', 158, 32], ['cushion', 250, 34, { w: 40, c: '#FFD98A', rot: -0.15 }]],
+        spots: [[24, -24, 0], [72, -22, 0], [118, 24], [194, -60, 1], [240, -60, 1], [284, -50, 2], [322, -62], [336, 24], [140, 30, 3], [230, 26, 4], [158, -14, 1], [30, 26], [282, 10]],
+        kong: [{ x: 78, y: -4, pose: 'sit', size: 96, hx: 8 }, { x: 316, y: -10, pose: 'sit', size: 100, hy: 5 }, { x: 214, y: -8, pose: 'sit', size: 100, hy: 5 }],
+        back(g, wide) { B.rug(g, 190, 14, 156, 22, '#DCD3F7', '#C9BCEF'); PG(g, '#8B79B8', [60, 0, 106, 0, 80, -110]); PG(g, '#9CC48A', [172, -54, 256, -54, 250, -100, 178, -100]); R(g, '#B7D7A8', 180, -96, 68, 38, 4); if (wide) { B.garland(g, 30, 330, -190); B.frame(g, 180, -150, 36, 30, '#B9D8F2', 1); B.frame(g, 300, -146, 28, 28, '#FFE3A6', 0); } } } },
+    { id: 'kitchen', name: '부엌', wall: ['#E8F5EF', '#D9EEE4'], floor: ['#F6F0E7', '#EAE1D3'], kind: 'tile',
+      A: { props: [['fridge', 50, 0, { w: 76, h: 192, c: '#EEF3F6' }], ['counter', 240, 0, { w: 216, h: 88, c: '#F6D9A8', top: '#FFFFFF' }], ['pot', 176, -88, { c: '#F28B82' }], ['kettle', 226, -88, { c: '#7FB7E6' }], ['jar', 332, -88, { c: '#FFE08A' }], ['jar', 313, -88, { c: '#F6A6C1' }]],
+        spots: [[46, -150], [44, -40], [146, -101], [200, -100, 2], [252, -100, 3], [292, -100, 4], [180, 16], [270, 18], [340, 14], [40, 18], [110, -8, 0], [92, -62, 0], [330, -122, 4]],
+        kong: [{ x: 100, y: -2, pose: 'stand', f: 1, hx: -12 }, { x: 108, y: -2, pose: 'sit', hx: -16 }],
+        back(g) { for (let x = 132; x < 350; x += 22) for (let y = -150; y < -92; y += 20) R(g, (Math.round(x / 22) + Math.round(y / 20)) % 2 ? '#FFFFFF' : '#F3FAF6', x, y, 21, 19, 2); R(g, '#F6D9A8', 132, -205, 216, 54, 4); for (let i = 0; i < 4; i++) { g.strokeStyle = DK; g.lineWidth = 1.3; rr(g, 137 + i * 53, -200, 47, 44, 4); g.stroke(); C(g, '#FFFFFF', 160 + i * 53, -164, 2.6); } B.clock(g, 110, -168); } },
+      B: { props: [['tcloth', 130, 0, { w: 150, h: 84, c: '#FFF6DC', c2: '#F6C453' }], ['fruit', 104, -86], ['vase', 166, -86, { c: '#B7D7A8', f: '#FFD166' }], ['chair', 238, 0, { c: WOOD, c2: '#F6A6A0' }], ['bin', 300, 0, { c: '#A9C7F2', c2: '#8FB3EA' }], ['paperbag', 30, 0, { w: 44, h: 58 }], ['crate', 336, 26, { w: 44, h: 30 }]],
+        spots: [[130, -14, 0], [86, -40, 0], [238, -62], [130, -98, 1], [192, -99], [274, -30, 4], [56, -34, 5], [30, -68, 5], [336, -18, 6], [200, 26], [84, 26], [268, 24], [176, -20, 0]],
+        kong: [{ x: 130, y: 2, pose: 'sit', hy: -12 }, { x: 30, y: -6, pose: 'sit', size: 104, hy: 3 }],
+        back(g, wide) { R(g, '#D9EEE4', 60, 2, 150, 26, 12); if (wide) { R(g, '#AEBBC6', 60, -170, 150, 4, 2); for (const [x, c] of [[80, '#F28B82'], [110, '#7FB7E6'], [140, '#F6C453'], [170, '#8CCB7E']]) { LN(g, '#AEBBC6', 2, [x, -168, x, -158]); E(g, c, x, -146, 7, 11); } R(g, WOOD, 240, -140, 100, 6, 2); for (const x of [262, 290, 318]) { C(g, '#FFFFFF', x, -152, 12); C(g, '#D9EEE4', x, -152, 7); } } } } },
+    { id: 'yard', name: '마당', wall: ['#BFE6FA', '#E6F6FC'], floor: ['#BFE3A2', '#A6D488'], kind: 'grass',
+      A: { props: [['tree', 62, 0], ['doghouse', 205, 0, { c: '#F8D3B4', roof: '#EC8A85' }], ['bush', 318, 0, { w: 84, h: 64, c: '#7CC57A' }], ['stump', 128, 6]],
+        spots: [[90, -168], [30, -122], [88, -30, 0], [205, -134, 1], [205, -22, 1], [280, -54, 2], [332, -42], [112, -6, 3], [160, 18], [300, 20], [246, -106], [142, -86, 1], [240, 16]],
+        kong: [{ x: 205, y: -2, pose: 'sit', size: 84, hy: -10 }, { x: 318, y: -9, pose: 'sit', size: 100, hy: 6 }, { x: 62, y: -2, pose: 'sit' }],
+        back(g) { R(g, '#7A5C48', -22 + 205, -56, 44, 56, 0); C(g, '#7A5C48', 205, -34, 22); } },
+      B: { props: [['barrow', 122, 0, { c: '#F2A65A' }], ['bench', 276, 0, { w: 118, c: '#DDB98F' }], ['fpot', 30, 0, { c: '#E9967A', f: '#FF8FA3' }], ['fpot', 342, 0, { c: '#E9967A', f: '#FFD166' }], ['wcan', 204, 30, { c: '#7FC8C2' }], ['bucket', 62, 32, { c: '#F6A6C1' }]],
+        spots: [[128, -74, 0], [150, -12, 0], [250, -54], [302, -70, 1], [290, -14, 1], [50, -14, 2], [228, 20, 4], [82, 28, 5], [340, -52, 3], [132, 30], [320, 26], [18, -50, 2], [200, -30]],
+        kong: [{ x: 124, y: -4, pose: 'sit', hy: 8 }, { x: 276, y: -2, pose: 'sit' }],
+        back(g) { for (const [x, y] of [[70, 16], [150, 26], [240, 14], [310, 30]]) E(g, 'rgba(255,255,255,.4)', x, y, 16, 5); } } }
+  ];
+  const GW = 360, GTOP = 205, GBOT = 46, GH = GTOP + GBOT, GAP = 215, LGAP = 20;   // 묶음 상자 · 세로 화면에서 A·B 바닥선 사이 최소 간격 · 가로 화면에서 두 묶음 사이
+
+  // ═══════ 가려짐 재기 — 숨은 물건·콩이가 실제로 보이는지를 그림으로 잰다 ═══════
+  //   묶음마다 「z 번째부터 뒤에 그려지는 소품」을 1배(1단위=1px) 캔버스에 그려 불투명한 칸을 표시한다.
+  //   A 묶음은 세로 화면에서 B 가 가장 가까이(GAP) 겹쳐 그려지는 경우까지 넣는다 → 어떤 화면에서도 이보다 더 가려지지 않는다.
+  const covers = new Map(), masks = new Map();
+  function drawProp(g, p) { g.save(); g.translate(p[1], p[2]); P[p[0]](g, p[3] || {}); g.restore(); }
+  function cover(sc, grp, z) {
+    const key = sc.id + grp + z; let m = covers.get(key); if (m) return m;
+    const c = document.createElement('canvas'); c.width = GW; c.height = GH; const g = c.getContext('2d', { willReadFrequently: true }); g.translate(0, GTOP);
+    const ps = sc[grp].props; for (let i = z; i < ps.length; i++) drawProp(g, ps[i]);
+    if (grp === 'A') { g.translate(0, GAP); for (const p of sc.B.props) drawProp(g, p); }
+    const d = g.getImageData(0, 0, GW, GH).data; m = new Uint8Array(GW * GH); for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] >= 128 ? 1 : 0;
+    covers.set(key, m); return m;
+  }
+  const covered = (m, x, y) => { x = Math.round(x); y = Math.round(y + GTOP); return x < 0 || x >= GW || y < 0 || y >= GH ? 1 : m[y * GW + x]; };
+  function mask(type, size) {   // 물건 그림에서 불투명한 칸들 (가운데 기준)
+    const key = type + size; let m = masks.get(key); if (m) return m;
+    const n = 48, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d', { willReadFrequently: true });
+    g.translate(n / 2, n / 2); g.scale(size, size); ITEMS[type].d(g, ITEMS[type].cols[0]);
+    const d = g.getImageData(0, 0, n, n).data; m = []; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (d[(y * n + x) * 4 + 3] >= 128) m.push(x - n / 2, y - n / 2);
+    masks.set(key, m); return m;
+  }
+  // 물건이 보이는 정도: { f 보이는 비율, area 보이는 넓이(단위²) }
+  function itemVis(sc, grp, x, y, z, type, size) {
+    const ps = sc[grp].props, m = mask(type, size), cv = cover(sc, grp, z == null ? ps.length : z); let v = 0;
+    for (let i = 0; i < m.length; i += 2) if (!covered(cv, x + m[i], y + m[i + 1])) v++;
+    return { f: v / (m.length / 2), area: v };
+  }
+  // 콩이 몸 안쪽 영역 (그림 좌표 400×400 — 실제 그림보다 조금 안쪽으로 잡아, 보인다고 센 점은 정말 콩이 위에 있다)
+  const SIL = { sit: [[200, 150, 80, 60], [205, 300, 56, 70]], stand: [[300, 140, 64, 54], [190, 268, 92, 48], [72, 190, 20, 20]] };
+  const kongAt = (sp, hide) => ({ x: sp.x + (sp.hx || 0) * hide, y: sp.y + (sp.hy || 0) * hide });
+  // 콩이가 보이는 정도: { f, n, pts(보이는 점들, 묶음 좌표), rep(보이는 곳 한가운데쯤의 점) } — discs: 그 묶음에 놓인 물건들 [x, y, r]
+  function kongVis(sc, grp, sp, hide, discs) {
+    const p = kongAt(sp, hide), u = (sp.size || 110) / 400, f = sp.f === -1 ? -1 : 1, cv = cover(sc, grp, 0), pts = []; let tot = 0;
+    for (const [cx, cy, rx, ry] of SIL[sp.pose] || SIL.sit) for (let vy = -ry; vy <= ry; vy += 6) for (let vx = -rx; vx <= rx; vx += 6) {
+      if (vx * vx / (rx * rx) + vy * vy / (ry * ry) > 1) continue; tot++;
+      const x = p.x + (cx + vx - 200) * u * f, y = p.y + (cy + vy - 380) * u;
+      if (covered(cv, x, y)) continue;
+      if (discs && discs.some(d => (d[0] - x) * (d[0] - x) + (d[1] - y) * (d[1] - y) < d[2] * d[2])) continue;
+      pts.push(x, y);
+    }
+    let mx = 0, my = 0; const n = pts.length / 2; for (let i = 0; i < pts.length; i += 2) { mx += pts[i]; my += pts[i + 1]; } mx /= n || 1; my /= n || 1;
+    let rep = null, bd = 1e9; for (let i = 0; i < pts.length; i += 2) { const d = (pts[i] - mx) * (pts[i] - mx) + (pts[i + 1] - my) * (pts[i + 1] - my); if (d < bd) { bd = d; rep = [pts[i], pts[i + 1]]; } }
+    return { f: n / (tot || 1), n, area: n * 36 * u * u, pts, rep, pos: p };
+  }
+  const MIN_AREA = 150, KONG_AREA = 110, SEP = 44;   // 물건이 보여야 하는 최소 넓이 · 콩이가 보여야 하는 최소 넓이 · 물건 사이 최소 거리(서로 가리지 않고 손가락으로 구분되게)
+
+  // ═══════ 방 꾸미기: 숨는 자리를 매번 무작위로 고른다 ═══════
+  //   cur = { sc, kong:{grp, sp, hide, vis, found}, objs:[{ grp, x, y, z, type, col, target, found, f }] }
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  function tryBuild(sc, d, nItems, nDecoys) {
+    // 콩이 자리
+    const kc = []; for (const grp of ['A', 'B']) for (const sp of sc[grp].kong) kc.push({ grp, sp });
+    // 콩이 자리: 후보를 섞어 차례로 보고, 기준만큼 보이는 첫 자리를 쓴다 (없으면 가장 잘 보이는 자리)
+    let kp = null, hide = 0, kv = null, bk = null;
+    for (const c of shuffle(kc)) {
+      let h = d.kongHide, v = null;
+      for (; ; h = Math.max(0, h - 0.25)) { v = kongVis(sc, c.grp, c.sp, h); if ((v.f >= d.kongMin && v.area >= KONG_AREA) || h <= 0) break; }
+      if (v.f >= d.kongMin && v.area >= KONG_AREA) { kp = c; hide = h; kv = v; break; }
+      if (!bk || v.f > bk.kv.f) bk = { kp: c, hide: h, kv: v };
+    }
+    if (!kp) { if (!bk) return null; kp = bk.kp; hide = bk.hide; kv = bk.kv; }
+    if (kv.f < Math.min(d.kongMin, 0.07) || kv.area < KONG_AREA) return null;
+    // 물건 자리: 충분히 보이는 자리만, 어려울수록 덜 보이는 자리 위주로
+    const types = shuffle(TYPES.slice()).slice(0, nItems), tcol = types.map(() => Math.floor(Math.random() * 3)), r = IR * d.size, cand = [];
+    for (const grp of ['A', 'B']) for (const s of sc[grp].spots) {
+      const v = itemVis(sc, grp, s[0], s[1], s[2], 'ball', d.size);
+      if (v.f < d.minVis * 0.8) continue;
+      if (grp === kp.grp) { let near = false; for (let i = 0; i < kv.pts.length && !near; i += 2) near = Math.hypot(kv.pts[i] - s[0], kv.pts[i + 1] - s[1]) < r + 14; if (near) continue; }   // 콩이가 보이는 곳 가까이는 비운다
+      cand.push({ grp, x: s[0], y: s[1], z: s[2], w: (1 - d.bias) + d.bias * Math.pow(1.35 - v.f, 4) * 6 });
+    }
+    // 할 일(찾을 것·가짜)을 섞어 두고, 자리를 하나씩 뽑아 그 물건의 실제 그림 모양으로 보이는 정도를 재서 기준을 넘는 자리에만 놓는다
+    const roles = []; for (let i = 0; i < nItems; i++) roles.push({ target: true, k: i }); for (let i = 0; i < nDecoys; i++) roles.push({ target: false, k: i % nItems, n: Math.floor(i / nItems) });
+    shuffle(roles); const objs = [];
+    for (const ro of roles) {
+      if (!ro.target && ro.n > 1) continue;   // 한 종류에 가짜는 색 둘까지
+      const type = types[ro.k], col = ro.target ? tcol[ro.k] : (tcol[ro.k] + 1 + ro.n) % 3; let tot = 0; for (const c of cand) tot += c.w;
+      const pool = cand.slice(); let put = false;
+      while (pool.length && !put) {
+        let t = Math.random() * tot, k = 0; for (; k < pool.length - 1; k++) { t -= pool[k].w; if (t <= 0) break; }
+        const c = pool.splice(k, 1)[0]; tot -= c.w;
+        if (objs.some(o => o.grp === c.grp && Math.hypot(o.x - c.x, o.y - c.y) < SEP)) continue;
+        const v = itemVis(sc, c.grp, c.x, c.y, c.z, type, d.size); if (v.f < d.minVis || v.area < MIN_AREA) continue;
+        objs.push({ grp: c.grp, x: c.x, y: c.y, z: c.z, type, col, target: ro.target, found: false, f: v.f }); cand.splice(cand.indexOf(c), 1); put = true;
+      }
+      if (!put && ro.target) return null;   // 찾을 것은 하나도 빠지면 안 된다 (가짜는 자리가 없으면 줄어든다)
+    }
+    const kv2 = kongVis(sc, kp.grp, kp.sp, hide, objs.filter(o => o.grp === kp.grp).map(o => [o.x, o.y, r + 2]));
+    if (kv2.f < Math.min(d.kongMin, kv.f) * 0.85 || kv2.area < KONG_AREA) return null;
+    return { sc, objs, kong: { grp: kp.grp, sp: kp.sp, hide, vis: kv2, found: false } };
+  }
+  function buildScene(sc, d) {
+    for (let i = 0; i < 60; i++) { const r = tryBuild(sc, d, d.items, d.decoys); if (r) return r; }
+    for (let i = 0; i < 60; i++) { const r = tryBuild(sc, d, d.items, 0); if (r) return r; }               // 자리가 모자라면 가짜부터 뺀다
+    for (let i = 0; i < 200; i++) { const r = tryBuild(sc, Object.assign({}, d, { minVis: 0.5, bias: 0, kongHide: 0, kongMin: 0.07 }), Math.min(d.items, 3), 0); if (r) return r; }   // 그래도 안 되면 가장 쉬운 조건으로
+    return null;
+  }
+  // 지금 방의 모든 찾을 것이 기준만큼 보이는지 다시 잰다 (시험용)
+  function verify() {
+    if (!cur) return null; const out = { minItem: 1, kong: 0, kongArea: 0, ok: true };
+    for (const o of cur.objs) { const v = itemVis(cur.sc, o.grp, o.x, o.y, o.z, o.type, D.size); out.minItem = Math.min(out.minItem, v.f); if (v.area < MIN_AREA) out.ok = false; }
+    const kv = kongVis(cur.sc, cur.kong.grp, cur.kong.sp, cur.kong.hide, cur.objs.filter(o => o.grp === cur.kong.grp).map(o => [o.x, o.y, IR * D.size + 2]));
+    out.kong = kv.f; out.kongArea = kv.area; if (kv.area < KONG_AREA) out.ok = false; return out;
+  }
+
+  // ═══════ 화면 ═══════
+  let W = 0, H = 0, DPR = 1, S = 1, LW = 360, LH = 700, wide = false, SAF = { t: 0, b: 0, l: 0, r: 0 }, floorY = 300;
+  const G = { A: { x: 0, y: 300 }, B: { x: 0, y: 520 } };
+  const bg = $('bg'), fx = $('fx'), ctx = fx.getContext('2d'), stage = $('stage'), cache = document.createElement('canvas'), cg = cache.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const TITLE = J(name, '의') + ' 숨바꼭질';
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '방 안에 숨은 ' + J(name, '과/와') + ' 장난감을 찾아요.';
+  $('psText').textContent = J(name, '이/가') + ' 숨어서 기다리고 있어요.';
+  const K = kong(stage, 110);
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';            // ready · play · pause · result
+  let phase = 'idle';             // (play 안에서) intro 방 소개 · find 찾는 중 · clear 다 찾음 · out 시간 끝
+  let cur = null, order = [], roomIdx = 0, score = 0, debt = 0, shownScore = -1, timeLeft = 0, shownTime = -1, phaseT = 0, sinceFind = 0, lastTap = -9;
+  let foundN = 0, totalN = 0, roomsDone = 0, wrongN = 0, hintN = 0, roomClean = true, tAnim = 0, lastBark = -99, peekT = 0, peekA = 0;
+  let kMode = 'show', kT = 0, kFrom = null, joyT = 0, sadT = 0, showMood = 'wave', hint = null;
+  const parts = [], floats = [], flies = [], rings = [], justFound = [];   // justFound: 방금 찾은 자리 { x, y, r(묶음 단위·화면 기준), until } — 같은 자리를 연달아 눌러도 벌점이 없게
+  const cursor = { x: 180, y: 300, on: false }, keys = { l: 0, r: 0, u: 0, d: 0 };
+
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    wide = W >= H * 1.15 && W >= 560;
+    const trayH = $('tray').offsetHeight || 64, topPx = SAF.t + (wide ? 60 : 100), availPx = Math.max(120, H - topPx - trayH), needW = wide ? GW * 2 + LGAP : GW, needH = wide ? GH : GTOP + GAP + GBOT;
+    S = Math.min((W - SAF.l - SAF.r) / needW, availPx / needH); LW = W / S; LH = H / S;
+    const T = topPx / S, extra = availPx / S - needH;
+    if (wide) { G.A.x = (LW - needW) / 2 + (SAF.l - SAF.r) / S / 2; G.B.x = G.A.x + GW + LGAP; G.A.y = G.B.y = T + GTOP + extra * 0.7; }
+    else { const gap = GAP + clamp(extra * 0.4, 0, 60), rest = extra - (gap - GAP); G.A.x = G.B.x = (LW - GW) / 2; G.A.y = T + GTOP + rest * 0.55; G.B.y = G.A.y + gap; }
+    floorY = G.A.y - 12;
+    for (const c of [bg, fx, cache]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    const hud = $('hud');
+    if (wide) { hud.style.top = (SAF.t + 16) + 'px'; hud.style.left = (SAF.l + 104) + 'px'; hud.style.right = (SAF.r + 124) + 'px'; }
+    else { hud.style.top = (SAF.t + 62) + 'px'; hud.style.left = (SAF.l + 12) + 'px'; hud.style.right = (SAF.r + 12) + 'px'; }
+    $('banner').style.top = Math.round(wide ? H * 0.36 : H * 0.4) + 'px';
+    document.body.classList.toggle('tall', !wide); paintTitle();
+    cursor.x = clamp(cursor.x, 10, LW - 10); cursor.y = clamp(cursor.y, 10, LH - 10);
+    drawBg(); drawCache();
+    if (state === 'pause') draw();   // 멈춘 동안에는 frame 이 그리지 않으므로 여기서 한 번 (가구 층·콩이 자리)
+  }
+  // 위 줄 제목: 가로 화면은 비우고, 좁은 화면에서 멈춤 단추가 생기면 짧은 이름으로 (말줄임 방지)
+  function paintTitle() { bar.setTitle(wide ? '' : (W < 350 && !btnPause.hidden ? '숨바꼭질' : TITLE)); }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 60); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 250));
+
+  // 벽·바닥·벽 꾸밈
+  function drawBg() {
+    const g = bg.getContext('2d'); g.setTransform(DPR * S, 0, 0, DPR * S, 0, 0); g.clearRect(0, 0, LW, LH);
+    const sc = cur ? cur.sc : SCENES[0], yard = sc.kind === 'grass';
+    let lg = g.createLinearGradient(0, 0, 0, floorY); lg.addColorStop(0, sc.wall[0]); lg.addColorStop(1, sc.wall[1]); g.fillStyle = lg; g.fillRect(0, 0, LW, floorY + 1);
+    lg = g.createLinearGradient(0, floorY, 0, LH); lg.addColorStop(0, sc.floor[0]); lg.addColorStop(1, sc.floor[1]); g.fillStyle = lg; g.fillRect(0, floorY, LW, LH - floorY);
+    const rnd = mulberry32(7);
+    if (yard) {
+      C(g, '#FFF3C4', LW * 0.82, floorY - 168, 20); C(g, 'rgba(255,243,196,.4)', LW * 0.82, floorY - 168, 30);
+      for (const [fx0, y, k] of [[0.16, 150, 1], [0.52, 178, 0.8], [0.9, 120, 0.9]]) { const x = LW * fx0, yy = floorY - y; g.fillStyle = 'rgba(255,255,255,.85)'; C(g, g.fillStyle, x - 14 * k, yy, 11 * k); C(g, g.fillStyle, x, yy - 5 * k, 14 * k); C(g, g.fillStyle, x + 15 * k, yy, 10 * k); R(g, g.fillStyle, x - 24 * k, yy - 1, 48 * k, 11 * k, 5 * k); }
+      E(g, '#CDE8B4', LW * 0.25, floorY + 6, LW * 0.4, 46); E(g, '#C3E2A8', LW * 0.8, floorY + 8, LW * 0.38, 36);
+      g.fillStyle = sc.floor[0]; g.fillRect(0, floorY, LW, 16);
+      for (let x = (LW % 22) / 2 - 22; x < LW + 22; x += 22) { R(g, '#FFFFFF', x + 3, floorY - 62, 16, 66, 3); PG(g, '#FFFFFF', [x + 3, floorY - 60, x + 11, floorY - 72, x + 19, floorY - 60]); }
+      R(g, '#F3EEE4', 0, floorY - 44, LW, 6, 0); R(g, '#F3EEE4', 0, floorY - 18, LW, 6, 0);
+      for (let i = 0; i < LW * (LH - floorY) / 900; i++) { const x = rnd() * LW, y = floorY + 8 + rnd() * (LH - floorY - 8); LN(g, 'rgba(255,255,255,.35)', 1.2, [x - 2.5, y, x - 4, y - 5]); LN(g, 'rgba(255,255,255,.35)', 1.2, [x, y, x, y - 6.5]); LN(g, 'rgba(255,255,255,.35)', 1.2, [x + 2.5, y, x + 4, y - 5]); if (rnd() < 0.18) { C(g, rnd() < 0.5 ? '#FFFFFF' : '#FFE08A', x + 9, y - 2, 2.4); } }
+    } else {
+      for (let x = (LW % 40) / 2; x < LW; x += 40) R(g, 'rgba(255,255,255,.28)', x, 0, 14, floorY, 0);
+      R(g, '#FFFFFF', 0, floorY - 7, LW, 7, 0); R(g, 'rgba(40,30,60,.06)', 0, floorY, LW, 4, 0);
+      if (sc.kind === 'tile') { const t = 36; for (let y = floorY + 4, r = 0; y < LH; y += t * 0.62, r++) for (let x = (LW % t) / 2 - t + (r % 2) * t / 2; x < LW; x += t) if ((Math.round(x / t * 2) + r) % 2 === 0) R(g, 'rgba(255,255,255,.5)', x, y, t - 2, t * 0.62 - 2, 3); }
+      else for (let y = floorY + 26, r = 0; y < LH; y += 26, r++) { R(g, 'rgba(120,80,40,.10)', 0, y, LW, 1.4, 0); for (let x = (r % 2) * 70 + (LW % 140) / 2 - 140; x < LW; x += 140) R(g, 'rgba(120,80,40,.10)', x, y - 26, 1.4, 26, 0); }
+    }
+    for (const grp of ['A', 'B']) { g.save(); g.translate(G[grp].x, G[grp].y); if (sc[grp].back) sc[grp].back(g, wide); g.restore(); }
+    // 위 줄 글씨가 잘 보이게 위쪽을 살짝 어둡게
+    g.setTransform(DPR, 0, 0, DPR, 0, 0); const th = SAF.t + (wide ? 70 : 112); lg = g.createLinearGradient(0, 0, 0, th); lg.addColorStop(0, 'rgba(11,16,48,.62)'); lg.addColorStop(0.6, 'rgba(11,16,48,.34)'); lg.addColorStop(1, 'rgba(11,16,48,0)'); g.fillStyle = lg; g.fillRect(0, 0, W, th);
+  }
+  // 가구와 숨은 물건 (물건을 찾았을 때·화면이 바뀔 때만 다시 그린다)
+  function drawGroup(g, sc, grp, objs) {
+    const ps = sc[grp].props; g.save(); g.translate(G[grp].x, G[grp].y);
+    for (let i = 0; i <= ps.length; i++) {
+      if (objs) for (const o of objs) if (o.grp === grp && !o.found && (o.z == null ? ps.length : o.z) === i) drawItem(g, o.type, o.col, o.x, o.y, D.size);
+      if (i < ps.length) drawProp(g, ps[i]);
+    }
+    g.restore();
+  }
+  function drawCache() {
+    cg.setTransform(DPR * S, 0, 0, DPR * S, 0, 0); cg.clearRect(0, 0, LW, LH);
+    const sc = cur ? cur.sc : SCENES[0], objs = cur ? cur.objs : null;
+    drawGroup(cg, sc, 'A', objs); drawGroup(cg, sc, 'B', objs);
+  }
+  const toPx = (grp, x, y) => ({ x: (G[grp].x + x) * S, y: (G[grp].y + y) * S });
+
+  // ═══════ 점수판 · 찾을 목록 ═══════
+  const ROOM_WORD = ['첫째', '둘째', '셋째', '넷째', '다섯째'];
+  function paintHud() {
+    if (shownScore !== score) { shownScore = score; $('hudScore').textContent = fmt(score); }
+    const t = Math.ceil(timeLeft);
+    if (shownTime !== t) { shownTime = t; $('hudTime').textContent = t; $('hudTm').classList.toggle('low', t <= 10 && state !== 'ready'); }
+    $('hudBar').style.transform = 'scaleX(' + clamp(timeLeft / D.time, 0, 1).toFixed(3) + ')';
+  }
+  function paintRoom() { $('hudRoom').textContent = state === 'ready' ? '방 ' + D.rooms + '개' : (W < 350 ? (roomIdx + 1) + '/' + D.rooms : ROOM_WORD[roomIdx] + ' 방'); }
+  const CHECK = '<b><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.500"/></svg></b>';
+  function drawKongIcon(g) {   // 목록에 넣는 작은 콩이 얼굴
+    const c = '#B8733F', d = '#9C5E30'; E(g, d, -10.5, 1, 4.8, 8, 0.15); E(g, d, 10.5, 1, 4.8, 8, -0.15); C(g, c, 0, 1.5, 9.6); C(g, c, 0, -7.5, 6.2); C(g, c, -5, -6, 4.6); C(g, c, 5, -6, 4.6);
+    E(g, '#C98A58', 0, 5, 4.6, 3.6); C(g, '#2B1B12', -3.6, 0.6, 1.5); C(g, '#2B1B12', 3.6, 0.6, 1.5); C(g, '#2B1B12', 0, 3.8, 1.5);
+  }
+  let slotEl = null;
+  function buildList() {
+    const list = $('list'); list.textContent = ''; slotEl = null; if (!cur) { const s = document.createElement('span'); s.className = 'ph'; s.textContent = '찾을 것들이 여기에 나와요'; list.appendChild(s); return; }
+    const add = (o, isKong) => {
+      const el = document.createElement('div'); el.className = 'it' + (isKong ? ' kong' : ''); el.setAttribute('role', 'listitem');
+      const c = document.createElement('canvas'); c.width = c.height = 92; const g = c.getContext('2d'); g.translate(46, 46); g.scale(2.55, 2.55);
+      if (isKong) drawKongIcon(g); else { g.save(); ITEMS[o.type].d(g, ITEMS[o.type].cols[o.col]); g.restore(); }
+      el.appendChild(c); el.insertAdjacentHTML('beforeend', CHECK); list.appendChild(el); o.el = el; if (o.found) el.classList.add('found');
+    };
+    add(cur.kong, true); slotEl = cur.kong.el; el_label(cur.kong.el, name);
+    for (const o of cur.objs) if (o.target) add(o, false);
+  }
+  function el_label(el, t) { el.setAttribute('aria-label', t); }
+  function paintHint() {
+    const b = $('btnHint'), on = state === 'play' && phase === 'find' && !hint && sinceFind >= D.hintAfter;
+    if (b.disabled === on) { b.disabled = !on; b.classList.toggle('ready', on && !reduceMotion); }
+  }
+  let bannerT = 0;
+  function banner(a, b, ms) { const el = $('banner'); el.querySelector('b').textContent = a; el.querySelector('span').textContent = b || ''; el.classList.add('show'); clearTimeout(bannerT); bannerT = setTimeout(() => el.classList.remove('show'), ms || 1500); }
+
+  // ═══════ 효과 (화면 px 좌표) ═══════
+  function burst(x, y, n, spd) { if (reduceMotion) n = Math.ceil(n / 3); for (let i = 0; i < n && parts.length < 160; i++) { const a = rand(0, TAU), v = rand(spd * 0.3, spd), life = rand(0.5, 1); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, life, max: life, r: rand(3, 6.5), rot: rand(0, TAU), c: pick(['#FFD166', '#FFF3C4', '#FF9DB0', '#FFFFFF']) }); } }
+  function floatText(x, y, text, col) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.font = '700 15px ' + FONT; const hw = ctx.measureText(text).width / 2 + 10; ctx.restore(); floats.push({ x: clamp(x, Math.min(hw, W / 2), Math.max(W - hw, W / 2)), y, text, col, life: 1.2, max: 1.2 }); if (floats.length > 6) floats.shift(); }
+  function barkVoice(force) { if (force || tAnim - lastBark > 5) { lastBark = tAnim; voice('bark', 0, 1.1); } }
+  function fxStep(dt) {
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; if (p.life <= 0) { parts.splice(i, 1); continue; } p.vy += 220 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += dt * 3; }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= 26 * dt; if (f.life <= 0) floats.splice(i, 1); }
+    for (let i = rings.length - 1; i >= 0; i--) { rings[i].t += dt; if (rings[i].t > rings[i].d) rings.splice(i, 1); }
+    for (let i = flies.length - 1; i >= 0; i--) { const f = flies[i]; f.t += dt / 0.55; if (f.t >= 1) { flies.splice(i, 1); if (f.o.el) { f.o.el.classList.add('found', 'pop'); setTimeout(() => f.o.el && f.o.el.classList.remove('pop'), 500); } } }
+    if (hint) { hint.t += dt; if (hint.t > 3.6) { hint = null; paintHint(); } }
+    joyT = Math.max(0, joyT - dt); sadT = Math.max(0, sadT - dt);
+  }
+
+  // ═══════ 찾기 ═══════
+  const hitR = o => Math.max(IR * D.size + 6, 23 / S);          // 물건을 누를 수 있는 반지름 (화면에서 지름 46px 이상)
+  const kongPad = () => Math.max(12, 23 / S);                   // 콩이는 보이는 곳 둘레로 이만큼
+  function findAt(lx, ly) {   // 그 자리에서 눌리는 것: { o } 또는 { kong:true } 또는 null
+    let bestO = null, bd = 1;
+    if (!cur) return null;
+    for (const o of cur.objs) { if (o.found) continue; const d = Math.hypot(lx - G[o.grp].x - o.x, ly - G[o.grp].y - o.y) / hitR(o); if (d < bd) { bd = d; bestO = { o }; } }
+    if (!cur.kong.found) { const k = cur.kong, px = lx - G[k.grp].x, py = ly - G[k.grp].y, pad = kongPad(); let m = 1e9; for (let i = 0; i < k.vis.pts.length; i += 2) { const d = Math.hypot(px - k.vis.pts[i], py - k.vis.pts[i + 1]); if (d < m) m = d; } if (m / pad < bd) { bd = m / pad; bestO = { kong: true }; } }
+    return bestO;
+  }
+  function tapAt(lx, ly) {
+    if (state !== 'play' || phase !== 'find' || tAnim - lastTap < 0.12) return 'ignored';
+    lastTap = tAnim; KG.unlockAudio();
+    const h = findAt(lx, ly), px = lx * S, py = ly * S;
+    if (h && (h.kong || h.o.target)) { justFound.push({ x: lx, y: ly, r: Math.max(IR * D.size + 6, 23 / S) + 4, until: tAnim + 0.6 }); if (h.kong) return foundKong(), 'kong'; return foundItem(h.o), 'item'; }
+    for (let i = justFound.length - 1; i >= 0; i--) { const j = justFound[i]; if (tAnim > j.until) justFound.splice(i, 1); else if (Math.hypot(lx - j.x, ly - j.y) < j.r) return 'ignored'; }   // 방금 찾은 자리를 한 번 더 누른 것은 넘긴다
+    // 틀림: 시간이 조금 깎인다
+    wrongN++; roomClean = false; timeLeft = Math.max(0, timeLeft - D.miss); sadT = 0.9; sfx('wrong');
+    rings.push({ x: px, y: py, t: 0, d: 0.5, k: 'x' }); floatText(px, py - 22, '−' + D.miss + '초', '#FF6B6B');
+    if (h) KG.toast('색이 달라요. 목록의 그림을 잘 봐요', 1600);
+    const tm = $('hudTm'); tm.classList.remove('hit'); void tm.offsetWidth; tm.classList.add('hit'); paintHud();
+    if (navigator.vibrate && !reduceMotion) { try { navigator.vibrate(30); } catch (e) {} }
+    return h ? 'decoy' : 'miss';
+  }
+  // 점수 더하기: 점수가 모자라 못 깎은 힌트 감점(debt)이 있으면 먼저 갚는다
+  function addScore(n) { const pay = Math.min(debt, n); debt -= pay; score += n - pay; }
+  function afterFind() { foundN++; sinceFind = 0; if (hint) hint = null; paintHud(); paintHint(); if (cur.kong.found && cur.objs.every(o => !o.target || o.found)) roomClear(); }
+  function foundItem(o) {
+    o.found = true; addScore(PTS.item); drawCache();
+    const p = toPx(o.grp, o.x, o.y), r = o.el ? o.el.getBoundingClientRect() : { left: W / 2, top: H - 40, width: 0, height: 0 };
+    flies.push({ o, x0: p.x, y0: p.y, x1: r.left + r.width / 2, y1: r.top + r.height / 2, t: 0 });
+    burst(p.x, p.y, 14, 170); rings.push({ x: p.x, y: p.y, t: 0, d: 0.5, k: 'o' }); floatText(p.x, p.y - 26, '+' + PTS.item, '#FFFFFF');
+    sfx('coin'); joyT = 0.8; if (kMode === 'slot') barkVoice();
+    afterFind();
+  }
+  function foundKong() {
+    const k = cur.kong; k.found = true; addScore(PTS.kong);
+    const p = toPx(k.grp, k.vis.rep[0], k.vis.rep[1]);
+    burst(p.x, p.y, 22, 220); rings.push({ x: p.x, y: p.y, t: 0, d: 0.6, k: 'o' }); { const q = toPx(k.grp, kongAt(k.sp, k.hide).x, kongAt(k.sp, k.hide).y); floatText(q.x, Math.max($('hud').getBoundingClientRect().bottom + 16, q.y - (k.sp.size || 110) * S * 1.5), J(name, '을/를') + ' 찾았어요!  +' + PTS.kong, '#FFF3C4'); }
+    sfx('match'); barkVoice(true); kMode = 'pop'; kT = 0; stage.classList.add('out'); if (k.el) { const el = k.el; el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 500); }
+    afterFind();
+  }
+  function useHint() {
+    if (state !== 'play' || phase !== 'find' || hint || sinceFind < D.hintAfter) return false;
+    const left = cur.objs.filter(o => o.target && !o.found).map(o => ({ grp: o.grp, x: o.x, y: o.y })); if (!cur.kong.found) left.push({ grp: cur.kong.grp, x: cur.kong.vis.rep[0], y: cur.kong.vis.rep[1] });
+    if (!left.length) return false;
+    const t = pick(left), a = rand(0, TAU), j = rand(0, D.hintJit);
+    hint = { grp: t.grp, x: t.x + Math.cos(a) * j, y: t.y + Math.sin(a) * j, r: 30 + D.hintJit, t: 0 };
+    { const pay = Math.min(score, D.hintCost); score -= pay; debt += D.hintCost - pay; } hintN++; roomClean = false; sinceFind = 0; sfx('power');
+    const r = $('btnHint').getBoundingClientRect(); floatText(r.left + r.width / 2, r.top - 14, '−' + D.hintCost + '점', '#FFC861');
+    paintHud(); paintHint(); return true;
+  }
+
+  // ═══════ 흐름 ═══════
+  function enterRoom(i) {
+    roomIdx = i; cur = buildScene(SCENES[order[i]], D); phase = 'intro'; phaseT = 0; timeLeft = D.time; sinceFind = 0; roomClean = true; hint = null; peekT = 0; peekA = 0;
+    totalN += 1 + cur.objs.filter(o => o.target).length;
+    kMode = 'hide'; kT = 0; stage.classList.remove('out'); flies.length = rings.length = justFound.length = 0;
+    buildList(); paintRoom(); paintHud(); paintHint(); drawBg(); drawCache(); placeKong();
+    banner(ROOM_WORD[i] + ' 방 · ' + cur.sc.name, J(name, '과/와') + ' 물건 ' + cur.objs.filter(o => o.target).length + '개를 찾아요', 1500);
+    tone(659, 0.12, 'triangle', 0.05); tone(880, 0.2, 'triangle', 0.05, 0.1);
+  }
+  function roomClear() {
+    phase = 'clear'; phaseT = 0; roomsDone++;
+    const bonus = Math.ceil(timeLeft) * PTS.sec + (roomClean ? PTS.perfect : 0); addScore(bonus); paintHud(); paintHint(); joyT = 2;
+    banner(roomClean ? '한 번에 다 찾았어요!' : '다 찾았어요!', '남은 시간 ' + Math.ceil(timeLeft) + '초  +' + fmt(bonus) + '점', 1900); sfx('win');
+  }
+  function timeUp() { phase = 'out'; phaseT = 0; timeLeft = 0; paintHud(); paintHint(); hint = null; banner('시간이 다 됐어요', '여기에 숨어 있었어요', 800);   /* 알림판은 잠깐만 — 그 밑에 있던 자리 표시도 보이게 */ sfx('lose'); sadT = 2; }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    score = 0; debt = 0; shownScore = -1; shownTime = -1; foundN = totalN = roomsDone = wrongN = hintN = 0; parts.length = floats.length = 0; cursor.on = false;
+    order = shuffle(SCENES.map((s, i) => i)).slice(0, D.rooms);
+    state = 'play'; document.body.classList.remove('paused');
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; paintTitle();
+    KG.unlockAudio(); enterRoom(0);
+  }
+  function pause() { if (state !== 'play') return; state = 'pause'; document.body.classList.add('paused'); $('cardPause').hidden = false; keys.l = keys.r = keys.u = keys.d = 0; try { $('btnResume').focus({ preventScroll: true }); } catch (e) {} }
+  function resume() { if (state !== 'pause') return; state = 'play'; document.body.classList.remove('paused'); $('cardPause').hidden = true; last = 0; }
+  let endAt = 0, endNew = false, endAll = false;
+  function finish(all) {
+    if (state !== 'play') return;
+    state = 'result'; phase = 'idle'; btnPause.hidden = true; paintTitle(); hint = null; paintHint(); endAll = all; endAt = performance.now();
+    endNew = score > 0 && setBest(KG.dkey('seek', diffId), score);
+    $('edTitle').textContent = all ? '모두 찾았어요!' : '시간이 다 됐어요';
+    $('edText').textContent = all ? '방 ' + D.rooms + '개에서 숨은 것을 모두 찾았어요.' : (roomsDone > 0 ? '방 ' + roomsDone + '개를 다 찾았어요. ' : '') + '다음엔 더 잘 찾을 수 있어요.';
+    $('edScore').textContent = fmt(score); $('edFound').textContent = foundN + '/' + totalN + '개'; paintBest();
+    showMood = all ? 'happy' : 'sad'; kMode = 'show'; if (cur && cur.kong.found && cur.kong.el) cur.kong.el.classList.add('found', 'away'); stage.classList.add('out');
+    $('cardEnd').hidden = false; if (all) { sfx('win'); barkVoice(true); }
+    try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
+  }
+  function update(dt) {
+    if (state !== 'play') return;
+    phaseT += dt;
+    if (phase === 'intro') { if (phaseT > 1.1) { phase = 'find'; phaseT = 0; } }
+    else if (phase === 'find') {
+      const was = Math.ceil(timeLeft); timeLeft -= dt; sinceFind += dt;
+      if (timeLeft <= 0) { timeUp(); return; }
+      const now = Math.ceil(timeLeft); if (now !== was) { paintHud(); if (now <= 5) tone(880, 0.07, 'sine', 0.05); } else $('hudBar').style.transform = 'scaleX(' + clamp(timeLeft / D.time, 0, 1).toFixed(3) + ')';
+      paintHint();
+      // 숨은 콩이가 가끔 빼꼼
+      if (D.peek > 0 && kMode === 'hide') { peekT += dt; if (peekT > D.peek) { peekT = 0; peekA = 1; } }
+      // 글쇠로 움직이는 고르개
+      const mx = keys.r - keys.l, my = keys.d - keys.u; if (mx || my) { cursor.on = true; cursor.x = clamp(cursor.x + mx * 190 * dt, 8, LW - 8); cursor.y = clamp(cursor.y + my * 190 * dt, 8, LH - 8); }
+    }
+    else if (phase === 'clear') { if (phaseT > 2.1) { if (roomIdx + 1 < D.rooms) enterRoom(roomIdx + 1); else finish(true); } }
+    else if (phase === 'out') { if (phaseT > 2.4) finish(false); }
+    peekA = Math.max(0, peekA - dt / 1.1);
+    if (kMode === 'pop') { kT += dt; if (kT > 1.5) { kMode = 'fly'; kT = 0; kFrom = { x: K.x, y: K.y, size: K.size }; } }
+    else if (kMode === 'fly') { kT += dt / 0.45; if (kT >= 1) { kMode = 'slot'; kT = 0; if (cur && cur.kong.el) cur.kong.el.classList.add('found'); } }   // 콩이가 칸에 앉으면 그림을 감추고 체크를 붙인다
+  }
+
+  // ═══════ 콩이 놓기 ═══════
+  function slotRect() { const r = slotEl ? slotEl.getBoundingClientRect() : null; return r && r.width ? { x: r.left + r.width / 2, y: r.bottom - 2, size: Math.min(58, r.width * 1.3) } : { x: 40, y: H - 12, size: 54 }; }
+  function placeKong() {
+    const t = tAnim;
+    if (kMode !== 'show' && K.el.style.visibility) K.el.style.visibility = '';
+    if (kMode === 'hide' && cur) {
+      const k = cur.kong, sp = k.sp, hl = Math.hypot(sp.hx || 0, sp.hy || 0), pk = Math.sin(peekA * Math.PI) * 5;
+      const p = kongAt(sp, k.hide), dx = hl ? -(sp.hx || 0) / hl * pk : 0, dy = hl ? -(sp.hy || 0) / hl * pk : -pk, q = toPx(k.grp, p.x + dx, p.y + dy);
+      if (K.rig.pose !== sp.pose) K.setPose(sp.pose); K.setSize((sp.size || 110) * S);
+      K.render({ t, facing: sp.f === -1 ? -1 : 1, eyes: 'open', mouth: 'closed', tailAmp: 14, tailRate: 2.4, earLift: peekA > 0 ? 10 * Math.sin(peekA * Math.PI) : 0, tilt: Math.sin(t * 0.9) * 2 });
+      K.place(q.x, q.y, 1); return;
+    }
+    if (K.rig.pose === 'stand' || (kMode !== 'show' && K.rig.pose !== 'sit')) K.setPose('sit');
+    if (kMode === 'pop' && cur) {
+      const k = cur.kong, p = kongAt(k.sp, k.hide), q = toPx(k.grp, p.x, p.y), e = Math.min(1, kT / 0.25);
+      K.setSize((k.sp.size || 110) * S * lerp(1, 1.18, e));
+      K.render({ t, hop: reduceMotion ? 0 : Math.abs(Math.sin(kT * 6.4)) * 70, eyes: 'happy', mouth: 'open', blush: 1, tailAmp: 26, tailRate: 5, tilt: Math.sin(kT * 9) * 5 });
+      K.place(q.x, Math.min(q.y, (LH - 46) * S), 1);
+    } else if (kMode === 'fly') {
+      const s = slotRect(), e = kT * kT * (3 - 2 * kT);
+      K.setSize(lerp(kFrom.size, s.size, e)); K.render({ t, eyes: 'happy', mouth: 'open', tailAmp: 22, tailRate: 5 });
+      K.place(lerp(kFrom.x, s.x, e), lerp(kFrom.y, s.y, e) - Math.sin(e * Math.PI) * 40, 1);
+    } else if (kMode === 'slot') {
+      const s = slotRect(); K.setSize(s.size);
+      if (sadT > 0) K.render({ t, eyes: 'closed', mouth: 'closed', tilt: -8, nod: 0.6, tailAmp: 2, tailRate: 1 });
+      else if (joyT > 0) K.render({ t, hop: reduceMotion ? 0 : Math.abs(Math.sin(t * 9)) * 40, eyes: 'happy', mouth: 'open', blush: 1, tailAmp: 26, tailRate: 5 });
+      else K.render({ t, eyes: 'open', mouth: 'open', tilt: Math.sin(t * 1.1) * 4, tailAmp: 14, tailRate: 2.6 });
+      K.place(s.x, s.y, 1);
+    } else {   // show: 시작·결과 카드 뒤에서 기다리는 콩이
+      let size = clamp(Math.min(W, H) * 0.34, 96, 170); const x = wide ? Math.max(SAF.l + size * 0.5, W * 0.12) : W / 2, y = H - ($('tray').offsetHeight || 64) - 8;
+      // 세로 화면에서 카드가 길어 콩이 머리를 덮으면 남은 자리에 맞게 줄이고, 자리가 너무 좁으면 숨긴다
+      if (!wide) { const cd = document.querySelector('.kg-scrim:not([hidden]):not(.kg-rules) .kg-card'), room = cd ? y - cd.getBoundingClientRect().bottom - 6 : 999; if (room < size * 0.92) size = room / 0.92; }
+      K.el.style.visibility = size < 56 ? 'hidden' : '';
+      const pose = showMood === 'wave' && K.has('wave') ? 'wave' : showMood === 'sad' && K.has('lie') ? 'lie' : 'sit'; if (K.rig.pose !== pose) K.setPose(pose);
+      K.setSize(size);
+      if (showMood === 'sad') K.render({ t, eyes: 'open', mouth: 'closed', tailAmp: 6, tailRate: 1.2, look: [0, 0.4] });
+      else K.render({ t, eyes: showMood === 'happy' ? 'happy' : 'open', mouth: 'open', blush: showMood === 'happy' ? 1 : 0, tilt: Math.sin(t * 1.1) * 4, tailAmp: 20, tailRate: 3, hop: showMood === 'happy' && !reduceMotion ? Math.abs(Math.sin(t * 5)) * 30 : 0 });
+      K.place(x, y, 1);
+    }
+  }
+
+  // ═══════ 그리기 ═══════
+  function star(x, y, r, rot) { ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = rot + i * TAU / 8, rr2 = i % 2 ? r * 0.42 : r; ctx.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2); } ctx.closePath(); ctx.fill(); }
+  function draw() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, fx.width, fx.height); ctx.drawImage(cache, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // 시간이 끝났을 때: 못 찾은 것이 어디 있었는지 보여 준다
+    if (state === 'play' && phase === 'out' && cur) {
+      const a = 0.55 + 0.45 * Math.sin(phaseT * 9); ctx.strokeStyle = 'rgba(255,107,107,' + a.toFixed(2) + ')'; ctx.lineWidth = 3.5; ctx.setLineDash([7, 6]);
+      for (const o of cur.objs) if (o.target && !o.found) { const p = toPx(o.grp, o.x, o.y); ctx.beginPath(); ctx.arc(p.x, p.y, hitR(o) * S + 4, 0, TAU); ctx.stroke(); }
+      if (!cur.kong.found) { const p = toPx(cur.kong.grp, cur.kong.vis.rep[0], cur.kong.vis.rep[1]); ctx.beginPath(); ctx.arc(p.x, p.y, 34 * S, 0, TAU); ctx.stroke(); }
+      ctx.setLineDash([]);
+    }
+    if (hint) { const p = toPx(hint.grp, hint.x, hint.y), a = hint.t > 3 ? (3.6 - hint.t) / 0.6 : 0.55 + 0.45 * Math.sin(hint.t * 8), r = hint.r * S * (1 + 0.05 * Math.sin(hint.t * 8));
+      ctx.fillStyle = 'rgba(255,214,102,' + (a * 0.2).toFixed(2) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.fill();
+      ctx.setLineDash([10, 8]); ctx.lineDashOffset = -hint.t * 20; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.strokeStyle = 'rgba(255,255,255,' + (a * 0.9).toFixed(2) + ')'; ctx.lineWidth = 7; ctx.stroke(); ctx.strokeStyle = 'rgba(245,160,20,' + a.toFixed(2) + ')'; ctx.lineWidth = 4; ctx.stroke(); ctx.setLineDash([]); }
+    for (const r of rings) { const e = r.t / r.d;
+      if (r.k === 'o') { ctx.strokeStyle = 'rgba(255,255,255,' + (1 - e).toFixed(2) + ')'; ctx.lineWidth = 4 * (1 - e) + 1; ctx.beginPath(); ctx.arc(r.x, r.y, 14 + e * 34, 0, TAU); ctx.stroke(); }
+      else { const s = 9 + Math.min(1, e * 3) * 3; ctx.strokeStyle = 'rgba(255,255,255,' + (1 - e).toFixed(2) + ')'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(r.x - s, r.y - s); ctx.lineTo(r.x + s, r.y + s); ctx.moveTo(r.x + s, r.y - s); ctx.lineTo(r.x - s, r.y + s); ctx.stroke(); ctx.strokeStyle = 'rgba(255,107,107,' + (1 - e).toFixed(2) + ')'; ctx.lineWidth = 4; ctx.stroke(); } }
+    for (const f of flies) { const e = f.t * f.t * (3 - 2 * f.t), x = lerp(f.x0, f.x1, e), y = lerp(f.y0, f.y1, e) - Math.sin(e * Math.PI) * 50; ctx.save(); ctx.globalAlpha = f.t > 0.85 ? (1 - f.t) / 0.15 : 1; drawItem(ctx, f.o.type, f.o.col, x, y, lerp(D.size * S * 1.25, 1.1, e)); ctx.restore(); }
+    for (const p of parts) { ctx.globalAlpha = Math.min(1, p.life / p.max * 1.6); ctx.fillStyle = p.c; star(p.x, p.y, p.r, p.rot); } ctx.globalAlpha = 1;
+    if (floats.length) { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '700 15px ' + FONT; ctx.lineJoin = 'round';
+      for (const f of floats) { ctx.globalAlpha = Math.min(1, f.life / 0.35); ctx.strokeStyle = 'rgba(25,31,40,.7)'; ctx.lineWidth = 4; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y); } ctx.globalAlpha = 1; }
+    if (cursor.on && state === 'play') { const x = cursor.x * S, y = cursor.y * S; ctx.strokeStyle = 'rgba(25,31,40,.55)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, 20, 0, TAU); ctx.stroke(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(x, y, 20, 0, TAU); ctx.stroke(); C(ctx, '#FFFFFF', x, y, 3); }
+    placeKong();
+  }
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, Math.max(0, (now - last) / 1000)) : 0.016; last = now;
+    if (state === 'pause') return;
+    tAnim += dt; update(dt); fxStep(dt); draw();
+  }
+
+  // ═══════ 입력 ═══════
+  fx.addEventListener('pointerdown', e => { if (e.button > 0 || state !== 'play') return; e.preventDefault(); cursor.on = false; tapAt(e.clientX / S, e.clientY / S); });
+  $('btnHint').addEventListener('click', () => { useHint(); });
+  $('btnStart').addEventListener('click', () => { sfx('tap'); start(); });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - endAt < 450) return; sfx('tap'); start(); });
+  // 결과 카드가 뜬 직후에는 난이도 단추도 잠깐 안 눌린다 (화면을 두드리던 손가락에 바뀌지 않게)
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - endAt < 450 && e.target.closest && e.target.closest('.kg-diff')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); last = 0; });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { keys.l = keys.r = keys.u = keys.d = 0; });
+  const ARROW = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', KeyA: 'l', KeyD: 'r', KeyW: 'u', KeyS: 'd' };
+  document.addEventListener('keydown', e => {
+    const onBtn = e.target && e.target.closest && e.target.closest('button, a');
+    if (ARROW[e.code]) { if (state === 'play') { e.preventDefault(); if (!cursor.on) { cursor.on = true; cursor.x = LW / 2; cursor.y = (G.A.y + G.B.y) / 2 - 40; } keys[ARROW[e.code]] = 1; } return; }
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (e.repeat) { e.preventDefault(); return; }
+      if (state === 'play') { e.preventDefault(); if (onBtn) onBtn.blur(); if (cursor.on) tapAt(cursor.x, cursor.y); return; }
+      if (onBtn) return;   // 단추에 초점이 있으면 단추가 알아서
+      e.preventDefault();
+      if (state === 'ready') start(); else if (state === 'pause') resume(); else if (state === 'result' && performance.now() - endAt >= 900) start();
+    } else if (e.code === 'KeyH') { if (state === 'play') useHint(); }
+    else if (e.code === 'Escape' || e.code === 'KeyP') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+  document.addEventListener('keyup', e => { if (ARROW[e.code]) keys[ARROW[e.code]] = 0; });
+
+  // ═══════ 시작 ═══════
+  // 난이도 고르기: 시작 카드·결과 카드에만. 결과 카드의 기록은 방금 끝난 판(diffId)의 것으로 고정하고, 다른 난이도를 골라 두었으면 어느 난이도 기록인지 밝힌다
+  function paintBest() {
+    const b = best(KG.dkey('seek'));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점';
+    const e = Math.max(best(KG.dkey('seek', diffId)), state === 'result' ? score : 0);
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !endNew;
+    if (state === 'ready') { D = DIFF[KG.diff()] || DIFF.normal; paintRoom(); timeLeft = D.time; shownTime = -1; paintHud(); }
+  }
+  for (const id of ['cardStart', 'cardEnd']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
+  cur = null; D = DIFF[KG.diff()] || DIFF.normal; timeLeft = D.time;
+  // 시작 전 배경: 아무 방이나 하나 (물건 없이) 보여 주고 콩이가 앞에서 기다린다
+  const backdrop = pick(SCENES); cur = { sc: backdrop, objs: [], kong: { found: true, vis: { pts: [], rep: [0, 0] }, grp: 'A', sp: backdrop.A.kong[0], hide: 0 } };
+  stage.classList.add('out'); layout(); cur.objs = []; paintBest(); paintRoom(); paintHud();
+  { const list = $('list'); list.textContent = ''; const s = document.createElement('span'); s.className = 'ph'; s.textContent = '찾을 것들이 여기에 나와요'; list.appendChild(s); }
+  requestAnimationFrame(frame);
+
+  // 규칙 안내: 앱을 켠 뒤 처음 열 때 시작 카드보다 먼저 한 번 (한 번만 띄우는 것은 공통이 한다). 「규칙 보기」 로 다시 볼 수 있다
+  const RULES = { key: 'seek', title: TITLE, lead: '방 안에 숨은 ' + J(name, '과/와') + ' 장난감을 찾는 놀이예요', items: [
+    ['🔍', '아래 목록에 있는 그림을 방에서 찾아 눌러요'],
+    ['🐶', '가구 뒤에 숨은 ' + name + '도 찾아요. 귀나 꼬리만 살짝 보여요'],
+    ['⏱️', '시간 안에 다 찾으면 다음 방으로 가요. 엉뚱한 곳을 누르면 시간이 줄어요'],
+    ['💡', '못 찾겠으면 힌트를 눌러요. 대신 점수가 조금 깎여요']
+  ] };
+  // 안내를 닫은 키(Enter·스페이스)를 아직 누르고 있는 동안에는 그 키가 방금 초점을 받은 「시작」 단추를 누르지 못하게 한다
+  let closeKey = false;
+  addEventListener('keydown', e => { if (!closeKey) return; if (e.repeat) { if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); } } else closeKey = false; }, true);
+  addEventListener('keyup', e => { if (!closeKey) return; closeKey = false; if (e.code === 'Enter' || e.code === 'Space') e.preventDefault(); }, true);
+  addEventListener('pointerdown', () => { closeKey = false; }, true);
+  const focusStart = () => { if (state === 'ready' && !KG.rulesOpen) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  function showRules(force) { return KG.rules(RULES, force).then(shown => { if (shown) closeKey = true; focusStart(); }); }
+  $('btnRules').addEventListener('click', () => { sfx('tap'); showRules(true); });
+  showRules(false);
+
+  // ═══════ 시험·디버그용 ═══════
+  //   targets(): 찾을 것들의 화면 좌표 [{ kind:'kong'|'item', type, col, found, x, y(px), r(누를 수 있는 반지름 px), vis(보이는 비율) }] · decoys(): 가짜들
+  //   tap(x, y): 화면 px 를 누른다 → 'item'|'kong'|'decoy'|'miss'|'ignored' · hint() · verify() · step(dt): 화면 없이 빨리 돌리기
+  const pubObj = o => { const p = toPx(o.grp, o.x, o.y); return { kind: 'item', type: o.type, col: o.col, found: o.found, x: p.x, y: p.y, r: hitR(o) * S, vis: o.f, grp: o.grp }; };
+  window.GAME = {
+    get state() { return state; }, get phase() { return phase; }, get score() { return score; }, get debt() { return debt; }, get diff() { return diffId; }, get D() { return D; }, get timeLeft() { return timeLeft; },
+    get room() { return roomIdx; }, get roomsDone() { return roomsDone; }, get found() { return foundN; }, get total() { return totalN; }, get wrong() { return wrongN; }, get hints() { return hintN; }, get scene() { return cur && cur.sc.id; }, get kMode() { return kMode; },
+    DIFF, SCENES,
+    targets() { if (!cur || state === 'ready') return []; const k = cur.kong, p = toPx(k.grp, k.vis.rep[0], k.vis.rep[1]); return [{ kind: 'kong', found: k.found, x: p.x, y: p.y, r: kongPad() * S, vis: k.vis.f, area: k.vis.area, grp: k.grp }].concat(cur.objs.filter(o => o.target).map(pubObj)); },
+    decoys() { return cur ? cur.objs.filter(o => !o.target).map(pubObj) : []; },
+    field: () => ({ W, H, S, LW, LH, wide, A: { x: G.A.x, y: G.A.y }, B: { x: G.B.x, y: G.B.y }, floorY }),
+    tap: (x, y) => tapAt(x / S, y / S), hint: useHint, verify, start, pause, resume,
+    end: () => { if (state === 'pause') resume(); if (state === 'play') finish(false); },
+    step: dt => { if (state === 'pause') return; tAnim += dt; update(dt); fxStep(dt); },
+    // 모든 방·난이도에서 방을 n 번씩 꾸며 보고 가장 덜 보인 값을 돌려준다 (숨은 것이 늘 보이는지 확인)
+    audit(n) { const out = {}; for (const id of Object.keys(DIFF)) { const d = DIFF[id], r = { builds: 0, fail: 0, minItem: 1, minItemArea: 1e9, minKong: 1, minKongArea: 1e9, items: 0, decoys: 0 }; for (const sc of SCENES) for (let i = 0; i < n; i++) { const b = buildScene(sc, d); r.builds++; if (!b) { r.fail++; continue; }
+      for (const o of b.objs) { const v = itemVis(sc, o.grp, o.x, o.y, o.z, o.type, d.size); r.minItem = Math.min(r.minItem, v.f); r.minItemArea = Math.min(r.minItemArea, v.area); if (o.target) r.items++; else r.decoys++; }
+      r.minKong = Math.min(r.minKong, b.kong.vis.f); r.minKongArea = Math.min(r.minKongArea, b.kong.vis.area); } r.items /= r.builds; r.decoys /= r.builds; out[id] = r; } return out; },
+    // 지금 화면에 실제로 그려진 그림으로 다시 잰다: 찾을 물건마다 「그 물건을 뺀 그림」과 달라지는 화면 넓이(px²), 콩이는 가구 그림이 비어 있는 점의 수 · 화면 안(점수판 아래 ~ 목록 위)에 있는지
+    pixelCheck() {
+      if (!cur || state === 'ready') return null; const w = cache.width, h = cache.height, out = { minItemPx: 1e9, kongPts: 0, kongAll: 0, inView: true, n: 0 };
+      const top = $('hud').getBoundingClientRect().bottom, bot = $('tray').getBoundingClientRect().top;
+      for (const o of cur.objs) { if (!o.target || o.found) continue; const p = toPx(o.grp, o.x, o.y), r = Math.ceil((IR * D.size + 3) * S * DPR), x0 = Math.max(0, Math.round(p.x * DPR) - r), y0 = Math.max(0, Math.round(p.y * DPR) - r), ww = Math.min(w - x0, r * 2), hh = Math.min(h - y0, r * 2);
+        if (ww <= 0 || hh <= 0) { out.minItemPx = 0; out.inView = false; continue; }
+        const a = cg.getImageData(x0, y0, ww, hh).data; o.found = true; drawCache(); const b = cg.getImageData(x0, y0, ww, hh).data; o.found = false; drawCache();
+        let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) + Math.abs(a[i + 3] - b[i + 3]) > 40) n++;
+        out.minItemPx = Math.min(out.minItemPx, n / (DPR * DPR)); out.n++; if (p.y - 8 < top || p.y + 8 > bot || p.x < 8 || p.x > W - 8) out.inView = false; }
+      const k = cur.kong; if (!k.found) { out.kongAll = k.vis.pts.length / 2; for (let i = 0; i < k.vis.pts.length; i += 2) { const p = toPx(k.grp, k.vis.pts[i], k.vis.pts[i + 1]), x = Math.round(p.x * DPR), y = Math.round(p.y * DPR); if (x >= 0 && y >= 0 && x < w && y < h && p.y > top && p.y < bot && cg.getImageData(x, y, 1, 1).data[3] < 128) out.kongPts++; }
+        const q = toPx(k.grp, k.vis.rep[0], k.vis.rep[1]); if (q.y < top || q.y > bot || q.x < 0 || q.x > W) out.inView = false; }
+      return out; },
+    // 자리마다 보이는 비율 (자리를 다듬을 때 본다)
+    spots(size) { const out = {}; for (const sc of SCENES) for (const grp of ['A', 'B']) { out[sc.id + grp] = sc[grp].spots.map(s => +itemVis(sc, grp, s[0], s[1], s[2], 'ball', size || 1).f.toFixed(2)); out[sc.id + grp + 'k'] = sc[grp].kong.map(sp => [0, 0.5, 1].map(h => +kongVis(sc, grp, sp, h).f.toFixed(2))); } return out; },
+    show(id, opts) { const sc = SCENES.find(s => s.id === id); opts = opts || {}; cur = { sc, objs: opts.all ? ['A', 'B'].flatMap(grp => sc[grp].spots.map((s, i) => ({ grp, x: s[0], y: s[1], z: s[2], type: TYPES[i % TYPES.length], col: i % 3, target: false, found: false }))) : [], kong: { grp: opts.grp || 'A', sp: sc[opts.grp || 'A'].kong[opts.k || 0], hide: opts.hide || 0, vis: { pts: [], rep: [0, 0] }, found: false } }; kMode = 'hide'; stage.classList.remove('out'); drawBg(); drawCache(); }
+  };
+})();
+</script>
+</body>
+</html>

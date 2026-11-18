@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 장난감잡기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 장난감잡기: 밤하늘(bg) 위에 조각 이불(board) · 점수판(hud) · 방석에 앉은 콩이(kstage) */
+#bg { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#board { position: fixed; z-index: 3; box-sizing: border-box; padding: 3.5%; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 2.5%;
+  background: #FFF8EE; border-radius: 28px; box-shadow: 0 14px 40px rgba(6,8,30,.45), inset 0 0 0 2px rgba(255,255,255,.7); touch-action: none; }
+#board::after { content: ""; position: absolute; inset: 6px; border-radius: 23px; border: 2px dashed rgba(196,150,110,.38); pointer-events: none; }
+#board.shake { animation: bdShake .32s; }
+@keyframes bdShake { 0%,100% { transform: none; } 20% { transform: translate(-5px,2px); } 45% { transform: translate(5px,-2px); } 70% { transform: translate(-3px,1px); } }
+.cell { position: relative; min-width: 0; min-height: 0; border-radius: 22%; cursor: pointer; -webkit-tap-highlight-color: transparent; box-shadow: inset 0 -3px 0 rgba(120,90,70,.08); }
+.cell::before { content: ""; position: absolute; inset: 5%; border-radius: 20%; border: 1.5px dashed rgba(255,255,255,.85); pointer-events: none; }
+.cell .hole { position: absolute; left: 8%; width: 84%; top: 60%; height: 26%; border-radius: 50%; background: radial-gradient(ellipse at 50% 30%, #4A3F86 0%, #2B2459 70%); box-shadow: inset 0 3px 6px rgba(10,8,40,.55), 0 1.5px 0 rgba(255,255,255,.7); }
+.cell .wrap { position: absolute; left: 8%; width: 84%; top: 2%; height: 84%; overflow: hidden; border-radius: 0 0 50% 50% / 0 0 15.5% 15.5%; pointer-events: none; }
+.cell .pop { position: absolute; inset: 0; transform: translateY(104%); transition: transform .16s cubic-bezier(.3,.1,.5,1); will-change: transform; }
+.cell.up .pop { transform: translateY(0); transition: transform .15s cubic-bezier(.2,1.5,.5,1); }
+.cell .toy { position: absolute; left: 13%; width: 74%; top: 14%; aspect-ratio: 1; background: center / contain no-repeat; transition: transform .2s, opacity .2s; }
+.cell.hit .toy { transform: scale(1.3) rotate(-8deg); opacity: 0; }
+.cell.kong .toy { display: none; }
+.cell.bonk .pop { animation: bonk .3s; }
+@keyframes bonk { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-6%,0); } 50% { transform: translate(6%,0); } 75% { transform: translate(-3%,0); } }
+.cell .ring { position: absolute; left: 50%; top: 42%; width: 70%; aspect-ratio: 1; border-radius: 50%; border: 3px solid #fff; transform: translate(-50%,-50%) scale(.4); opacity: 0; pointer-events: none; }
+.cell.hit .ring { animation: ring .32s ease-out; }
+@keyframes ring { 0% { transform: translate(-50%,-50%) scale(.4); opacity: .95; } 100% { transform: translate(-50%,-50%) scale(1.35); opacity: 0; } }
+.fl { position: absolute; z-index: 5; transform: translate(-50%,-50%); white-space: nowrap; font-size: 17px; font-weight: 700; letter-spacing: -.3px; color: #fff; text-shadow: 0 1px 0 rgba(40,30,90,.55), 0 2px 8px rgba(20,16,60,.6); pointer-events: none; animation: flUp .8s ease-out forwards; }
+.fl small { font-size: 12px; font-weight: 600; margin-left: 4px; }
+@keyframes flUp { 0% { opacity: 0; margin-top: 6px; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; margin-top: -30px; } }
+#hud { position: fixed; z-index: 10; pointer-events: none; }
+#hud .pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#hud .pills > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 12px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 3px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud .cb { background: #FFE9A8; border-color: transparent; color: #7A5200; transition: opacity .2s, transform .2s; }
+#hud .cb.off { opacity: 0; transform: scale(.85); }
+#hud .cb.bump { animation: cbBump .25s; }
+@keyframes cbBump { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+#hud .tm { margin-left: auto; }
+#hud .tm.low { color: #FFB3B8; }
+#tbar { height: 8px; margin-top: 8px; border-radius: 4px; background: rgba(255,255,255,.16); overflow: hidden; }
+#tbar i { display: block; height: 100%; width: 100%; border-radius: 4px; background: linear-gradient(90deg, #FFD36E, #FFB95C); transform-origin: 0 50%; }
+#tbar.low i { background: linear-gradient(90deg, #FF9AA2, #FF7B88); }
+#hud.wide .tm { margin-left: 0; }
+#kstage { position: fixed; z-index: 2; overflow: hidden; pointer-events: none; }
+#bed { position: absolute; z-index: 2; border-radius: 50% / 60% 60% 40% 40%; background: linear-gradient(#FFDCE6, #F6B6C9); box-shadow: inset 0 3px 0 rgba(255,255,255,.65), 0 6px 16px rgba(6,8,30,.35); }
+#bed::after { content: ""; position: absolute; left: 12%; right: 12%; top: 34%; height: 0; border-top: 2px dashed rgba(255,255,255,.8); }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+.kg-card .row .kg-btn.sub { flex: 0 0 auto; padding: 0 16px; }
+.kg-card .keys { font-size: 13px; margin-top: 8px; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } }
+/* 낮은 화면(가로 휴대폰): 카드가 한 화면에 들어오게 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 420px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  body .kg-card .keys { display: none; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="kstage"><div id="bed"></div></div>
+<div id="board" aria-label="장난감이 올라오는 이불 아홉 칸"></div>
+
+<div id="hud" aria-hidden="true">
+  <div class="pills">
+    <div class="sc"><span id="hudScore">0</span><small>점</small></div>
+    <div class="cb off" id="hudCombo">2연속</div>
+    <div class="tm" id="hudTimeBox"><span id="hudTime">45</span><small>초</small></div>
+  </div>
+  <div id="tbar"><i></i></div>
+</div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 장난감잡기</h2>
+    <p id="stLead"></p>
+    <p class="keys" id="stKeys" hidden>키보드는 숫자판 1~9 (또는 QWE·ASD·ZXC)로 칸을 눌러요.</p>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn sub" id="btnRules">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">시간이 다 됐어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>잡은 장난감<b id="edCaught"></b></span><span>가장 긴 연속<b id="edCombo"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const KEY = 'toys', TITLE = J(name, '의') + ' 장난감잡기';
+
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   up   올라와 있는 시간(초): [처음, 끝]  — 45초 동안 처음 값에서 끝 값으로 줄어든다
+  //   gap  다음 것이 올라오기까지 간격(초): [처음, 끝]
+  //   max  한꺼번에 올라와 있을 수 있는 칸 수: [처음, 끝]
+  //   burst 올릴 때 한 칸을 더 함께 올릴 확률: [처음, 끝] — max 에 닿을 때까지 거듭 뽑는다(뒤로 갈수록 여러 칸이 한꺼번에)
+  //   rest 콩이 얼굴이 한 번 나온 뒤 다시 나오기까지 쉬는 시간(초). 쉬는 동안 뽑힌 얼굴은 한 번 미뤄 두었다가 쉬고 나서 내보낸다(얼굴은 한 번에 하나뿐이라 실제 몫은 kong 보다 조금 낮다)
+  //   kong 콩이 얼굴이 나올 비율 · gold 황금 뼈다귀 비율 · pen 콩이를 눌렀을 때 깎이는 점수 · duck 콩이가 방석에서 사라진 뒤 얼굴이 나오기까지(초, 알아챌 틈)
+  const DIFF = {
+    easy:   { up: [2.00, 1.40], gap: [1.20, 0.80], max: [1, 2], burst: [0.00, 0.00], rest: 2.2, kong: 0.08, gold: 0.09, pen: 10, duck: 0.50 },
+    normal: { up: [1.35, 0.90], gap: [0.90, 0.52], max: [2, 3], burst: [0.00, 0.00], rest: 2.2, kong: 0.14, gold: 0.07, pen: 20, duck: 0.36 },
+    hard:   { up: [0.95, 0.60], gap: [0.72, 0.38], max: [2, 4], burst: [0.10, 0.45], rest: 1.8, kong: 0.20, gold: 0.06, pen: 30, duck: 0.28 },
+    vhard:  { up: [0.78, 0.48], gap: [0.58, 0.30], max: [3, 5], burst: [0.20, 0.55], rest: 1.4, kong: 0.26, gold: 0.05, pen: 40, duck: 0.22 }
+  };
+  const TIME = 45;                 // 한 판 길이(초)
+  const PTS = { toy: 10, fast: 10, gold: 50, spare: 5, comboStep: 0.1, comboMax: 10 };   // 장난감 기본 · 빨리 누른 덤(최대) · 황금 뼈다귀 · 콩이를 안 누른 덤 · 연속 한 번에 +10%(10연속까지)
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '이불 속에서 쏙 올라오는 장난감을 45초 동안 잡아요.';
+  $('psText').textContent = J(name, '이/가') + ' 기다리고 있어요.';
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches) $('stKeys').hidden = false;
+
+  const board = $('board'), kstage = $('kstage'), bed = $('bed'), bg = $('bg');
+  const PATCH = ['#FFD9E0', '#FFE9B8', '#CFEFE0', '#D5E4FF', '#E9DAFF', '#FFDCC6', '#D9F0FF', '#FDE2F0', '#E1F3C9'];
+  const cells = [];
+  for (let i = 0; i < 9; i++) {
+    const el = document.createElement('div'); el.className = 'cell'; el.style.background = PATCH[i];
+    el.innerHTML = '<div class="hole"></div><div class="wrap"><div class="pop"><div class="toy"></div></div></div><div class="ring"></div>';
+    board.appendChild(el);
+    const c = { i, el, pop: el.querySelector('.pop'), toy: el.querySelector('.toy'), it: null, cool: 0 };
+    cells.push(c);
+    el.addEventListener('pointerdown', e => { if (state !== 'play') return; e.preventDefault(); tap(i); });
+  }
+
+  // ── 장난감 그림 (canvas 로 한 번 그려 배경 그림으로 쓴다; 가운데가 0,0, 반지름 50 쯤)
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  const ART = {
+    ball(g) {
+      const rg = g.createRadialGradient(-12, -14, 4, 0, 0, 44); rg.addColorStop(0, '#EEFB9A'); rg.addColorStop(1, '#A9D845');
+      g.fillStyle = rg; g.beginPath(); g.arc(0, 0, 42, 0, TAU); g.fill();
+      g.save(); g.beginPath(); g.arc(0, 0, 42, 0, TAU); g.clip(); g.strokeStyle = '#FFFFFF'; g.lineWidth = 5; g.lineCap = 'round';
+      g.beginPath(); g.arc(-58, 0, 40, -1, 1); g.stroke(); g.beginPath(); g.arc(58, 0, 40, Math.PI - 1, Math.PI + 1); g.stroke(); g.restore();
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(-12, -24, 11, 6, -0.5, 0, TAU); g.fill();
+    },
+    bear(g) {
+      for (const x of [-28, 28]) { g.fillStyle = '#BC8551'; g.beginPath(); g.arc(x, -29, 15, 0, TAU); g.fill(); g.fillStyle = '#F5D0AC'; g.beginPath(); g.arc(x, -29, 8, 0, TAU); g.fill(); }
+      const rg = g.createRadialGradient(-10, -12, 6, 0, 2, 44); rg.addColorStop(0, '#DDAA76'); rg.addColorStop(1, '#C48D58');
+      g.fillStyle = rg; g.beginPath(); g.arc(0, 4, 40, 0, TAU); g.fill();
+      g.fillStyle = '#FBE8D2'; g.beginPath(); g.ellipse(0, 18, 18, 14, 0, 0, TAU); g.fill();
+      g.fillStyle = '#4A3328'; g.beginPath(); g.ellipse(0, 11, 6.5, 4.8, 0, 0, TAU); g.fill();
+      g.strokeStyle = '#4A3328'; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, 15); g.lineTo(0, 20); g.moveTo(-6, 22); g.quadraticCurveTo(-3, 25.5, 0, 21); g.quadraticCurveTo(3, 25.5, 6, 22); g.stroke();
+      for (const x of [-15, 15]) { g.fillStyle = '#3A2A22'; g.beginPath(); g.arc(x, -3, 4.4, 0, TAU); g.fill(); g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(x - 1.4, -4.6, 1.5, 0, TAU); g.fill(); }
+      g.fillStyle = 'rgba(255,150,160,.5)'; for (const x of [-26, 26]) { g.beginPath(); g.arc(x, 12, 6, 0, TAU); g.fill(); }
+    },
+    rope(g) {
+      g.rotate(-0.5);
+      const stripe = (clipFn, col) => { g.save(); clipFn(); g.clip(); g.strokeStyle = col; g.lineWidth = 5; for (let x = -70; x < 70; x += 13) { g.beginPath(); g.moveTo(x, 24); g.lineTo(x + 20, -24); g.stroke(); } g.restore(); };
+      g.strokeStyle = '#BFD8FF'; g.lineWidth = 3.5; g.lineCap = 'round';
+      for (const s of [-1, 1]) for (const a of [-0.5, 0, 0.5]) { g.beginPath(); g.moveTo(s * 40, 0); g.lineTo(s * (40 + Math.cos(a) * 14), Math.sin(a) * 14); g.stroke(); }
+      g.fillStyle = '#7FB2FF'; rr(g, -30, -9.5, 60, 19, 9.5); g.fill(); stripe(() => rr(g, -30, -9.5, 60, 19, 9.5), '#FFFFFF');
+      for (const s of [-1, 1]) { g.fillStyle = '#5C92EE'; g.beginPath(); g.arc(s * 30, 0, 15.5, 0, TAU); g.fill(); stripe(() => { g.beginPath(); g.arc(s * 30, 0, 15.5, 0, TAU); }, '#DCEAFF'); g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.ellipse(s * 30 - 4, -7, 6, 3, -0.3, 0, TAU); g.fill(); }
+    },
+    duck(g) {
+      g.fillStyle = '#FFD64A'; g.beginPath(); g.ellipse(4, 16, 38, 26, 0, 0, TAU); g.fill();
+      g.beginPath(); g.moveTo(34, 2); g.quadraticCurveTo(50, -8, 44, 12); g.closePath(); g.fill();
+      g.fillStyle = '#F6BF2C'; g.beginPath(); g.ellipse(12, 18, 17, 11, -0.2, 0, TAU); g.fill();
+      g.fillStyle = '#FF9A3D'; g.beginPath(); g.ellipse(-37, -13, 11, 6.5, 0.1, 0, TAU); g.fill();
+      const rg = g.createRadialGradient(-18, -26, 4, -12, -18, 24); rg.addColorStop(0, '#FFE98A'); rg.addColorStop(1, '#FFD64A');
+      g.fillStyle = rg; g.beginPath(); g.arc(-12, -18, 23, 0, TAU); g.fill();
+      g.fillStyle = '#3A2A22'; g.beginPath(); g.arc(-19, -22, 3.8, 0, TAU); g.fill(); g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(-20.2, -23.4, 1.3, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,140,150,.5)'; g.beginPath(); g.arc(-12, -10, 5, 0, TAU); g.fill();
+    },
+    gold(g) {
+      const gl = g.createRadialGradient(0, 0, 10, 0, 0, 56); gl.addColorStop(0, 'rgba(255,224,120,.75)'); gl.addColorStop(1, 'rgba(255,224,120,0)');
+      g.fillStyle = gl; g.beginPath(); g.arc(0, 0, 56, 0, TAU); g.fill();
+      g.save(); g.rotate(-0.55);
+      const lg = g.createLinearGradient(0, -22, 0, 22); lg.addColorStop(0, '#FFEE9C'); lg.addColorStop(1, '#F4B02A');
+      g.fillStyle = lg; rr(g, -25, -9, 50, 18, 8); g.fill();
+      for (const [x, y] of [[-26, -10], [-26, 10], [26, -10], [26, 10]]) { g.beginPath(); g.arc(x, y, 12.5, 0, TAU); g.fill(); }
+      g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 3; g.lineCap = 'round'; g.beginPath(); g.moveTo(-18, -4); g.lineTo(14, -4); g.stroke();
+      g.restore();
+      g.fillStyle = '#FFFFFF';
+      for (const [x, y, r] of [[30, -34, 9], [-38, 22, 6.5], [38, 26, 4.5]]) { g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * TAU / 8, q = i % 2 ? r * 0.3 : r; g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } g.closePath(); g.fill(); }
+    }
+  };
+  const TOYS = ['ball', 'bear', 'rope', 'duck'];
+  const IMG = {};
+  for (const k of Object.keys(ART)) { const c = document.createElement('canvas'); c.width = c.height = 240; const g = c.getContext('2d'); g.setTransform(2, 0, 0, 2, 120, 120); ART[k](g); IMG[k] = 'url(' + c.toDataURL('image/png') + ')'; }
+
+  // ── 콩이 둘: 방석에 앉은 콩이(K) · 이불 구멍으로 얼굴을 내미는 콩이(P). 얼굴이 나올 때는 방석의 콩이가 쏙 사라진다
+  const K = kong(kstage, 150);
+  const P = kong(cells[0].pop, 120); P.el.style.display = 'none';
+  let peekCell = null;
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';            // ready · play · pause · over · result
+  let score = 0, combo = 0, elapsed = 0, spawnT = 0, overT = 0, tAnim = 0, spawned = 0, lastKong = -9, kongOwed = false, lastVoice = -99, lastTick = 99, endAt = 0;
+  let stats = { caught: 0, missed: 0, bonk: 0, spared: 0, gold: 0, maxCombo: 0, empty: 0 };
+  let mood = 'idle', moodT = 0, hide = 0, lookX = 0, lookY = -0.3;
+  let W = 0, H = 0, wide = false, CS = 80, KSZ = 150, kfx = 0, kfy = 0;
+
+  // ═══════ 화면 맞추기 ═══════
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function buildBg() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); bg.width = Math.round(W * dpr); bg.height = Math.round(H * dpr);
+    const g = bg.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const lg = g.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0B1030'); lg.addColorStop(0.5, '#1B2060'); lg.addColorStop(1, '#4A3F9C');
+    g.fillStyle = lg; g.fillRect(0, 0, W, H);
+    const blob = (x, y, r, col) => { const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2); };
+    blob(W * 0.2, H * 0.2, Math.max(W, H) * 0.5, 'rgba(130,130,255,.14)'); blob(W * 0.85, H * 0.75, Math.max(W, H) * 0.45, 'rgba(255,150,210,.10)');
+    const rnd = mulberry32(37), n = Math.round(clamp(W * H / 2600, 80, 420));
+    for (let i = 0; i < n; i++) { const x = rnd() * W, y = rnd() * H, r = rnd() < 0.07 ? 1.1 + rnd() * 0.7 : 0.4 + rnd() * 0.7; g.globalAlpha = 0.3 + rnd() * 0.6; g.fillStyle = rnd() < 0.3 ? '#FFE9C4' : '#EAF0FF'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+    g.globalAlpha = 1;
+  }
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; const sa = safe();
+    const hud = $('hud'), top = sa.t + 62;
+    let side, bx, by;
+    wide = W > H * 1.25;           // 가로 화면은 늘 옆으로 나눈다: 폭이 좁으면 이불을 줄여 양옆 기둥(점수판·콩이)을 128px 씩은 남긴다
+    if (wide) {
+      side = Math.max(160, Math.min(H - sa.t - sa.b - 24, 400, W - sa.l - sa.r - 256)); bx = Math.round((W - side) / 2); by = Math.round(sa.t + (H - sa.t - sa.b - side) / 2);
+      const colL = bx - sa.l - 24, colR = W - bx - side - sa.r - 24;
+      hud.style.left = (bx + side + 12) + 'px'; hud.style.width = colR + 'px'; hud.style.top = (top + 8) + 'px';
+      const kw = colL + 24; kstage.style.left = sa.l + 'px'; kstage.style.width = kw + 'px'; kstage.style.top = top + 'px'; kstage.style.height = (H - top) + 'px';
+      KSZ = Math.min(kw * 0.86, (H - top) * 0.82, 200); kfx = kw / 2; kfy = H - top - sa.b - 14 - KSZ * 0.08;
+    } else {
+      const hudH = 48, kh = clamp(H * 0.2, 96, 180);
+      side = Math.max(200, Math.min(W - sa.l - sa.r - 24, H - top - hudH - 12 - kh - sa.b, 460));
+      const free = Math.max(0, H - top - hudH - 12 - kh - sa.b - side);       // 남는 높이는 위·아래로 나눈다
+      bx = Math.round((W - side) / 2); by = Math.round(top + hudH + 12 + free * 0.4);
+      hud.style.left = bx + 'px'; hud.style.width = side + 'px'; hud.style.top = Math.round(top + free * 0.2) + 'px';
+      const ky = by + side; kstage.style.left = '0px'; kstage.style.width = W + 'px'; kstage.style.top = ky + 'px'; kstage.style.height = (H - ky) + 'px';
+      KSZ = Math.min((H - ky - sa.b) * 1.12, 210); kfx = W / 2; kfy = H - ky - sa.b - 8 - KSZ * 0.08;
+    }
+    hud.classList.toggle('wide', wide);
+    board.style.left = bx + 'px'; board.style.top = by + 'px'; board.style.width = board.style.height = side + 'px';
+    board.style.borderRadius = Math.round(side * 0.085) + 'px'; board.style.padding = (side * 0.035).toFixed(1) + 'px'; board.style.gap = (side * 0.025).toFixed(1) + 'px';   // % 로 두면 화면 폭 기준이 되어 가로 화면에서 커진다
+    bar.setTitle(wide ? '' : W < 350 ? '장난감잡기' : TITLE);
+    K.setSize(KSZ);
+    const bw = KSZ * 0.92, bh = KSZ * 0.2; bed.style.width = bw + 'px'; bed.style.height = bh + 'px'; bed.style.left = (kfx - bw / 2) + 'px'; bed.style.top = (kfy - bh * 0.42) + 'px';
+    CS = cells[0].el.getBoundingClientRect().width || side * 0.29;
+    placePeek(); buildBg();
+  }
+  // 얼굴 내미는 콩이: 머리 가운데가 구멍 위 한가운데에 오게 놓는다 (몸은 구멍 아래로 잘려 안 보인다)
+  function placePeek() {
+    const ww = CS * 0.84, sz = CS * 1.3;
+    P.setSize(sz); P.setPose('sit'); P.render({ t: 0 }); P.place(0, 0, 1);
+    const h = P.head(); P.place(ww / 2 - h.x, ww * 0.5 - h.y, 1);
+  }
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', () => setTimeout(layout, 250));
+
+  // ═══════ 점수판 ═══════
+  let shownScore = -1, shownSec = -1, shownCombo = -1;
+  function paintHud() {
+    if (shownScore !== score) { shownScore = score; $('hudScore').textContent = fmt(score); }
+    const left = Math.max(0, TIME - elapsed), sec = Math.ceil(left - 1e-6);
+    if (sec !== shownSec) { shownSec = sec; $('hudTime').textContent = sec; const low = sec <= 10; $('hudTimeBox').classList.toggle('low', low); $('tbar').classList.toggle('low', low); }
+    $('tbar').firstElementChild.style.transform = 'scaleX(' + (left / TIME).toFixed(4) + ')';
+    if (shownCombo !== combo) {
+      const el = $('hudCombo'); if (combo >= 2) { el.textContent = combo + '연속'; el.classList.remove('off'); if (combo > shownCombo && !reduceMotion) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); } } else el.classList.add('off');
+      shownCombo = combo;
+    }
+  }
+  function floatText(c, text, sub, col) {
+    const f = document.createElement('div'); f.className = 'fl'; f.textContent = text; if (col) f.style.color = col;
+    if (sub) { const s = document.createElement('small'); s.textContent = sub; f.appendChild(s); }
+    f.style.left = (c.el.offsetLeft + c.el.offsetWidth / 2) + 'px'; f.style.top = (c.el.offsetTop + c.el.offsetHeight * 0.16) + 'px';
+    board.appendChild(f);
+    // 글이 이불 밖으로 나가지 않게 안쪽으로
+    const hw = f.offsetWidth / 2, x = clamp(c.el.offsetLeft + c.el.offsetWidth / 2, hw + 4, board.clientWidth - hw - 4); f.style.left = x + 'px';
+    setTimeout(() => f.remove(), 850);
+  }
+
+  // ═══════ 놀이 ═══════
+  const prog = () => clamp(elapsed / TIME, 0, 1);
+  const upNow = () => lerp(D.up[0], D.up[1], prog()), gapNow = () => lerp(D.gap[0], D.gap[1], prog());
+  const maxNow = () => Math.round(lerp(D.max[0], D.max[1], prog())), burstNow = () => lerp(D.burst[0], D.burst[1], prog());
+  const BURST_GAP = 0.85;          // 함께 올린 칸 하나마다 다음 간격을 이만큼(간격의 배수) 늘린다 — 한꺼번에 나와도 전체 개수는 조금만 는다
+  const activeN = () => cells.reduce((n, c) => n + (c.it && c.it.phase !== 'done' ? 1 : 0), 0);
+  const kongBusy = () => cells.some(c => c.it && c.it.kind === 'kong');
+
+  function showItem(c) {
+    const it = c.it;
+    c.el.classList.remove('hit', 'bonk'); c.el.classList.toggle('kong', it.kind === 'kong');
+    if (it.kind === 'kong') { if (P.el.parentNode !== c.pop) c.pop.appendChild(P.el); P.el.style.display = ''; peekCell = c; peekMood = 'up'; }
+    else c.toy.style.backgroundImage = IMG[it.kind];
+    c.el.classList.add('up');
+    if (it.kind === 'gold') { tone(1319, 0.08, 'triangle', 0.035); tone(1760, 0.12, 'triangle', 0.035, 0.06); } else tone(it.kind === 'kong' ? 330 : rand(480, 560), 0.05, 'sine', 0.03, 0, it.kind === 'kong' ? 420 : 700);
+  }
+  function spawn(kind, at) {
+    const free = cells.filter(c => !c.it && c.cool <= 0); if (!free.length) return false;
+    const c = at != null && !cells[at].it ? cells[at] : pick(free);
+    if (!kind) {
+      const r = Math.random();
+      if (spawned >= 3 && r < D.kong) kongOwed = true;        // 얼굴 차례인데 쉬는 중이면 미뤄 둔다 (어려울수록 비율이 깎여 Hard 와 Very Hard 가 같아지지 않게)
+      if (kongOwed && !kongBusy() && elapsed - lastKong > D.rest) { kind = 'kong'; kongOwed = false; }
+      else if (spawned >= 2 && r > 1 - D.gold) kind = 'gold';
+      else kind = pick(TOYS);
+    }
+    const up = upNow();
+    c.it = { kind, t: 0, up: kind === 'kong' ? up * 1.15 + 0.15 : kind === 'gold' ? up * 0.85 : up, phase: kind === 'kong' ? 'pre' : 'up', hold: 0 };
+    spawned++;
+    if (kind === 'kong') lastKong = elapsed; else showItem(c);
+    return true;
+  }
+  function done(c, hold) { c.it.phase = 'done'; c.it.t = 0; c.it.hold = hold; }
+  function expire(c) {
+    const it = c.it; c.el.classList.remove('up');
+    if (it.kind === 'kong') { score += PTS.spare; stats.spared++; floatText(c, '+' + PTS.spare, '잘 참았어요', '#BFF3D2'); tone(784, 0.1, 'triangle', 0.04); peekMood = 'glad'; setMood('happy', 0.7); }
+    else { stats.missed++; if (combo > 0) combo = 0; }
+    done(c, 0.2);
+  }
+  function release(c) {
+    const el = c.el, it = c.it; c.it = null; c.cool = 0.12;
+    c.pop.style.transition = 'none'; c.toy.style.transition = 'none';
+    el.classList.remove('up', 'hit', 'bonk', 'kong'); void c.pop.offsetWidth; c.pop.style.transition = ''; c.toy.style.transition = '';
+    if (it.kind === 'kong' && peekCell === c) { P.el.style.display = 'none'; peekCell = null; if (it.bonked) setMood('sad', 1.3); }
+  }
+  let peekMood = 'up';
+  function setMood(m, t) { mood = m; moodT = t; }
+  function maybeVoice(p, list) { if (tAnim - lastVoice > 6 && Math.random() < p) { lastVoice = tAnim; voice(pick(list), 0, 1.0); } }
+
+  function tap(i) {
+    if (state !== 'play') return 'no';
+    const c = cells[i], it = c.it;
+    if (!it || it.phase !== 'up') {
+      if (it || c.cool > 0) return 'late';                    // 막 내려간 칸·나오려는 칸은 그냥 넘긴다
+      stats.empty++; if (combo > 0) combo = 0; tone(200, 0.05, 'sine', 0.025); return 'empty';   // 빈 칸을 누르면 연속이 끊긴다
+    }
+    if (it.kind === 'kong') {
+      it.bonked = true; stats.bonk++; combo = 0; const lost = Math.min(score, D.pen); score -= lost;
+      c.el.classList.add('bonk'); floatText(c, '깨갱!', lost ? '−' + lost : '', '#FFB3B8'); peekMood = 'ouch';
+      tone(980, 0.16, 'sine', 0.09, 0, 520); tone(760, 0.2, 'sine', 0.08, 0.13, 400); sfx('wrong');
+      if (!reduceMotion) { board.classList.remove('shake'); void board.offsetWidth; board.classList.add('shake'); if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) {} } }
+      done(c, 0.55);
+      return 'kong';
+    }
+    combo++; stats.maxCombo = Math.max(stats.maxCombo, combo); stats.caught++;
+    const fast = clamp(1 - it.t / it.up, 0, 1), mul = 1 + Math.min(combo - 1, PTS.comboMax) * PTS.comboStep;
+    const pts = Math.round((it.kind === 'gold' ? PTS.gold : PTS.toy + PTS.fast * fast) * mul);
+    score += pts; c.el.classList.add('hit');
+    if (it.kind === 'gold') { stats.gold++; floatText(c, '+' + pts, '황금 뼈다귀', '#FFE08A'); sfx('power'); setMood('happy', 1.0); maybeVoice(1, ['bark']); }
+    else { floatText(c, '+' + pts, fast > 0.72 ? '빨라요' : ''); sfx(combo % 5 === 0 ? 'coin' : 'pop'); if (it.kind === 'duck') tone(1500, 0.07, 'square', 0.02, 0.02, 1900); setMood('happy', 0.45); maybeVoice(0.2, ['growl', 'bark']); }
+    done(c, 0.24);
+    return it.kind === 'gold' ? 'gold' : 'toy';
+  }
+
+  function update(dt) {
+    for (const c of cells) {
+      if (c.cool > 0) c.cool -= dt;
+      const it = c.it; if (!it) continue;
+      it.t += dt;
+      if (it.phase === 'pre') { if (it.t >= D.duck) { it.phase = 'up'; it.t = 0; showItem(c); } }
+      else if (it.phase === 'up') { if (state === 'play' && it.t >= it.up) expire(c); }
+      else { if (it.bonked && it.t >= 0.36) c.el.classList.remove('up'); if (it.t >= it.hold) release(c); }   // 깨갱 한 얼굴은 잠깐 보였다가 내려간다
+    }
+    if (state === 'over') { overT += dt; if (overT > 1.0) showResult(); return; }
+    elapsed += dt;
+    spawnT -= dt;
+    if (spawnT <= 0) {
+      const room = maxNow() - activeN(); let n = 0;
+      if (room > 0 && spawn()) { n = 1; const b = burstNow(); while (n < room && Math.random() < b && spawn()) n++; }
+      spawnT = n ? gapNow() * rand(0.75, 1.25) * (1 + (n - 1) * BURST_GAP) : 0.06;
+    }
+    const left = TIME - elapsed;
+    if (left <= 5 && left > 0 && Math.ceil(left) !== lastTick) { lastTick = Math.ceil(left); tone(880, 0.06, 'sine', 0.045); }
+    if (left <= 0) finish();
+  }
+
+  // ── 콩이 그리기 (방석의 콩이 · 얼굴 내민 콩이)
+  function drawKong(dt) {
+    const hiding = kongBusy() && state !== 'result' && state !== 'ready';
+    hide += ((hiding ? 1 : 0) - hide) * (1 - Math.exp(-(hiding ? 22 : 12) * dt)); if (Math.abs(hide - (hiding ? 1 : 0)) < 0.004) hide = hiding ? 1 : 0;
+    if (moodT > 0) { moodT -= dt; if (moodT <= 0 && state !== 'result') mood = 'idle'; }
+    // 올라와 있는 장난감 쪽을 본다
+    let tx = 0, ty = -0.35; const act = cells.find(c => c.it && c.it.phase === 'up' && c.it.kind !== 'kong');
+    if (act && state === 'play') { tx = wide ? 1 : (act.i % 3 - 1) * 0.8; ty = wide ? (Math.floor(act.i / 3) - 1) * 0.6 : -0.9; }
+    lookX += (tx - lookX) * (1 - Math.exp(-10 * dt)); lookY += (ty - lookY) * (1 - Math.exp(-10 * dt));
+    const happy = mood === 'happy', sad = mood === 'sad', won = state === 'result' || state === 'over';
+    const pose = won && K.has('wave') && score > 0 ? 'wave' : 'sit'; if (K.rig.pose !== pose) K.setPose(pose);
+    const hopT = happy ? clamp(moodT / 0.45, 0, 1) : 0;
+    K.render({ t: tAnim, eyes: sad ? 'closed' : happy || won ? 'happy' : 'open', mouth: sad ? 'closed' : 'open', look: sad ? [0, 0.6] : [lookX, lookY], tilt: sad ? -9 : Math.sin(tAnim * 1.2) * 3 + (happy ? 4 : 0),
+      hop: reduceMotion ? 0 : Math.sin(hopT * Math.PI) * 26, earLift: sad ? -8 : happy ? 6 : 0, tailAmp: sad ? 3 : happy || won ? 22 : 12, tailRate: happy || won ? 3.4 : 2.2, blush: happy || won ? 1 : 0, nod: sad ? 0.5 : 0 });
+    K.place(kfx, kfy + hide * KSZ * 0.9, 1);
+    K.el.style.opacity = hide > 0.97 ? '0' : '1';
+    if (peekCell) {
+      const m = peekMood;
+      P.render({ t: tAnim, eyes: m === 'ouch' ? 'closed' : m === 'glad' ? 'happy' : 'open', mouth: m === 'ouch' ? 'closed' : 'open', tilt: m === 'ouch' ? 10 : Math.sin(tAnim * 5) * 5, look: [0, -0.2], blush: m === 'glad' ? 1 : 0, tailAmp: 0, earLift: m === 'ouch' ? -8 : 4 });
+    }
+  }
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    tAnim += dt;
+    if (state === 'play' || state === 'over') update(dt);
+    paintHud(); drawKong(dt);
+  }
+
+  // ═══════ 흐름 ═══════
+  function clearCells() { for (const c of cells) { if (c.it) release(c); c.cool = 0; } board.querySelectorAll('.fl').forEach(f => f.remove()); }
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    clearCells(); score = 0; combo = 0; elapsed = 0; spawnT = 0.7; overT = 0; spawned = 0; lastKong = -9; kongOwed = false; lastTick = 99; mood = 'idle'; moodT = 0;
+    stats = { caught: 0, missed: 0, bonk: 0, spared: 0, gold: 0, maxCombo: 0, empty: 0 };
+    state = 'play'; showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+  }
+  function pause() { if (state !== 'play') return; state = 'pause'; showCard('cardPause', 'btnResume'); }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); }
+  function quit() { if (state !== 'pause' && state !== 'play') return; clearCells(); state = 'ready'; btnPause.hidden = true; elapsed = 0; score = 0; combo = 0; paintBest(); showCard('cardStart', 'btnStart'); }
+  function finish() {
+    if (state !== 'play') return;
+    state = 'over'; overT = 0; elapsed = TIME; btnPause.hidden = true;
+    for (const c of cells) if (c.it && c.it.phase !== 'done') { c.el.classList.remove('up'); done(c, 0.2); }
+    [523, 659, 784].forEach((f, i) => tone(f, 0.28, 'triangle', 0.055, i * 0.13));
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; clearCells();
+    const isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
+    $('edScore').textContent = fmt(score); $('edCaught').textContent = fmt(stats.caught) + '개'; $('edCombo').textContent = stats.maxCombo + '번';
+    $('edNew').hidden = !isNew; paintBest();
+    $('edTitle').textContent = stats.caught >= 1 ? '장난감을 잘 잡았어요' : '시간이 다 됐어요';
+    $('edText').textContent = stats.bonk === 0 && stats.spared > 0 ? J(name, '을/를') + ' 한 번도 안 눌렀어요. 최고예요!' : stats.bonk > 0 ? J(name, '을/를') + ' ' + stats.bonk + '번 눌렀어요. 다음엔 살살!' : J(name, '이랑/랑') + ' 잘 놀았어요.';
+    endAt = performance.now(); showCard('cardEnd', 'btnAgain');
+    if (isNew) sfx('win'); if (score > 0) { lastVoice = tAnim; voice('bark', 0.2, 1.0); }
+  }
+  const RULES = { key: KEY, title: TITLE, lead: '이불 속에서 올라오는 장난감을 잡는 놀이예요.', items: [
+    ['🧸', '장난감이 쏙 올라오면 내려가기 전에 얼른 눌러요.'],
+    ['⚡', '빨리, 연달아 잡을수록 점수가 커져요. 놓치거나 빈 칸을 누르면 연속이 끊겨요.'],
+    ['🐶', name + ' 얼굴은 누르면 안 돼요. 기다리면 덤 점수!'],
+    ['🦴', '반짝이는 황금 뼈다귀는 큰 점수예요. 한 판은 45초!']
+  ] };
+  const guard = () => performance.now() - endAt < 450;   // 결과 카드가 뜬 직후에는 누름을 넘긴다 (두드리던 손가락)
+  $('btnStart').addEventListener('click', () => { sfx('tap'); start(); });
+  $('btnAgain').addEventListener('click', () => { if (guard()) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (guard()) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); quit(); });
+  $('btnRules').addEventListener('click', () => { sfx('tap'); KG.rules(RULES, true).then(() => { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} }); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); btnPause.blur(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+
+  // ═══════ 키보드: 숫자판 모양 그대로 (7 8 9 / 4 5 6 / 1 2 3), 또는 QWE / ASD / ZXC ═══════
+  const KEYMAP = { '7': 0, '8': 1, '9': 2, '4': 3, '5': 4, '6': 5, '1': 6, '2': 7, '3': 8, q: 0, w: 1, e: 2, a: 3, s: 4, d: 5, z: 6, x: 7, c: 8 };
+  document.addEventListener('keydown', e => {
+    if (KG.rulesOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (state === 'play' && KEYMAP[k] != null) { if (!e.repeat) tap(KEYMAP[k]); e.preventDefault(); return; }
+    if (k === ' ' || k === 'Enter') {
+      if (e.repeat) return;
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault();
+      if (state === 'ready') start(); else if (state === 'result') { if (!guard()) start(); } else if (state === 'pause') resume(); else if (state === 'play' && k === ' ') pause();
+    } else if (k === 'Escape' || k === 'p') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+
+  // ═══════ 시작 ═══════
+  // 난이도 고르기: 시작 카드·결과 카드 (고르면 그 난이도의 최고 기록을 보여 준다)
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점';
+    // 결과 카드는 방금 끝난 판(diffId)의 기록으로 고정 — 다음 판 난이도를 바꿔도 그 판 점수·'새 기록' 딱지와 어긋나지 않게
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+  }
+  $('stRec').before(KG.diffPicker(null, paintBest));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  diffId = KG.diff(); paintBest();
+  layout(); paintHud();
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+
+  // 시험·디버그용
+  window.GAME = {
+    get state() { return state; }, get score() { return score; }, get combo() { return combo; }, get timeLeft() { return Math.max(0, TIME - elapsed); }, get diff() { return diffId; }, get D() { return D; },
+    get stats() { return Object.assign({ spawned }, stats); }, DIFF, TIME,
+    cells: () => cells.map(c => c.it ? { kind: c.it.kind, phase: c.it.phase, t: c.it.t, up: c.it.up } : null),
+    field: () => ({ W, H, wide, CS, KSZ, board: board.getBoundingClientRect().toJSON(), hud: $('hud').getBoundingClientRect().toJSON(), kstage: kstage.getBoundingClientRect().toJSON() }),
+    tap, spawn, start, pause, resume, quit, end: () => { if (state === 'pause') resume(); if (state === 'play') finish(); },
+    step: dt => { tAnim += dt; if (state === 'play' || state === 'over') update(dt); }   // 시험용: 화면 없이 빨리 돌리기
+  };
+})();
+</script>
+</body>
+</html>

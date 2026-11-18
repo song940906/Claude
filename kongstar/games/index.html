@@ -33,6 +33,7 @@
 .card.daily { background: rgba(255,255,255,.12); color: #fff; border: 1px solid var(--glass-line); box-shadow: none; }
 .card.daily small { color: #C9D1F2; }
 .card.daily .ico { background: rgba(255,255,255,.14); }
+#diffSpot .kg-diff { margin-top: 8px; }
 .sec { margin: 22px 4px 0; font-size: 13px; font-weight: 600; color: #AEB8E6; }
 </style>
 </head>
@@ -45,25 +46,35 @@
     <div id="kongSpot"></div>
   </div>
   <a class="card daily" href="../index.html"><span class="ico">🌙</span><span class="txt"><b id="dTitle">콩이의 일상</b><small>쓰다듬고, 산책하고, 편지를 띄워요</small></span></a>
-  <div class="sec">미니게임</div>
+  <div class="sec">미니게임 난이도</div>
+  <div id="diffSpot"></div>
   <a class="card" href="run.html"><span class="ico" style="background:#E8F5EC">🏃</span><span class="txt"><b>콩이런</b><small>산책길을 달리며 폴짝 뛰어넘어요</small></span><span class="rec" data-rec="run" data-unit="점"></span></a>
   <a class="card" href="puzzle.html"><span class="ico" style="background:#FFF1E3">🧩</span><span class="txt"><b id="pTitle">콩이의 퍼즐</b><small>간식 3개 맞추기 · 카드 짝 맞추기</small></span><span class="rec" data-rec="match3" data-unit="점"></span></a>
   <a class="card" href="shoot.html"><span class="ico" style="background:#E9ECFB">⭐</span><span class="txt"><b id="sTitle">콩이의 슈팅</b><small>왈! 짖어서 별나라를 지켜요</small></span><span class="rec" data-rec="shoot" data-unit="점"></span></a>
+  <a class="card" href="basket.html"><span class="ico" style="background:#FFF4D6">🧺</span><span class="txt"><b id="bTitle">콩이의 간식바구니</b><small>떨어지는 간식을 받아먹어요</small></span><span class="rec" data-rec="basket" data-unit="점"></span></a>
+  <a class="card" href="jump.html"><span class="ico" style="background:#E3F3FF">☁️</span><span class="txt"><b id="jTitle">콩이의 점프 점프</b><small>구름을 밟고 높이높이 올라가요</small></span><span class="rec" data-rec="jump" data-unit="점"></span></a>
+  <a class="card" href="toys.html"><span class="ico" style="background:#FBE9F0">🧸</span><span class="txt"><b id="tTitle">콩이의 장난감잡기</b><small>쏙 나오는 장난감을 빨리 잡아요</small></span><span class="rec" data-rec="toys" data-unit="점"></span></a>
+  <a class="card" href="stack.html"><span class="ico" style="background:#F1EAFB">🥞</span><span class="txt"><b id="kTitle">콩이의 간식쌓기</b><small>간식을 딱 맞춰 높이 쌓아요</small></span><span class="rec" data-rec="stack" data-unit="층"></span></a>
+  <a class="card" href="seek.html"><span class="ico" style="background:#E6F6F1">🔍</span><span class="txt"><b id="hkTitle">콩이의 숨바꼭질</b><small>방 안에 숨은 콩이와 장난감 찾기</small></span><span class="rec" data-rec="seek" data-unit="점"></span></a>
 </div></div>
 <script src="common.js"></script>
 <script>
 (function () {
   'use strict';
-  const { name, J, best, kong, topbar, rand, TAU } = KG;
+  const { name, J, best, dkey, diffPicker, kong, topbar, rand, TAU } = KG;
   topbar({ title: '', back: '../index.html', backText: '일상', backLabel: J(name, '의') + ' 일상으로 돌아가기' });
   document.getElementById('hTitle').innerHTML = J(name, '이랑/랑') + '<br>뭐 하고 놀까요?';
   document.getElementById('dTitle').textContent = J(name, '의') + ' 일상';
   document.getElementById('pTitle').textContent = J(name, '의') + ' 퍼즐';
   document.getElementById('sTitle').textContent = J(name, '의') + ' 슈팅';
+  for (const [id, t] of [['bTitle', '간식바구니'], ['jTitle', '점프 점프'], ['tTitle', '장난감잡기'], ['kTitle', '간식쌓기'], ['hkTitle', '숨바꼭질']]) document.getElementById(id).textContent = J(name, '의') + ' ' + t;
   document.title = name + '별 게임';
-  for (const el of document.querySelectorAll('[data-rec]')) {   // 최고 기록 (없으면 비워 둔다)
-    const v = best(el.dataset.rec); if (v > 0) el.innerHTML = '최고<strong>' + Math.round(v).toLocaleString() + el.dataset.unit + '</strong>';
+  function paintRecs() {   // 고른 난이도의 최고 기록 (없으면 비워 둔다)
+    for (const el of document.querySelectorAll('[data-rec]')) {
+      const v = best(dkey(el.dataset.rec)); el.innerHTML = v > 0 ? '최고<strong>' + Math.round(v).toLocaleString() + el.dataset.unit + '</strong>' : '';
+    }
   }
+  diffPicker(document.getElementById('diffSpot'), paintRecs).classList.add('dark'); paintRecs();
   // 콩이: 앉아서 꼬리를 흔들며 기다린다
   const k = kong(document.getElementById('kongSpot'), 150); k.setPose('sit'); k.place(75, 142);
   // 밤하늘
