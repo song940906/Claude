@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '94c732b8fe';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = '2d4460bbae';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -175,6 +175,14 @@ html, body { touch-action: manipulation; }   /* 두 번 눌러 확대 막기 (�
 .btn:disabled { opacity: .45; }
 .row-actions { display: flex; gap: 8px; margin-top: 14px; }
 .row-actions .btn { flex: 1; }
+/* 설정 창 맨 위: 미니게임으로 건너가는 카드 */
+.gamecard { width: 100%; border: 0; border-radius: 18px; background: linear-gradient(135deg, #2C3577, #4B57B8); color: #fff; display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin: 4px 0 6px; text-align: left; }
+.gamecard .ge { font-size: 30px; line-height: 1; }
+.gamecard .gt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.gamecard b { font-size: 16px; font-weight: 700; letter-spacing: -.2px; }
+.gamecard small { font-size: 13px; opacity: .82; }
+.gamecard svg { width: 20px; height: 20px; opacity: .8; }
+.gamecard:active { filter: brightness(.94); }
 /* 개인기 따라 하기: 하단 줄 위에 뜨는 단추판 */
 .simon { position: fixed; left: 50%; transform: translateX(-50%); z-index: 6; width: min(92vw, 380px); background: rgba(255,255,255,.96); border-radius: 20px; padding: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.22); }
 .simon-msg { font-size: 14px; font-weight: 600; color: #333D4B; text-align: center; margin: 2px 0 8px; min-height: 18px; }
@@ -499,6 +507,8 @@ html, body { touch-action: manipulation; }   /* 두 번 눌러 확대 막기 (�
 <div class="scrim" id="sheetMenu" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <div class="sheet-head"><h2 id="mTitle">설정</h2><button class="x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+
+    <button class="gamecard" id="goGames"><span class="ge">🎮</span><span class="gt"><b>미니게임 하러 가기</b><small>콩이런 · 콩이의 퍼즐 · 콩이의 슈팅</small></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
 
     <h3 id="mDogName">콩이</h3>
     <div class="list">
@@ -919,7 +929,9 @@ let LGEN = 0;       // 편지를 빼거나 다시 늘어놓을 때 올린다 —
 let PHOTOS = [];    // { id, at, takenAt, caption, blob, thumb, w, h }
 let storeOk = true;
 let saveT = 0;
-function saveSettings() { clearTimeout(saveT); saveT = setTimeout(() => { DB.set('settings', S).catch(() => {}); }, 250); }
+// 미니게임(games/*.html)이 읽을 것만 localStorage 에 비춰 둔다 — 게임은 IndexedDB 를 열지 않는다 (먼저 열면 빈 저장소가 생긴다)
+function shareOut() { try { localStorage.setItem('kongstar.share', JSON.stringify({ name: S.name, outfit: S.outfit, ribbon: !!S.ribbon, sound: !!S.sound })); } catch (e) {} }
+function saveSettings() { shareOut(); clearTimeout(saveT); saveT = setTimeout(() => { DB.set('settings', S).catch(() => {}); }, 250); }
 function saveStats() { DB.set('stats', ST).catch(() => {}); }
 function bumpStat(k) { ST[k] = (ST[k] || 0) + 1; saveStats(); }
 let persistAsked = false;
@@ -4297,6 +4309,7 @@ bindText('sBirth', 'birthday'); bindText('sFamily', 'familyDay'); bindText('sSta
 bindText('sMeteorTime', 'meteorTime', v => v || '21:00');
 const bindSwitch = (id, key, after) => $(id).addEventListener('change', () => { S[key] = $(id).checked; saveSettings(); after && after(); });
 bindSwitch('sShowDays', 'showDays', refreshDay); bindSwitch('sRibbon', 'ribbon'); bindSwitch('sMeteorOn', 'meteorOn'); bindSwitch('sCount', 'showCount');
+$('goGames').addEventListener('click', () => { shareOut(); clearTimeout(saveT); DB.set('settings', S).catch(() => {}); location.href = 'games/index.html'; });   // 저장을 마저 하고 건너간다
 bindSwitch('sSound', 'sound', () => {
   if (S.sound) { unlockAudio(true); if (isIOS) toast('소리를 켰어요 (무음 모드에서는 들리지 않아요)'); }
   else dropToast('소리를 켰어요');   // 바로 끄면 '켰어요'가 남지 않게
@@ -4801,6 +4814,7 @@ async function boot() {
   storeOk = await DB.ready();
   try {
     const s = await DB.get('settings'); if (s) S = Object.assign({}, DEF, s, { hints: Object.assign({}, s.hints || {}) });
+    shareOut();
     const st = await DB.get('stats'); if (st) ST = Object.assign(ST, st);
     LETTERS = ((await DB.all('letters')) || []).sort((a, b) => a.at - b.at);
     PHOTOS = ((await DB.all('photos')) || []).sort((a, b) => a.at - b.at);
