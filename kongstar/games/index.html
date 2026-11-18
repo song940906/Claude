@@ -34,6 +34,10 @@
 .card.daily small { color: #C9D1F2; }
 .card.daily .ico { background: rgba(255,255,255,.14); }
 #diffSpot .kg-diff { margin-top: 8px; }
+.card.rankc { background: linear-gradient(135deg, #FFF6DD, #FFE3A6); }
+.card.rankc .ico { background: rgba(255,255,255,.7); }
+.card.rankc small { color: #7A5A1E; }
+.card.rankc .go { flex: none; font-size: 24px; line-height: 1; color: #B98A2E; }
 .sec { margin: 22px 4px 0; font-size: 13px; font-weight: 600; color: #AEB8E6; }
 </style>
 </head>
@@ -46,6 +50,7 @@
     <div id="kongSpot"></div>
   </div>
   <a class="card daily" href="../index.html"><span class="ico">🌙</span><span class="txt"><b id="dTitle">콩이의 일상</b><small>쓰다듬고, 산책하고, 편지를 띄워요</small></span></a>
+  <a class="card rankc" href="rank.html"><span class="ico">🏆</span><span class="txt"><b>가족 순위</b><small id="rkSub">가족끼리 기록을 모아 등수를 봐요</small></span><span class="go" aria-hidden="true">›</span></a>
   <div class="sec">미니게임 난이도</div>
   <div id="diffSpot"></div>
   <a class="card" href="run.html"><span class="ico" style="background:#E8F5EC">🏃</span><span class="txt"><b>콩이런</b><small>산책길을 달리며 폴짝 뛰어넘어요</small></span><span class="rec" data-rec="run" data-unit="점"></span></a>
@@ -78,6 +83,13 @@
       const v = best(dkey(el.dataset.rec)); el.innerHTML = v > 0 ? '최고<strong>' + Math.round(v).toLocaleString() + el.dataset.unit + '</strong>' : '';
     }
   }
+  // 가족 순위 카드: 연결돼 있으면 마지막으로 받아 둔 순위(저장본)로 내 종합 등수를 한 줄 보여 준다
+  (function () {
+    const R = KG.rank, me = R.me(), sub = document.getElementById('rkSub'); if (!R.cfg()) return;
+    // 등수는 저장소가 내 기록을 받아 준 것이 확인됐고(받아 둔 목록에 내가 있음) 기록이 하나라도 있을 때만 말한다
+    const c = R.cache(), up = !!(c && me && c.players.some(p => p.id === me.id)), rows = up ? R.standings(R.withMe(c.players)) : [], mine = up && rows.find(r => r.id === me.id);
+    sub.textContent = mine && mine.rank ? '지금 종합 ' + mine.rank + '등 · 가족 ' + rows.length + '명' : mine ? '아직 기록이 없어요 · 가족 ' + rows.length + '명' : me && me.name ? '가족과 기록을 겨루고 있어요' : '이름을 정하면 순위에 올라가요';
+  })();
   diffPicker(document.getElementById('diffSpot'), paintRecs).classList.add('dark'); paintRecs();
   // 콩이: 앉아서 꼬리를 흔들며 기다린다
   const k = kong(document.getElementById('kongSpot'), 150); k.setPose('sit'); k.place(75, 142);

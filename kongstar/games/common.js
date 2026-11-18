@@ -1,6 +1,6 @@
 // 콩이별 미니게임 공통 — make.js 가 콩이 그림·리그·목소리를 넣어 app/games/common.js 로 만든다 (직접 고칠 파일은 이 common.src.js)
 // 게임 파일(run.html·puzzle.html·shoot.html)과 고르는 화면(index.html)이 <script src="common.js"> 로 함께 쓴다.
-//   window.KG = { name, outfit, ribbon, J, best, setBest, kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
+//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
 // 콩이 리그 구동기 — CONTRACT.md 규약을 지킨 SVG 의 부위를 움직인다.
 //   앱(kongstar.html)과 그림 미리보기(preview.js)가 같은 코드를 쓴다 (make.js 가 앱에 합친다).
 //   사용: const rig = new KongRig(svg); rig.setPose('sit'); rig.render({ t, tilt: 8, eyes: 'happy', … })
@@ -240,7 +240,7 @@
   }
   const best = k => { const v = parseFloat(ls.get('kongstar.game.' + k)); return isFinite(v) ? v : 0; };
   // 더 좋은 기록이면 저장하고 true (lower: 작을수록 좋은 기록 — 걸린 시간·횟수)
-  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { ls.set('kongstar.game.' + k, String(v)); return true; } return false; }
+  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { ls.set('kongstar.game.' + k, String(v)); rankPush(); return true; } return false; }
 
   // ── 난이도: 게임 세 개가 함께 쓴다 (한 번 고르면 다른 게임에서도 그대로)
   //   KG.DIFFS[i] = { id, label } · KG.diff() → 'easy'|'normal'|'hard'|'vhard' · KG.diffIdx() → 0~3 · KG.setDiff(id)
@@ -473,5 +473,171 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   }, { passive: false });
   document.addEventListener('contextmenu', e => e.preventDefault());
 
-  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion };
+  // ── 가족 순위: 가족 각자의 폰에서 나온 최고 기록을 한곳(가족이 직접 만든 저장소 — server/rank-worker.js)에 모아 등수를 본다
+  //   저장소 주소와 가족 코드는 이 폰의 localStorage 에만 둔다 (코드·배포 파일에는 없다). 설정이 없으면 아무 데도 보내지 않는다.
+  //   KG.GAMES[i] = { key, title, ico, unit, lower, href } · KG.recKey(게임|열쇠, 난이도) → 기록 열쇠 (pairs 만 'pairs.<난이도>')
+  //   KG.rank = { me(), setName(이름), cfg(), setCfg({url, code}), clearCfg(), sync(force), fetchAll() → Promise<players|null>, inviteLink(), status,
+  //               check(url, code), leave(), cache(), myRecs(), withMe(players), board(players, 열쇠, lower), standings(players), parseInvite(hash), cleanName(이름) }
+  const GAMES = [
+    { key: 'run', title: '콩이런', ico: '🏃', unit: '점', lower: false, href: 'run.html' },
+    { key: 'match3', title: '간식 3개 맞추기', ico: '🧩', unit: '점', lower: false, href: 'puzzle.html' },
+    { key: 'pairs', title: '카드 짝 맞추기', ico: '🃏', unit: '번', lower: true, href: 'puzzle.html' },
+    { key: 'shoot', title: '슈팅', ico: '⭐', unit: '점', lower: false, href: 'shoot.html' },
+    { key: 'basket', title: '간식바구니', ico: '🧺', unit: '점', lower: false, href: 'basket.html' },
+    { key: 'jump', title: '점프 점프', ico: '☁️', unit: '점', lower: false, href: 'jump.html' },
+    { key: 'toys', title: '장난감잡기', ico: '🧸', unit: '점', lower: false, href: 'toys.html' },
+    { key: 'stack', title: '간식쌓기', ico: '🥞', unit: '층', lower: false, href: 'stack.html' },
+    { key: 'seek', title: '숨바꼭질', ico: '🔍', unit: '점', lower: false, href: 'seek.html' },
+    { key: 'throw', title: '공 던지기', ico: '🎾', unit: '점', lower: false, href: 'throw.html' },
+    { key: 'rope', title: '줄넘기', ico: '🪢', unit: '번', lower: false, href: 'rope.html' },
+    { key: 'shop', title: '간식가게', ico: '🏪', unit: '점', lower: false, href: 'shop.html' },
+    { key: 'bowl', title: '사료그릇', ico: '🥣', unit: '단계', lower: false, href: 'bowl.html' }
+  ];
+  const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };
+  const RK = { me: 'kongstar.rank.me', cfg: 'kongstar.rank.cfg', dirty: 'kongstar.rank.dirty', last: 'kongstar.rank.last', cache: 'kongstar.rank.cache', seen: 'kongstar.rank.seen' };
+  const lsDel = k => { try { localStorage.removeItem(k); } catch (e) {} };
+  const lsJSON = k => { try { const v = JSON.parse(ls.get(k) || 'null'); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } };
+  // 이름: 제어 문자·꺾쇠를 빼고 앞뒤 공백을 정리해 10자까지 (저장소도 같은 규칙으로 한 번 더 거른다)
+  const cleanName = n => typeof n !== 'string' ? '' : Array.from(n.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}<>]/gu, ' ').replace(/\s+/g, ' ').trim()).slice(0, 10).join('').trim();
+  // 저장소 주소: https:// 만 (시험용 http://localhost · 127.0.0.1 예외). 'xxx.workers.dev' 처럼 앞을 빼고 적으면 https:// 를 붙인다
+  function cleanUrl(u) {
+    if (typeof u !== 'string') return '';
+    u = u.trim().replace(/\/+$/, ''); if (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u;
+    if (u.length > 200 || /[\s?#@<>"'\\]/.test(u)) return '';
+    return /^https:\/\/[a-z0-9.-]+(:\d+)?(\/[^\s]*)?$/i.test(u) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/[^\s]*)?$/i.test(u) ? u : '';
+  }
+  const rankStatus = { state: 'off', msg: '', at: 0 };   // state: 'off'(연결 전) 'idle' 'sync' 'ok' 'fail'
+  function rankMe() { const m = lsJSON(RK.me); return m && typeof m.id === 'string' && /^[a-z0-9-]{16,40}$/.test(m.id) ? { id: m.id, name: cleanName(m.name) } : null; }
+  function rankCfg() { const c = lsJSON(RK.cfg); if (!c || typeof c.code !== 'string' || !c.code.trim()) return null; const url = cleanUrl(c.url); return url ? { url, code: c.code.trim() } : null; }
+  if (rankCfg()) rankStatus.state = 'idle';
+  // 폰 열쇠: 이 폰만 아는 무작위 값. 저장소는 이 열쇠를 가진 폰만 내 id 의 기록을 올리거나 지우게 한다 (me() 로는 내보내지 않는다)
+  function meKey() { const m = lsJSON(RK.me); if (!m || !rankMe()) return ''; if (typeof m.key === 'string' && /^[a-z0-9]{16,64}$/.test(m.key)) return m.key; m.key = newId(); ls.set(RK.me, JSON.stringify(m)); return m.key; }
+  function newId() { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, x => (x < 16 ? '0' : '') + x.toString(16)).join(''); }
+  function setCfg(o) { const url = cleanUrl(o && o.url), code = o && typeof o.code === 'string' ? o.code.trim() : ''; if (!url || !code || code.length > 100) return false; ls.set(RK.cfg, JSON.stringify({ url, code })); lsDel(RK.last); ls.set(RK.dirty, '1'); rankStatus.state = 'idle'; rankStatus.msg = ''; return true; }
+  function clearCfg() { lsDel(RK.cfg); lsDel(RK.cache); lsDel(RK.last); lsDel(RK.dirty); rankStatus.state = 'off'; rankStatus.msg = ''; }
+  function setName(n) { n = cleanName(n); if (!n) return false; const m = rankMe() || { id: newId() }; m.name = n; m.key = meKey() || newId(); ls.set(RK.me, JSON.stringify(m)); ls.set(RK.dirty, '1'); if (syncing) syncAgain = true; return true; }   // 올리는 도중에 바꿨으면 끝난 뒤 한 번 더 보낸다
+  // 이 폰의 최고 기록 모으기 (기록이 있는 칸만)
+  function myRecs() { const r = {}; for (const g of GAMES) for (const d of DIFFS) { const k = recKey(g, d.id), v = best(k); if (v > 0) r[k] = v; } return r; }
+  const rankKeys = () => { const m = new Map(); for (const g of GAMES) for (const d of DIFFS) m.set(recKey(g, d.id), g.lower); return m; };
+  const rankMsg = r => r.ok ? '' : r.status === 401 ? '가족 코드가 맞지 않아요' : r.status === 503 ? '저장소에 가족 코드가 아직 설정되지 않았어요' : r.status === 409 ? '가족 순위가 가득 찼어요 (20명까지)' : r.status === 403 ? (r.data && r.data.error === 'owner' ? '다른 폰에서 만든 기록이라 이 폰에서는 바꿀 수 없어요' : '이 앱 주소에서는 쓸 수 없는 저장소예요')
+    : r.status === 0 ? '저장소에 닿지 못했어요. 인터넷 연결이나 주소를 확인해 주세요' : '저장소가 올바르게 답하지 않았어요 (' + r.status + ')';
+  // 저장소 부르기: 화면을 막지 않게 비동기, 6초 안에 답이 없으면 그만둔다. 항상 { ok, status, data } 로 풀린다 (던지지 않는다)
+  function rankCall(method, path, body, c, pk) {
+    c = c || rankCfg(); if (!c) return Promise.resolve({ ok: false, status: 0, data: null });
+    let ctl = null, timer = 0; try { ctl = new AbortController(); timer = setTimeout(() => ctl.abort(), 6000); } catch (e) {}
+    const opt = { method, mode: 'cors', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', keepalive: true, headers: { 'X-Family-Code': encodeURIComponent(c.code) } };   // 한글 코드도 되게 % 로 바꿔 싣는다
+    if (ctl) opt.signal = ctl.signal; if (pk) opt.headers['X-Player-Key'] = pk;
+    if (body) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+    return Promise.resolve().then(() => fetch(c.url + path, opt)).then(r => r.json().catch(() => null).then(data => ({ ok: r.ok, status: r.status, data })))
+      .catch(() => ({ ok: false, status: 0, data: null })).then(res => { clearTimeout(timer); return res; });
+  }
+  // 내 기록 올리기. 이름·설정이 없으면 아무것도 하지 않는다. force 가 아니면 60초에 한 번만.
+  //   실패하면 조용히 넘어가고 'kongstar.rank.dirty' 로 표시해 두었다가 다음 기회(다른 화면을 열 때·앱이 다시 보일 때)에 다시 보낸다
+  //   (실패한 뒤에는 60초가 아니라 10초 뒤부터 다시 해 본다)
+  let syncing = null, syncAgain = false, pushTimer = 0, lastPush = 0;
+  function rankSync(force) {
+    const m = rankMe(), c = rankCfg();
+    if (!m || !m.name || !c) return Promise.resolve(null);
+    if (syncing) return syncing;
+    const now = Date.now(), last = +ls.get(RK.last) || 0;
+    if (!force && now >= last && now - last < 60000) return Promise.resolve(null);
+    ls.set(RK.last, String(now)); syncAgain = false; rankStatus.state = 'sync';
+    syncing = rankCall('PUT', '/me', { id: m.id, name: m.name, recs: myRecs(), key: meKey() }, c).then(r => {
+      syncing = null; rankStatus.at = Date.now();
+      const me = r.ok && r.data && r.data.me && typeof r.data.me === 'object' ? r.data.me : null;
+      if (!me) { ls.set(RK.dirty, '1'); ls.set(RK.last, String(Date.now() - 50000)); rankStatus.state = 'fail'; rankStatus.msg = r.ok ? '저장소가 올바르게 답하지 않았어요' : rankMsg(r); rankStatus.code = r.status; return null; }
+      rankStatus.state = 'ok'; rankStatus.msg = ''; rankStatus.code = 200;
+      // 저장소 쪽 기록이 더 좋으면 이 폰에도 반영한다 (같은 사람이 폰을 바꿨을 때) — 이 폰이 처음으로 올리기에 성공한 그 한 번만.
+      //   한 번이라도 올린 폰은 저장소가 이 폰보다 좋은 기록을 가질 까닭이 없다. 그 뒤로도 받아들이면 잘못된 저장소(낯선 초대 링크)가
+      //   돌려준 값이 이 폰의 게임 기록을 되돌릴 수 없게 바꿔 놓을 수 있다. 값도 정수·범위를 확인한다
+      if (ls.get(RK.seen) !== '1') {
+        ls.set(RK.seen, '1');
+        const keys = rankKeys(), recs = me.recs && typeof me.recs === 'object' ? me.recs : {};
+        for (const [k, lower] of keys) { const v = recs[k]; if (typeof v !== 'number' || !Number.isInteger(v) || v <= 0 || v > 10000000) continue; const cur = best(k); if (cur <= 0 || (lower ? v < cur : v > cur)) ls.set('kongstar.game.' + k, String(v)); }
+      }
+      if (syncAgain) { syncAgain = false; return rankSync(true); }   // 보내는 사이에 새 기록이 났다
+      lsDel(RK.dirty); return me;
+    });
+    return syncing;
+  }
+  // setBest 가 새 기록을 저장하면 부른다: 바로 보내되 5초 안에 또 나면 묶어서 한 번만
+  function rankPush() {
+    if (!rankCfg()) return; ls.set(RK.dirty, '1'); if (pushTimer) return;
+    pushTimer = setTimeout(() => { pushTimer = 0; lastPush = Date.now(); if (syncing) syncAgain = true; else rankSync(true); }, Math.max(0, 5000 - (Date.now() - lastPush)));
+  }
+  const validPlayer = p => p && typeof p === 'object' && typeof p.id === 'string' && typeof p.name === 'string';
+  function normPlayers(list) {
+    const keys = rankKeys(), out = [];
+    for (const p of Array.isArray(list) ? list : []) {
+      if (!validPlayer(p) || out.length >= 40) continue; const recs = {}, ts = {};
+      for (const [k] of keys) { const v = p.recs && p.recs[k]; if (typeof v === 'number' && isFinite(v) && v > 0) { recs[k] = v; const t = p.ts && p.ts[k]; if (typeof t === 'number' && isFinite(t)) ts[k] = t; } }
+      out.push({ id: p.id.slice(0, 40), name: cleanName(p.name) || '이름 없음', recs, ts, at: typeof p.at === 'number' && isFinite(p.at) ? p.at : 0 });
+    }
+    return out;
+  }
+  // 모든 사람의 기록 받기 → players (실패하면 null — 그때는 cache() 의 저장된 순위를 쓴다)
+  function fetchAll() {
+    if (!rankCfg()) return Promise.resolve(null);
+    return rankCall('GET', '/scores').then(r => {
+      rankStatus.at = Date.now(); rankStatus.code = r.status;
+      if (!r.ok || !r.data || !Array.isArray(r.data.players)) { rankStatus.state = 'fail'; rankStatus.msg = r.ok ? '저장소가 올바르게 답하지 않았어요' : rankMsg(r); return null; }
+      const players = normPlayers(r.data.players); ls.set(RK.cache, JSON.stringify({ at: Date.now(), players })); rankStatus.state = 'ok'; rankStatus.msg = ''; return players;
+    });
+  }
+  const rankCache = () => { const c = lsJSON(RK.cache); return c && Array.isArray(c.players) ? { at: +c.at || 0, players: normPlayers(c.players) } : null; };
+  // 「연결 확인」: 저장하지 않고 주소·코드로 한 번 불러 본다 → { ok, msg, n(사람 수) }
+  function rankCheck(url, code) {
+    url = cleanUrl(url); code = typeof code === 'string' ? code.trim() : '';
+    if (!url) return Promise.resolve({ ok: false, msg: '주소는 https:// 로 시작해야 해요' });
+    if (!code) return Promise.resolve({ ok: false, msg: '가족 코드를 적어 주세요' });
+    return rankCall('GET', '/scores', null, { url, code }).then(r => r.ok && r.data && Array.isArray(r.data.players) ? { ok: true, msg: '연결됐어요', n: r.data.players.length } : { ok: false, msg: r.ok || r.status === 404 ? '이 주소는 가족 순위 저장소가 아닌 것 같아요' : rankMsg(r) });
+  }
+  // 순위에서 빠지기: 저장소의 내 기록을 지우고 이 폰의 연결 설정을 지운다 (게임 기록과 이름은 이 폰에 남는다)
+  //   올리던 것이 있으면 끝난 뒤에 지운다 (지운 뒤에 늦게 도착한 올리기가 기록을 되살리지 않게)
+  function rankLeave() {
+    const m = rankMe(), c = rankCfg(); if (!c) { clearCfg(); return Promise.resolve({ ok: true }); }
+    if (!m) { clearCfg(); return Promise.resolve({ ok: true }); }
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; } syncAgain = false;
+    return Promise.resolve(syncing).then(() => { syncAgain = false; return rankCall('DELETE', '/me?id=' + encodeURIComponent(m.id), null, c, meKey()); }).then(r => { if (r.ok) { clearCfg(); return { ok: true }; } return { ok: false, msg: rankMsg(r) }; });
+  }
+  // 받은 목록에 이 폰의 기록을 겹친다 (아직 못 올린 새 기록도 내 줄에는 보이게)
+  function withMe(players) {
+    const m = rankMe(), list = (players || []).map(p => ({ id: p.id, name: p.name, recs: Object.assign({}, p.recs), ts: Object.assign({}, p.ts), at: p.at }));
+    if (!m || !m.name) return list;
+    let me = list.find(p => p.id === m.id); if (!me) { me = { id: m.id, name: m.name, recs: {}, ts: {}, at: 0 }; list.push(me); }
+    me.name = m.name; const mine = myRecs(), keys = rankKeys();
+    for (const k in mine) { const v = mine[k], cur = me.recs[k]; if (!(cur > 0) || (keys.get(k) ? v < cur : v > cur)) me.recs[k] = v; }
+    return list;
+  }
+  // 한 칸(게임×난이도)의 등수: 기록 없는 사람은 빼고, 동점은 같은 등수
+  function board(players, key, lower) {
+    const rows = (players || []).filter(p => p.recs[key] > 0).map(p => ({ id: p.id, name: p.name, v: p.recs[key], at: (p.ts && p.ts[key]) || 0 }));
+    rows.sort((a, b) => (lower ? a.v - b.v : b.v - a.v) || a.name.localeCompare(b.name, 'ko'));
+    for (const r of rows) r.rank = 1 + rows.filter(o => lower ? o.v < r.v : o.v > r.v).length;
+    return rows;
+  }
+  // 종합: 칸마다 1등 3점 · 2등 2점 · 3등 1점을 더한다. 동점이면 1등 한 칸 수가 많은 쪽이 위
+  function standings(players) {
+    const tot = new Map((players || []).map(p => [p.id, { id: p.id, name: p.name, pts: 0, firsts: 0, played: 0, rank: 0 }]));
+    for (const g of GAMES) for (const d of DIFFS) for (const r of board(players, recKey(g, d.id), g.lower)) { const t = tot.get(r.id); if (!t) continue; t.played++; if (r.rank <= 3) t.pts += 4 - r.rank; if (r.rank === 1) t.firsts++; }
+    // 기록이 하나도 없는 사람은 등수 없이(rank 0) 맨 아래에 둔다
+    const rows = [...tot.values()]; rows.sort((a, b) => (b.played > 0) - (a.played > 0) || b.pts - a.pts || b.firsts - a.firsts || a.name.localeCompare(b.name, 'ko'));
+    for (const r of rows) if (r.played > 0) r.rank = 1 + rows.filter(o => o.played > 0 && (o.pts > r.pts || (o.pts === r.pts && o.firsts > r.firsts))).length;
+    return rows;
+  }
+  // 초대 링크: rank.html#join=<주소와 코드를 담은 base64url> — # 뒤(해시)는 서버로 전송되지 않는다
+  const b64u = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const unb64u = s => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+  function inviteLink() { const c = rankCfg(); if (!c) return ''; const u = new URL('rank.html', location.href); u.search = ''; u.hash = 'join=' + b64u(JSON.stringify({ u: c.url, c: c.code })); return u.href; }
+  function parseInvite(hash) {
+    const m = /^#?join=([A-Za-z0-9_-]{8,1200})$/.exec(hash || ''); if (!m) return null;
+    try { const o = JSON.parse(unb64u(m[1])), url = cleanUrl(o && o.u), code = o && typeof o.c === 'string' ? o.c.trim() : ''; return url && code && code.length <= 100 ? { url, code } : null; } catch (e) { return null; }
+  }
+  const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName };
+  // 밀린 기록: 화면을 열었을 때·앱이 다시 보일 때 (60초에 한 번). 화면을 떠날 때 보내려던 것이 남았으면 바로 보낸다 (keepalive)
+  if (rankCfg()) setTimeout(() => { if (ls.get(RK.dirty) === '1') rankSync(false); }, 1500);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) rankSync(false); });
+  addEventListener('pagehide', () => { if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; if (syncing) syncAgain = true; else rankSync(true); } });
+
+  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank };
 })();

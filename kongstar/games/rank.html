@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가족 순위</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 가족 순위: 밤하늘 + 흰 카드 (게임 고르는 화면과 같은 결) */
+#sky { position: fixed; inset: 0; width: 100%; height: 100%; }
+.wrap { position: fixed; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: calc(var(--sat) + 70px) calc(var(--sar) + 16px) calc(var(--sab) + 28px) calc(var(--sal) + 16px); }
+.inner { max-width: 460px; margin: 0 auto; }
+.head { margin: 6px 4px 14px; }
+.head h1 { margin: 0; font-size: 24px; letter-spacing: -.4px; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.head p { margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: #C9D1F2; }
+.panel { background: var(--card); color: var(--ink); border-radius: 20px; padding: 16px; margin-top: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.panel h2 { margin: 0 0 4px; font-size: 17px; letter-spacing: -.3px; }
+.panel p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--sub); }
+.panel .kg-btn { width: 100%; margin-top: 12px; }
+.note { margin-top: 10px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.12); border: 1px solid var(--glass-line); font-size: 13.5px; line-height: 1.5; color: #E4E8FA; }
+.note b { color: var(--gold); font-weight: 700; }
+.sec { margin: 22px 4px 0; font-size: 13px; font-weight: 600; color: #AEB8E6; }
+input, textarea { -webkit-user-select: text; user-select: text; font: inherit; }
+.field { display: block; width: 100%; box-sizing: border-box; height: 50px; border: 1.5px solid var(--line); border-radius: 14px; padding: 0 14px; font-size: 16px; color: var(--ink); background: #fff; outline: none; }
+.field:focus { border-color: var(--pri); }
+textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height: 1.4; resize: none; word-break: break-all; }
+.lab { display: block; margin: 12px 2px 6px; font-size: 13px; font-weight: 600; color: var(--sub); text-align: left; }
+.inline { display: flex; gap: 8px; margin-top: 12px; }
+.inline .field { flex: 1; min-width: 0; }
+.inline .kg-btn { flex: none; width: auto; margin: 0; height: 50px; }
+.msg { min-height: 20px; margin-top: 10px; font-size: 13.5px; line-height: 1.45; text-align: left; }
+.msg.ok { color: #1E8E5A; } .msg.bad { color: var(--danger); }
+/* 게임 칩 (가로로 넘긴다) */
+.chips { display: flex; gap: 6px; overflow-x: auto; margin: 8px -16px 0; padding: 2px 16px 6px; touch-action: pan-x pan-y; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 40px; border: 1px solid var(--glass-line); border-radius: 20px; padding: 0 14px 0 10px; background: rgba(255,255,255,.12); color: #E4E8FA; font-size: 14px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.chip.on { background: #fff; color: var(--pri); border-color: #fff; }
+#diffSpot .kg-diff { margin-top: 6px; }
+/* 등수 줄 */
+.rows { margin: 0; padding: 0; list-style: none; }
+.rowi { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 12px; }
+.rowi + .rowi { margin-top: 2px; }
+.rowi.me { background: #EEF0FB; }
+.rowi .rk { flex: none; width: 30px; text-align: center; font-size: 15px; font-weight: 700; color: var(--sub); font-variant-numeric: tabular-nums; }
+.rowi .rk.medal { font-size: 21px; }
+.rowi .nm { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-user-select: none; }
+.rowi .who { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
+.rowi .who .nm { flex: 0 1 auto; }
+.rowi .who i { flex: none; padding: 1px 7px; border-radius: 999px; background: var(--pri); color: #fff; font-size: 11px; font-style: normal; font-weight: 700; white-space: nowrap; }
+.rowi .who i.wait { background: #FFF1D6; color: #9A6200; }
+.rowi .rk.none { color: #B4BBC6; }
+.rowi .val { flex: none; text-align: right; font-size: 15.5px; font-weight: 700; color: var(--pri); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rowi .val small { display: block; font-size: 11.5px; font-weight: 500; color: var(--sub); }
+.rowi .val.none { color: #B4BBC6; font-weight: 500; }
+.rowi .gi { flex: none; width: 30px; text-align: center; font-size: 20px; }
+.empty { padding: 18px 8px; text-align: center; font-size: 14px; line-height: 1.5; color: var(--sub); }
+.ptitle { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.ptitle h2 { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ptitle span { flex: none; font-size: 12px; color: var(--sub); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #FFF1D6; color: #9A6200; font-size: 11.5px; font-weight: 700; }
+.foot { margin-top: 14px; }
+.foot .stamp { margin: 0 4px 10px; font-size: 12.5px; color: #AEB8E6; text-align: center; min-height: 18px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gbtn { height: 48px; border: 1px solid var(--glass-line); border-radius: 14px; padding: 0 8px; background: rgba(255,255,255,.12); color: #fff; font-size: 14.5px; font-weight: 600; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gbtn:active { background: rgba(255,255,255,.2); }
+.gbtn.wide { grid-column: 1 / -1; }
+.gbtn.quiet { background: transparent; color: #C9D1F2; font-weight: 500; }
+.gbtn[disabled] { opacity: .55; }
+.sheet .kg-card { text-align: left; width: min(100%, 400px); box-sizing: border-box; }
+.sheet .kg-card h2 { text-align: left; }
+.sheet .kg-card p { margin-top: 4px; }
+.sheet .warn { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #FFF1D6; color: #7A4E00; font-size: 13.5px; line-height: 1.45; font-weight: 600; }
+.sheet .addr b { display: block; margin-bottom: 2px; font-size: 15px; }
+.sheet .addr { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--soft); font-size: 13px; color: var(--ink); word-break: break-all; -webkit-user-select: text; user-select: text; }
+@media (max-width: 340px) { .ptitle { flex-wrap: wrap; row-gap: 2px; } .ptitle h2 { flex: 1 0 auto; max-width: 100%; } .rowi { gap: 8px; padding: 10px 4px; } .rowi .nm, .rowi .val { font-size: 14.5px; } .gbtn { font-size: 13.5px; } .chip { font-size: 13.5px; } }
+@media (min-width: 700px) { .inner { max-width: 560px; } }
+/* 가로로 눕힌 폰: 시트를 낮게 (주소·코드 칸을 나란히) */
+@media (max-height: 430px) { .sheet .kg-card { width: min(100%, 560px); padding: 14px 18px; } .sheet .kg-card h2 { font-size: 18px; margin: 0; } .sheet .fields { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; } .sheet .lab { margin-top: 8px; } .sheet .field { height: 44px; } .sheet textarea.field { height: 64px; } .sheet .msg { margin-top: 6px; } .sheet .kg-card .row { margin-top: 10px; } .sheet .kg-btn { height: 44px; } }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="wrap"><div class="inner">
+  <div class="head">
+    <h1>🏆 가족 순위</h1>
+    <p id="hSub">가족 각자의 폰에서 나온 최고 기록이 자동으로 모여요</p>
+  </div>
+
+  <section class="panel" id="nameCard" hidden>
+    <h2>이름을 정해 주세요</h2>
+    <p>순위에 보일 별명이에요. 10자까지 쓸 수 있어요.</p>
+    <div class="inline"><input class="field" id="nameIn" type="text" maxlength="10" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="예: 엄마" aria-label="이름"><button class="kg-btn pri" id="nameOk" type="button">정하기</button></div>
+  </section>
+
+  <section class="panel" id="offCard" hidden>
+    <h2>아직 가족 순위에 연결되지 않았어요</h2>
+    <p>가족이 만든 순위 저장소의 주소와 가족 코드를 넣으면, 각자 폰의 기록이 자동으로 모여 등수가 보여요. 초대 링크를 받았다면 그 링크를 눌러도 돼요.</p>
+    <button class="kg-btn pri" id="openCfg" type="button">연결 설정</button>
+  </section>
+
+  <div class="note" id="note" hidden></div>
+
+  <section class="panel" id="totalCard" hidden>
+    <div class="ptitle"><h2>종합 순위</h2><span>1등 3점 · 2등 2점 · 3등 1점</span></div>
+    <ul class="rows" id="totalRows"></ul>
+  </section>
+
+  <div class="sec" id="secTitle">게임별 순위</div>
+  <div class="chips" id="chips" role="tablist" aria-label="게임 고르기"></div>
+  <div id="diffSpot"></div>
+  <section class="panel" id="boardCard">
+    <div class="ptitle"><h2 id="boardTitle"></h2><span id="boardSub"></span></div>
+    <ul class="rows" id="boardRows"></ul>
+  </section>
+
+  <div class="foot">
+    <p class="stamp" id="stamp"></p>
+    <div class="grid2" id="btnsOn" hidden>
+      <button class="gbtn" id="bRefresh" type="button">새로 고침</button>
+      <button class="gbtn" id="bInvite" type="button">초대 링크 복사</button>
+      <button class="gbtn" id="bName" type="button">이름 바꾸기</button>
+      <button class="gbtn" id="bCfg" type="button">연결 설정</button>
+      <button class="gbtn wide quiet" id="bLeave" type="button">순위에서 빠지기</button>
+    </div>
+    <div class="grid2" id="btnsOff" hidden>
+      <button class="gbtn wide" id="bName2" type="button">이름 바꾸기</button>
+    </div>
+  </div>
+</div></div>
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { rank, GAMES, DIFFS, recKey, best, diff, diffLabel, diffPicker, topbar, toast, sfx, rand, TAU } = KG;
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };   // 글은 textContent 로만 넣는다
+  const fmt = v => Math.round(v).toLocaleString();
+  const MEDAL = ['', '🥇', '🥈', '🥉'];
+  topbar({ title: '', back: 'index.html' });   // 제목은 본문 머리에 있다 (내리면 카드가 위 줄 밑으로 지나가므로 위 줄은 비워 둔다)
+
+  let players = null, stored = false, gotAt = 0, busy = false, lastLoad = 0, errMsg = '', upErr = '';   // upErr: 순위는 받았는데 내 기록 올리기만 거절됐을 때의 사유
+  let gameKey = 'run'; try { const g = sessionStorage.getItem('kongstar.rank.game'); if (GAMES.some(x => x.key === g)) gameKey = g; } catch (e) {}
+
+  // ── 그리기
+  function when(t) {
+    if (!t) return ''; const d = new Date(t), n = new Date(), day = x => Math.floor((x.getTime() - x.getTimezoneOffset() * 60000) / 86400000), df = day(n) - day(d);
+    return df <= 0 ? '오늘' : df === 1 ? '어제' : df < 7 ? df + '일 전' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+  }
+  function clock(t) { const d = new Date(t), h = d.getHours(), m = d.getMinutes(), s = (h < 12 ? '오전 ' : '오후 ') + (h % 12 || 12) + ':' + (m < 10 ? '0' : '') + m, w = when(t); return w === '오늘' ? s : w + ' ' + s; }
+  function rankCell(r) { if (!r) { const n = el('span', 'rk none', '–'); n.setAttribute('aria-label', '등수 없음'); return n; } const c = el('span', 'rk' + (r <= 3 ? ' medal' : ''), r <= 3 ? MEDAL[r] : String(r)); c.setAttribute('aria-label', r + '등'); return c; }
+  // 내 줄: 이름 옆에 「나」. 저장소가 내 기록을 받아 주지 않았으면 「아직 안 올라감」도 붙인다 (이름만 말줄임되고 표시는 남는다)
+  const notUp = () => !!upErr && !stored && !!players && !players.some(p => p.id === (rank.me() || {}).id);
+  function nameCell(name, mine) { const w = el('span', 'who'); w.appendChild(el('span', 'nm', name)); if (mine) { w.appendChild(el('i', '', '나')); if (notUp()) w.appendChild(el('i', 'wait', '아직 안 올라감')); } return w; }
+  function row(cells, mine) { const li = el('li', 'rowi' + (mine ? ' me' : '')); for (const c of cells) li.appendChild(c); return li; }
+  function valCell(text, sub) { const c = el('span', 'val', text); if (sub) c.appendChild(el('small', '', sub)); return c; }
+
+  function paintChips() {
+    const box = $('chips'); box.textContent = '';
+    for (const g of GAMES) {
+      const b = el('button', 'chip' + (g.key === gameKey ? ' on' : '')); b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(g.key === gameKey));
+      const i = el('span', '', g.ico); i.setAttribute('aria-hidden', 'true'); b.appendChild(i); b.appendChild(el('span', '', g.title));
+      b.addEventListener('click', () => { sfx('tap'); gameKey = g.key; try { sessionStorage.setItem('kongstar.rank.game', g.key); } catch (e) {} paintChips(); paintBoard(); });
+      box.appendChild(b); if (g.key === gameKey) requestAnimationFrame(() => { const l = b.offsetLeft - 16; if (l < box.scrollLeft || b.offsetLeft + b.offsetWidth > box.scrollLeft + box.clientWidth - 16) box.scrollLeft = Math.max(0, l - 40); });
+    }
+  }
+  function paintBoard() {
+    const me = rank.me(), on = !!rank.cfg(), ul = $('boardRows'); ul.textContent = '';
+    if (!on) {   // 연결 전: 내 기록 표 (고른 난이도의 모든 게임)
+      $('boardTitle').textContent = '내 기록'; $('boardSub').textContent = diffLabel();
+      for (const g of GAMES) {
+        const v = best(recKey(g, diff())), gi = el('span', 'gi', g.ico); gi.setAttribute('aria-hidden', 'true');
+        const val = el('span', 'val' + (v > 0 ? '' : ' none'), v > 0 ? fmt(v) + g.unit : '아직 없어요');
+        ul.appendChild(row([gi, el('span', 'nm', g.title), val], false));
+      }
+      return;
+    }
+    const g = GAMES.find(x => x.key === gameKey) || GAMES[0], rows = rank.board(rank.withMe(players || []), recKey(g, diff()), g.lower);
+    $('boardTitle').textContent = g.title; $('boardSub').textContent = diffLabel() + (g.lower ? ' · 적을수록 좋아요' : '');
+    if (!rows.length) { ul.appendChild(el('li', 'empty', '아직 이 칸에 기록이 없어요. 먼저 해 보면 1등이에요!')); return; }
+    for (const r of rows) ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id), valCell(fmt(r.v) + g.unit, when(r.at))], !!me && r.id === me.id));
+  }
+  function paintTotal() {
+    const me = rank.me(), ul = $('totalRows'); ul.textContent = '';
+    const rows = rank.standings(rank.withMe(players || []));
+    if (!rows.length) { ul.appendChild(el('li', 'empty', '아직 아무도 없어요. 이름을 정하고 게임을 하면 여기에 보여요.')); return; }
+    for (const r of rows) { const v = r.rank ? valCell(r.pts + '점', '1등 ' + r.firsts + '칸') : el('span', 'val none', '기록 없음'); ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id), v], !!me && r.id === me.id)); }
+  }
+  function paint() {
+    const me = rank.me(), on = !!rank.cfg(), named = !!(me && me.name);
+    $('nameCard').hidden = named; $('offCard').hidden = on;
+    $('totalCard').hidden = !on; $('chips').hidden = !on;
+    $('secTitle').textContent = on ? '게임별 순위' : '이 폰의 내 기록';
+    $('btnsOn').hidden = !on; $('btnsOff').hidden = on || !named;
+    $('hSub').textContent = on ? (named ? me.name + ' 님, 가족 순위에 연결돼 있어요' : '이름을 정하면 내 기록도 순위에 올라가요') : '가족 각자의 폰에서 나온 최고 기록이 자동으로 모여요';
+    const note = $('note'); note.textContent = ''; note.hidden = true;
+    if (on && errMsg) { note.hidden = false; note.appendChild(el('b', '', stored ? '저장된 순위예요. ' : '순위를 받지 못했어요. ')); note.appendChild(document.createTextNode(errMsg)); }
+    else if (on && upErr) { note.hidden = false; note.appendChild(el('b', '', '내 기록을 올리지 못했어요. ')); note.appendChild(document.createTextNode(upErr + '. 가족에게는 아직 내 기록이 보이지 않아요.')); }
+    $('stamp').textContent = !on ? '' : busy ? '순위를 받는 중이에요…' : gotAt ? (stored ? '저장된 순위 · ' : '') + '마지막으로 받은 때: ' + clock(gotAt) : '';
+    $('bRefresh').disabled = busy; $('bRefresh').textContent = busy ? '받는 중…' : '새로 고침';
+    if (on) { paintTotal(); paintChips(); }
+    paintBoard();
+  }
+
+  // ── 받기: 먼저 내 기록을 올리고(밀린 것 포함), 모든 사람의 기록을 받는다. 못 받으면 마지막으로 받아 둔 순위를 보여 준다
+  async function load(say) {
+    if (busy || !rank.cfg()) return; busy = true; lastLoad = Date.now();
+    if (!players) { const c = rank.cache(); if (c) { players = c.players; gotAt = c.at; stored = true; } }
+    paint();
+    const m0 = rank.me(), up = await rank.sync(true);
+    upErr = m0 && m0.name && !up && rank.status.state === 'fail' ? (rank.status.msg || '저장소가 받아 주지 않았어요') : '';   // fetchAll 이 status 를 덮어쓰기 전에 챙긴다
+    const list = await rank.fetchAll(); busy = false;
+    if (!rank.cfg()) { paint(); return; }   // 받는 사이에 빠졌다
+    if (list) { players = list; gotAt = Date.now(); stored = false; errMsg = ''; if (say) toast(upErr ? '내 기록을 올리지 못했어요. ' + upErr : '순위를 새로 받았어요', upErr ? 3200 : 0); }
+    else { errMsg = rank.status.msg || '저장소에 닿지 못했어요'; const c = rank.cache(); if (c) { players = c.players; gotAt = c.at; stored = true; } else { stored = false; } if (say) toast(errMsg, 3200); }
+    paint();
+  }
+
+  // ── 시트 (흰 카드 대화 상자)
+  let sheetEl = null;
+  function closeSheet() { if (sheetEl) { sheetEl.remove(); sheetEl = null; } }
+  function sheet(title, lead) {
+    closeSheet();
+    const scrim = el('div', 'kg-scrim sheet'), card = el('div', 'kg-card'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true'); card.setAttribute('aria-label', title);
+    card.appendChild(el('h2', '', title)); if (lead) card.appendChild(el('p', '', lead));
+    scrim.appendChild(card); document.body.appendChild(scrim); sheetEl = scrim;
+    scrim.addEventListener('click', e => { if (e.target === scrim) closeSheet(); });
+    return card;
+  }
+  function buttons(card, list) { const r = el('div', 'row'); for (const [text, pri, fn] of list) { const b = el('button', 'kg-btn' + (pri ? ' pri' : ''), text); b.type = 'button'; b.addEventListener('click', () => { sfx('tap'); fn(b); }); r.appendChild(b); } card.appendChild(r); return r; }
+  function field(card, label, opt) { const l = el('label', 'lab', label), i = el('input', 'field'); i.type = opt.type || 'text'; i.autocomplete = 'off'; i.setAttribute('autocapitalize', 'off'); i.spellcheck = false; if (opt.max) i.maxLength = opt.max; if (opt.ph) i.placeholder = opt.ph; if (opt.mode) i.setAttribute('inputmode', opt.mode); i.value = opt.value || ''; l.appendChild(i); card.appendChild(l); return i; }
+  addEventListener('keydown', e => { if (e.key === 'Escape' && sheetEl) closeSheet(); });
+
+  function saveName(v) {
+    if (!rank.setName(v)) { toast('이름을 한 글자 이상 적어 주세요'); return false; }
+    toast(rank.me().name + ' 님, 반가워요!'); paint(); if (rank.cfg()) load(); return true;
+  }
+  function askName() {
+    const me = rank.me(), card = sheet('이름 바꾸기', '순위에 보일 별명이에요. 10자까지 쓸 수 있어요.');
+    const i = field(card, '이름', { max: 10, value: me ? me.name : '', ph: '예: 엄마' });
+    const go = () => { if (saveName(i.value)) closeSheet(); };
+    i.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    buttons(card, [['닫기', false, closeSheet], ['바꾸기', true, go]]);
+    try { i.focus(); } catch (e) {}
+  }
+  function askCfg() {
+    const c = rank.cfg(), card = sheet('연결 설정', '가족이 만든 순위 저장소의 주소와 가족 코드를 적어 주세요. 이 폰에만 저장돼요.');
+    const box = el('div', 'fields'); card.appendChild(box);
+    const u = field(box, '저장소 주소', { type: 'url', mode: 'url', max: 200, value: c ? c.url : '', ph: 'https://….workers.dev' });
+    const k = field(box, '가족 코드', { max: 100, value: c ? c.code : '', ph: '가족만 아는 코드' });
+    const msg = el('div', 'msg'); msg.setAttribute('role', 'status'); card.appendChild(msg);
+    let testing = false;
+    const say = (ok, t) => { msg.className = 'msg ' + (ok ? 'ok' : 'bad'); msg.textContent = t; };
+    const test = async save => {
+      if (testing) return; testing = true; msg.className = 'msg'; msg.textContent = '연결을 확인하는 중이에요…';
+      const r = await rank.check(u.value, k.value); testing = false; if (sheetEl !== card.parentNode) return;
+      if (!r.ok) { say(false, r.msg); return; }
+      if (!save) { say(true, r.n > 0 ? '연결됐어요! 지금 ' + r.n + '명이 함께하고 있어요. 「저장」을 눌러 주세요.' : '연결됐어요! 아직 아무도 없어요. 「저장」을 누르면 첫 번째로 참여해요.'); return; }
+      if (!rank.setCfg({ url: u.value, code: k.value })) { say(false, '주소나 코드를 다시 확인해 주세요'); return; }
+      closeSheet(); toast('가족 순위에 연결됐어요'); players = null; errMsg = upErr = ''; paint(); load();
+      if (!(rank.me() && rank.me().name)) try { $('nameIn').focus(); } catch (e) {}
+    };
+    buttons(card, [['연결 확인', false, () => test(false)], ['저장', true, () => test(true)]]);
+    const close = el('button', 'kg-btn', '닫기'); close.type = 'button'; close.style.cssText = 'width:100%;margin-top:8px;background:transparent;color:var(--sub)'; close.addEventListener('click', closeSheet); card.appendChild(close);
+  }
+  function askJoin(inv) {
+    const card = sheet('가족 순위에 참여할까요?', '초대 링크로 들어왔어요. 참여하면 이 폰의 게임 최고 기록과 이름이 아래 저장소로 보내져 가족과 등수를 겨뤄요. 가족이 보낸 링크가 맞을 때만 참여해 주세요.');
+    // 이미 다른 곳에 연결돼 있으면 그 연결이 바뀐다는 것을 밝힌다. 주소는 호스트를 크게 보여 준다
+    const cur = rank.cfg(); let host = ''; try { host = new URL(inv.url).host; } catch (e) {}
+    if (cur) card.appendChild(el('div', 'warn', cur.url === inv.url ? '이 폰은 이미 이 저장소에 연결돼 있어요. 참여하면 가족 코드가 링크에 든 것으로 바뀌어요.' : '이 폰은 이미 다른 가족 순위에 연결돼 있어요. 참여하면 지금 연결은 지워지고 아래 주소로 바뀌어요.'));
+    const addr = el('div', 'addr'); if (host) addr.appendChild(el('b', '', host)); addr.appendChild(document.createTextNode(inv.url)); card.appendChild(addr);
+    buttons(card, [['아니요', false, closeSheet], [cur ? '바꿔서 참여' : '참여하기', true, () => {
+      if (!rank.setCfg(inv)) { toast('초대 링크가 올바르지 않아요'); closeSheet(); return; }
+      closeSheet(); players = null; errMsg = upErr = ''; toast('가족 순위에 참여했어요'); paint(); load();
+      if (!(rank.me() && rank.me().name)) try { $('nameIn').focus(); } catch (e) {}
+    }]]);
+  }
+  function askLeave() {
+    const card = sheet('순위에서 빠질까요?', '가족 순위에서 내 기록이 지워지고, 이 폰의 연결 설정도 지워져요. 이 폰에 있는 게임 기록은 그대로 남아요.');
+    buttons(card, [['아니요', false, closeSheet], ['빠지기', true, async b => {
+      b.disabled = true; b.textContent = '빠지는 중…'; const r = await rank.leave(); closeSheet();
+      if (!r.ok) { askForget(r.msg); return; }
+      players = null; stored = false; gotAt = 0; errMsg = upErr = ''; toast('순위에서 빠졌어요'); paint();
+    }]]);
+  }
+  // 저장소에 닿지 못해 빠지지 못했을 때(저장소가 없어졌거나 코드가 바뀜): 이 폰의 연결만 지우는 길을 준다
+  function askForget(why) {
+    const card = sheet('지금은 빠지지 못했어요', (why ? why + '. ' : '') + '저장소에 올라가 있는 내 기록은 지우지 못했어요. 이 폰의 연결 설정만 지울까요? 이 폰에 있는 게임 기록은 그대로 남아요.');
+    buttons(card, [['그대로 두기', false, closeSheet], ['연결만 지우기', true, () => {
+      rank.clearCfg(); closeSheet(); players = null; stored = false; gotAt = 0; errMsg = upErr = ''; toast('이 폰의 연결 설정을 지웠어요'); paint();
+    }]]);
+  }
+  function showLink(link) {
+    const card = sheet('초대 링크', '아래 링크를 길게 눌러 복사해서 가족에게만 보내 주세요. 링크에 가족 코드가 들어 있어요.');
+    const t = el('textarea', 'field'); t.readOnly = true; t.value = link; t.style.marginTop = '12px'; t.setAttribute('aria-label', '초대 링크'); card.appendChild(t);
+    buttons(card, [['닫기', true, closeSheet]]);
+    try { t.focus(); t.select(); } catch (e) {}
+  }
+  function copyInvite() {
+    const link = rank.inviteLink(); if (!link) return;
+    let p = null; try { p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(link) : null; } catch (e) {}
+    if (!p) { showLink(link); return; }
+    p.then(() => toast('초대 링크를 복사했어요. 가족에게만 보내 주세요', 3000), () => showLink(link));
+  }
+
+  $('nameOk').addEventListener('click', () => { sfx('tap'); saveName($('nameIn').value); });
+  $('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') { saveName($('nameIn').value); $('nameIn').blur(); } });
+  $('openCfg').addEventListener('click', () => { sfx('tap'); askCfg(); });
+  $('bCfg').addEventListener('click', () => { sfx('tap'); askCfg(); });
+  $('bRefresh').addEventListener('click', () => { sfx('tap'); load(true); });
+  $('bInvite').addEventListener('click', () => { sfx('tap'); copyInvite(); });
+  $('bName').addEventListener('click', () => { sfx('tap'); askName(); });
+  $('bName2').addEventListener('click', () => { sfx('tap'); askName(); });
+  $('bLeave').addEventListener('click', () => { sfx('tap'); askLeave(); });
+  diffPicker($('diffSpot'), paintBoard).classList.add('dark');
+
+  // ── 초대 링크로 열었으면: 주소에서 해시를 바로 지우고(기록·공유에 남지 않게) 참여할지 묻는다
+  function checkJoin() {
+    if (!/^#join=/.test(location.hash)) return;
+    const invite = rank.parseInvite(location.hash), c = rank.cfg();
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    if (!invite) toast('초대 링크가 올바르지 않아요. 보낸 사람에게 다시 받아 주세요', 3600);
+    else if (c && c.url === invite.url && c.code === invite.code) toast('이미 이 가족 순위에 연결돼 있어요');
+    else askJoin(invite);
+  }
+  paint();
+  if (rank.cfg()) load();
+  checkJoin(); addEventListener('hashchange', checkJoin);   // 이 화면이 열린 채로 링크를 눌렀을 때도
+  // 앱이 다시 보이면 새로 받는다 (1분에 한 번)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && rank.cfg() && Date.now() - lastLoad > 60000) load(); });
+
+  // ── 밤하늘
+  const cv = $('sky'), c = cv.getContext('2d'); let W = 0, H = 0, stars = [];
+  function layout() {
+    const d = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; c.setTransform(d, 0, 0, d, 0, 0);
+    stars = Array.from({ length: Math.round(W * H / 5200) }, () => ({ x: rand(0, W), y: rand(0, H), r: rand(0.5, 1.5), p: rand(0, TAU), s: rand(0.6, 1.8) }));
+  }
+  addEventListener('resize', layout); layout();
+  let last = 0;
+  function frame(ms) {
+    requestAnimationFrame(frame); if (ms - last < 48) return; last = ms; const t = ms / 1000;
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0B1030'); g.addColorStop(0.6, '#1B2260'); g.addColorStop(1, '#3A3F8F'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    for (const s of stars) { c.globalAlpha = 0.35 + 0.5 * (0.5 + 0.5 * Math.sin(t * s.s + s.p)); c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x, s.y, s.r, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
