@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 공 던지기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 공 던지기: 저녁 하늘·잔디(bg) → 콩이(stage) → 공·바구니·장애물(fx) → 점수판 순서로 겹친다 */
+#bg, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; touch-action: none; cursor: default; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+#hud > div, #wind { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud .bl i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F4FFB0, #CDEB5A 70%); box-shadow: inset 0 0 0 1px rgba(120,150,30,.45); flex: none; }
+#hud .bl.pop i { animation: blPop .45s; }
+@keyframes blPop { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(1); } }
+#hud .bl small, #hud .sc small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud .wv { color: #D5DBFF; font-weight: 500; }
+#hud .sc { margin-left: auto; }
+#wind { position: fixed; z-index: 10; pointer-events: none; height: 28px; border-radius: 14px; padding: 0 10px; font-size: 13px; font-weight: 500; color: #D5DBFF; }
+#wind svg { width: 22px; height: 14px; display: block; }
+#wind b { font-weight: 600; color: #fff; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+#hud.tight { gap: 4px; }
+#hud.tight > div { padding: 0 8px; font-size: 13px; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } }
+/* 낮은 세로 화면(320×568 쯤): 카드가 위 줄 단추에 닿지 않게 조금 촘촘하게 */
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stKeys { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .how p + p { margin-top: 2px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="stage"></div>
+<canvas id="fx"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="bl" id="hudBl"><i></i><span id="hudBalls">10</span><small>개</small></div>
+  <div class="wv" id="hudStage">1단계</div>
+  <div class="sc"><span id="hudScore">0</span><small>점</small></div>
+</div>
+<div id="wind" aria-hidden="true" hidden><span>바람</span><svg viewBox="0 0 22 14" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h17M13.5 2.5L19 7l-5.5 4.5"/></svg><b id="windN">1</b></div>
+
+<div class="kg-scrim" id="cardStart">
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 공 던지기</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>공을 뒤로 당겼다 놓으면</b> 반대쪽으로 날아가요.</p>
+      <p id="stKeys" hidden><b>← →</b> 각도 · <b>↑ ↓</b> 힘 · <b>스페이스</b> 던지기</p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">공을 다 던졌어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>도착한 단계<b id="edStage"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const KEY = 'throw', TITLE = J(name, '의') + ' 공 던지기';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 놀이판: 가로 360 단위로 고정 (땅이 y=0, 하늘이 -y). 세로·가로 화면 모두 같은 놀이판이라 풀이도 같다 ═══════
+  const WW = 360, HT = 1 / 120, G = 520, VMAX = 500, BR = 8, BH = 34;   // 놀이판 폭 · 물리 한 걸음(초) · 중력 · 가장 센 던지기 · 공 반지름 · 바구니 깊이
+  const OX = 84, OY = -12, HOME = 34, KS = 92, MO = 27, RUN = 430;       // 공 자리 · 콩이 자리 · 콩이 그림 한 변 · 발밑에서 입까지 · 달리는 빠르기
+  const AMIN = 8, AMAX = 86, PMIN = 0.2;
+  let W = 0, H = 0, DPR = 1, S = 1, FX = 0, GYP = 600, TOPY = 60, wide = false, SAF = { t: 0, b: 0, l: 0, r: 0 }, XMAX = WW + 60, XMIN = -30;
+  const bg = $('bg'), fx = $('fx'), ctx = fx.getContext('2d'), stage = $('stage');
+  const FONT = getComputedStyle(document.body).fontFamily;
+
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '공을 바구니에 넣으면 ' + J(name, '이/가') + ' 물어 와요.';
+  $('stKeys').hidden = !KEYS_OK;
+
+  const K = kong(stage, KS);
+
+  // ═══════ 난이도 표 ═══════
+  //   balls 한 판의 공 · bonus 이만큼 연달아 넣으면 공 +1 · bw 바구니 입구 폭(공 지름은 16) · ramp 이 단계쯤에서 가장 어려워진다
+  //   dots 예상 길 점선 길이(초) · trail 지난번에 던진 길을 흐리게 남겨 준다
+  //   wind 바람 세기(가장 셀 때의 가로 가속) · windFrom 바람이 불기 시작하는 단계
+  //   obsFrom 장애물이 나오는 단계 · obsP 나올 확률 · obsH 장애물 높이 곱 · obs2 장애물이 둘씩 나오기 시작하는 진행도(0~1, 9 는 없음)
+  //   moveFrom 바구니가 움직이기 시작하는 단계 · moveP 움직일 확률 · move 움직이는 빠르기(rad/초)
+  //   cells 단계를 만들 때 풀이 칸이 이만큼은 있어야 한다(각도 1.5° × 힘 1.25% 가 한 칸)
+  const DIFF = {
+    easy:   { balls: 14, bonus: 2, bw: 68, ramp: 18, dots: 1.20, trail: true,  wind: 26,  windFrom: 8, obsFrom: 6, obsP: 0.45, obsH: 0.70, obs2: 9,    moveFrom: 10, moveP: 0.35, move: 0.7, cells: 14 },
+    normal: { balls: 10, bonus: 3, bw: 54, ramp: 12, dots: 0.62, trail: true,  wind: 58,  windFrom: 4, obsFrom: 4, obsP: 0.60, obsH: 1.00, obs2: 9,    moveFrom: 6,  moveP: 0.45, move: 1.1, cells: 8 },
+    hard:   { balls: 10, bonus: 4, bw: 46, ramp: 9,  dots: 0.34, trail: false, wind: 88,  windFrom: 3, obsFrom: 3, obsP: 0.75, obsH: 1.15, obs2: 0.55, moveFrom: 4,  moveP: 0.55, move: 1.5, cells: 5 },
+    vhard:  { balls: 8,  bonus: 5, bw: 40, ramp: 7,  dots: 0.16, trail: false, wind: 118, windFrom: 2, obsFrom: 2, obsP: 0.90, obsH: 1.30, obs2: 0.30, moveFrom: 3,  moveP: 0.65, move: 2.0, cells: 4 }
+  };
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
+
+  // ═══════ 물리: 한 걸음(1/120초)씩. 놀이와 풀이 찾기가 같은 함수를 쓴다 ═══════
+  const bkX = (lv, t) => lv.mv && lv.mv.axis === 'x' ? lv.bx + Math.sin(t * lv.mv.w + lv.mv.ph) * lv.mv.amp : lv.bx;
+  const bkY = (lv, t) => lv.mv && lv.mv.axis === 'y' ? lv.by + Math.sin(t * lv.mv.w + lv.mv.ph) * lv.mv.amp : lv.by;
+  function launch(angDeg, pw) {
+    const a = angDeg * Math.PI / 180, v = pw * VMAX;
+    return { x: OX, y: OY, vx: Math.cos(a) * v, vy: -Math.sin(a) * v, g: 0, hit: 0, off: 0, prel: -1, pop: 0, t: 0, still: 0 };
+  }
+  // 공이 (cx, cy) 에 닿았으면 밀어내고 튕긴다
+  function bump(b, cx, cy, e) {
+    let dx = b.x - cx, dy = b.y - cy; const d2 = dx * dx + dy * dy;
+    if (d2 >= BR * BR) return;
+    let d = Math.sqrt(d2); if (d < 1e-6) { dx = 0; dy = -1; d = 1; }
+    const nx = dx / d, ny = dy / d; b.x = cx + nx * BR; b.y = cy + ny * BR;
+    const vn = b.vx * nx + b.vy * ny;
+    if (vn < 0) {
+      b.vx -= (1 + e) * vn * nx; b.vy -= (1 + e) * vn * ny;
+      const vt = -b.vx * ny + b.vy * nx; b.vx += 0.12 * vt * ny; b.vy -= 0.12 * vt * nx;
+      if (-vn > b.hit) b.hit = -vn;
+    }
+  }
+  function bumpSeg(b, ax, ay, qx, qy, e) {
+    const ex = qx - ax, ey = qy - ay, l2 = ex * ex + ey * ey, u = l2 > 0 ? clamp(((b.x - ax) * ex + (b.y - ay) * ey) / l2, 0, 1) : 0;
+    bump(b, ax + ex * u, ay + ey * u, e);
+  }
+  // 한 걸음: 0 날아가는 중 · 1 바구니에 들어감(b.off = 가운데에서 벗어난 정도 0~1) · 3 멈춤.  b.g = 땅에 닿은 적 있음, b.hit = 이번에 부딪친 세기
+  function tickBall(b, lv, t) {
+    b.t += HT;
+    if (b.y < -BR - 0.5) b.vx += lv.wind * HT;
+    b.vy += G * HT; b.x += b.vx * HT; b.y += b.vy * HT;
+    if (!b.pop) {
+      for (const c of lv.cols) {
+        if (c.r) { const dx = b.x - c.x, dy = b.y - c.y, d = Math.hypot(dx, dy) || 1; if (d < c.r + BR) bump(b, c.x + dx / d * Math.min(d, c.r), c.y + dy / d * Math.min(d, c.r), 0.45); }
+        else bump(b, clamp(b.x, c.x0, c.x1), clamp(b.y, c.y0, c.y1), 0.4);
+      }
+      const bx = bkX(lv, t), by = bkY(lv, t), half = lv.bw / 2, hb = half * 0.74;
+      bumpSeg(b, bx - half, by, bx - hb, by + BH, 0.35); bumpSeg(b, bx + half, by, bx + hb, by + BH, 0.35); bumpSeg(b, bx - hb, by + BH, bx + hb, by + BH, 0.35);
+      if (by + BH < -6) bumpSeg(b, bx, by + BH, bx, 0, 0.35);
+      const rel = b.y - by, was = b.prel; b.prel = rel;
+      if (was < 0 && rel >= 0 && Math.abs(b.x - bx) < half) { b.off = Math.abs(b.x - bx) / half; return 1; }
+    }
+    // 장애물·바구니 위에 얹혀 멈춘 공: 잠깐 뒤 툭 떨어뜨린다 (그대로 두면 시간이 다 될 때까지 아무것도 못 한다)
+    if (!b.pop && b.y < -BR - 1) { if (b.vx * b.vx + b.vy * b.vy < 900) { b.still += HT; if (b.still > 0.4) { b.pop = 1; b.vx = -24; } } else b.still = 0; }
+    if (b.y >= -BR) {
+      b.y = -BR; b.g = 1;
+      if (b.vy > 0) { if (b.vy > b.hit) b.hit = b.vy; b.vy = b.vy > 70 && !b.pop ? -b.vy * 0.42 : 0; b.vx *= b.pop ? 0.3 : 0.72; }
+      if (b.vy === 0) { b.vx *= 1 - 3 * HT; if (Math.abs(b.vx) < 10) { b.vx = 0; return 3; } }
+    }
+    if (b.x > XMAX || b.x < XMIN) { b.x = clamp(b.x, XMIN, XMAX); b.y = -BR; b.vx = b.vy = 0; b.g = 1; return 3; }
+    if (b.t > 7) { b.vx = b.vy = 0; b.g = 1; return 3; }
+    return 0;
+  }
+  // 풀이 찾기용: 던져서 들어가면 벗어난 정도(0~1), 아니면 -1. 땅에 닿으면 그만 본다(땅에서 튀어 들어가는 요행은 세지 않는다)
+  function simulate(lv, t0, ang, pw) {
+    const b = launch(ang, pw); let t = t0;
+    for (let i = 0; i < 840; i++) { t += HT; const r = tickBall(b, lv, t); if (r === 1) return b.off; if (r || b.g || b.x > WW + 40) return -1; }
+    return -1;
+  }
+  // 지금(t0) 던지면 들어가는 각도·힘을 찾는다. { angle(도), power(0~1), cells(들어가는 칸 수), off } 또는 null
+  const SA0 = 14, SAS = 1.5, SAN = 48, SP0 = 0.3, SPS = 0.0125, SPN = 57;
+  const grid = new Float32Array(SAN * SPN);
+  function solve(lv, t0) {
+    let cells = 0;
+    for (let i = 0; i < SAN; i++) for (let j = 0; j < SPN; j++) { const o = simulate(lv, t0, SA0 + i * SAS, SP0 + j * SPS); grid[i * SPN + j] = o; if (o >= 0) cells++; }
+    if (!cells) return null;
+    let bi = 0, bj = 0, bs = -1;
+    for (let i = 0; i < SAN; i++) for (let j = 0; j < SPN; j++) {
+      const o = grid[i * SPN + j]; if (o < 0) continue;
+      let n = 0;   // 둘레 칸도 들어가는 곳일수록 좋다(조금 어긋나도 들어가는 풀이)
+      for (let a = -2; a <= 2; a++) for (let p = -3; p <= 3; p++) { const ii = i + a, jj = j + p; if (ii >= 0 && ii < SAN && jj >= 0 && jj < SPN && grid[ii * SPN + jj] >= 0) n++; }
+      const sc = n + (1 - o) * 0.9; if (sc > bs) { bs = sc; bi = i; bj = j; }
+    }
+    return { angle: SA0 + bi * SAS, power: +(SP0 + bj * SPS).toFixed(4), cells, off: +grid[bi * SPN + bj].toFixed(3) };
+  }
+
+  // ═══════ 단계 만들기: 풀이가 있는 것만 내보낸다 ═══════
+  function buildCols(lv) {
+    lv.cols = [];
+    for (const o of lv.obs) {
+      if (o.k === 'fence') lv.cols.push({ x0: o.x - o.w / 2, x1: o.x + o.w / 2, y0: -o.h, y1: 20 });
+      else if (o.k === 'tree') { lv.cols.push({ x0: o.x - 4, x1: o.x + 4, y0: -o.h, y1: 20 }); lv.cols.push({ x: o.x, y: -o.h - o.r * 0.7, r: o.r }); }
+      else lv.cols.push({ x: o.x, y: -o.h, r: o.r });
+    }
+    return lv;
+  }
+  function plainLevel(n, d) { return buildCols({ n, bw: d.bw, bx: 228, by: -BH, stand: 0, mv: null, wind: 0, obs: [], sol: null }); }
+  function makeLevel(n, d) {
+    const p = clamp((n - 1) / d.ramp, 0, 1), half = d.bw / 2, XR = WW - half - 10;
+    for (let tr = 0; tr < 14; tr++) {
+      const bare = tr >= 10, spread = 18 + 62 * p;
+      let bx = clamp(lerp(205, 255, p) + rand(-spread, spread), 168, XR);
+      let stand = (n <= 2 || Math.random() < 0.3) ? 0 : Math.round(rand(8, 24 + 116 * p) / 4) * 4;
+      let mv = null;
+      if (n >= d.moveFrom && Math.random() < d.moveP) {
+        const axis = Math.random() < 0.6 ? 'x' : 'y', amp = Math.round(14 + 20 * p * rand(0.6, 1));
+        mv = { axis, amp, w: d.move * rand(0.85, 1.15), ph: rand(0, TAU) };
+        if (axis === 'x') { bx = clamp(bx, 168 + amp, XR - amp); stand = Math.max(stand, 8); } else stand = clamp(stand, amp + 12, 150 - amp);
+      }
+      const wind = n >= d.windFrom ? (Math.random() < 0.5 ? -1 : 1) * d.wind * rand(0.4, 1) * (0.5 + 0.5 * p) : 0;
+      const obs = [];
+      if (!bare && n >= d.obsFrom && Math.random() < d.obsP) {
+        const xr = bx - half - (mv && mv.axis === 'x' ? mv.amp : 0) - 42;
+        if (xr > 150) {
+          const x = Math.round(rand(150, xr)), r = Math.random();
+          if (p > 0.25 && r < 0.3) obs.push({ k: 'tree', x, h: Math.round((34 + 30 * p) * d.obsH), r: Math.round(19 + 8 * p) });
+          else if (p > 0.35 && r < 0.5) obs.push({ k: 'balloon', x, h: Math.round(rand(70, 150)), r: 15 });
+          else obs.push({ k: 'fence', x, w: 14, h: Math.round((30 + 70 * p * rand(0.5, 1)) * d.obsH) });
+          if (p >= d.obs2 && obs[0].k !== 'balloon' && Math.random() < 0.6) {
+            const x2 = Math.round(rand(150, xr)); if (Math.abs(x2 - x) >= 34) obs.push({ k: 'balloon', x: x2, h: Math.round(rand(95, 165)), r: 15 });
+          }
+        }
+      }
+      const lv = buildCols({ n, bw: d.bw, bx: Math.round(bx), by: -(BH + stand), stand, mv, wind: Math.round(wind), obs, sol: null });
+      // 움직이는 바구니는 때에 따라 풀이가 달라진다 → 네 때를 보아 하나라도 넉넉히 풀리면 된다
+      const per = mv ? TAU / mv.w : 0;
+      for (let q = 0; q < (mv ? 4 : 1); q++) { const s = solve(lv, per * q / 4); if (s && s.cells >= d.cells) { lv.sol = s; return lv; } }
+    }
+    const lv = plainLevel(n, d); lv.sol = solve(lv, 0); return lv;
+  }
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';            // ready · play · pause · over · result
+  let phase = 'aim';              // aim(겨누기) · fly(날아가는 중) · fetch(콩이가 주우러 감) · back(물고 돌아옴) · set(내려놓기)
+  let score = 0, stageN = 1, balls = 10, made = 0, thrown = 0, streak = 0, missHere = 0, bestStage = 1;
+  let lv = plainLevel(1, D), nextLv = null, lt = 0, lvT = 1, acc = 0, tAnim = 0, overT = 0;
+  let ball = launch(45, 0.5), ballSt = 'tee', sinkT = 0, scored = false, waitT = 0, setT = 0, fetchT = 0;   // ballSt: tee · air · sink · mouth
+  let kx = HOME, kface = 1, walkPh = 0, kmove = false, cheer = 0, sad = 0, lastBark = -99;
+  const aim = { ang: 48, pw: 0.6, show: false, drag: false, id: null, sx: 0, sy: 0, kb: false };
+  let trail = [], lastTrail = [], preview = [];
+  const floats = [], parts = [], streaks = [];
+
+  // ═══════ 그리기 준비 ═══════
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function buildBg() {
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const g = bg.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const sky = g.createLinearGradient(0, 0, 0, GYP);
+    sky.addColorStop(0, '#1C2256'); sky.addColorStop(0.45, '#4A4B96'); sky.addColorStop(0.8, '#B98BB8'); sky.addColorStop(1, '#FFD3B0');
+    g.fillStyle = sky; g.fillRect(0, 0, W, GYP + 2);
+    // 별 (자리는 늘 같게)
+    let sd = 7; const rnd = () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    for (let i = 0; i < 46; i++) { const x = rnd() * W, y = rnd() * GYP * 0.55, r = 0.6 + rnd() * 1.1; g.globalAlpha = 0.35 + rnd() * 0.5; g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+    g.globalAlpha = 1;
+    // 달
+    const mx = W - Math.max(64, W * 0.2), my = Math.max(TOPY + 90, GYP * 0.22), mr = clamp(GYP * 0.05, 14, 26);
+    const halo = g.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 3.2); halo.addColorStop(0, 'rgba(255,240,200,.28)'); halo.addColorStop(1, 'rgba(255,240,200,0)');
+    g.fillStyle = halo; g.beginPath(); g.arc(mx, my, mr * 3.2, 0, TAU); g.fill();
+    g.fillStyle = '#FFF1CC'; g.beginPath(); g.arc(mx, my, mr, 0, TAU); g.fill();
+    // 먼 언덕 · 가까운 언덕
+    const hill = (col, base, amp, wl, ph) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, GYP + 2); for (let x = 0; x <= W + 8; x += 8) g.lineTo(x, base - amp * (0.5 + 0.5 * Math.sin(x / wl + ph)) - amp * 0.3 * Math.sin(x / (wl * 0.37) + ph * 2)); g.lineTo(W, GYP + 2); g.closePath(); g.fill(); };
+    hill('#8E7FBE', GYP - 12 * S, 34 * S, 70 * S, 0.6); hill('#77A9A6', GYP - 2 * S, 20 * S, 46 * S, 2.1);
+    // 잔디
+    const gr = g.createLinearGradient(0, GYP, 0, H); gr.addColorStop(0, '#93D8AC'); gr.addColorStop(0.25, '#78C79A'); gr.addColorStop(1, '#4E9E82');
+    g.fillStyle = gr; g.fillRect(0, GYP, W, H - GYP);
+    g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(0, GYP, W, 2);
+    g.strokeStyle = 'rgba(255,255,255,.2)'; g.lineWidth = 1.6; g.lineCap = 'round';
+    for (let i = 0; i < 40; i++) { const x = rnd() * W, y = GYP + 10 + rnd() * (H - GYP - 14); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2, y - 5); g.moveTo(x + 4, y); g.lineTo(x + 5, y - 4); g.stroke(); }
+    // 공 놓는 자리 (작은 방석)
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.ellipse(FX + OX * S, GYP + 1.5 * S, 15 * S, 3.6 * S, 0, 0, TAU); g.fill();
+  }
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    const band = clamp(H * (W > H ? 0.2 : 0.25), 52, 200) + SAF.b;
+    S = Math.max(0.4, Math.min((W - SAF.l - SAF.r) / WW, (H - band - SAF.t - 8) / 250, 1.7));
+    FX = Math.round((W - WW * S) / 2); GYP = Math.round(H - band);
+    wide = FX - Math.max(SAF.l, SAF.r) >= 150;
+    // 낮은 가로 화면: 옆 여백이 좁아도 위 줄 단추 사이에 점수판이 들어가면 거기에 둔다 (놀이판 위에 얹으면 높은 바구니 입구를 가린다)
+    const backEl = bar.el.querySelector('a'), gapL = (backEl ? backEl.getBoundingClientRect().right : SAF.l + 96) + 8, gapR = W - SAF.r - 12 - 96 - 8;
+    if (!wide && W > H && gapR - gapL >= 240) wide = true;
+    TOPY = SAF.t + (wide ? 16 : 62);
+    XMAX = Math.max(WW + 60, (W - FX) / S + 24); XMIN = Math.min(-30, -FX / S - 24);
+    fx.width = Math.round(W * DPR); fx.height = Math.round(H * DPR);
+    K.setSize(KS * S); buildBg();
+    const PW = WW * S, hud = $('hud'); let hl = FX + 10, hr = FX + PW - 10; if (wide) { hl = Math.max(hl, gapL); hr = Math.min(hr, gapR); }
+    hud.style.left = hl + 'px'; hud.style.width = (hr - hl) + 'px'; hud.style.top = TOPY + 'px';
+    hud.classList.toggle('tight', hr - hl < 280);
+    const wd = $('wind'); wd.style.left = hl + 'px'; wd.style.top = (TOPY + 38) + 'px';
+    bar.setTitle(wide ? '' : W < 350 ? '공 던지기' : TITLE);
+  }
+  const PX = x => FX + x * S, PY = y => GYP + y * S;
+
+  // ═══════ 점수판 ═══════
+  function paintHud() {
+    $('hudBalls').textContent = balls; $('hudStage').textContent = stageN + '단계'; $('hudScore').textContent = fmt(score);
+    const w = lv.wind, wd = $('wind'); wd.hidden = !w || (state !== 'play' && state !== 'pause');
+    if (w) { $('windN').textContent = clamp(Math.round(Math.abs(w) / 24), 1, 5); wd.querySelector('svg').style.transform = w < 0 ? 'scaleX(-1)' : ''; }
+  }
+  function popBalls() { const e = $('hudBl'); e.classList.remove('pop'); void e.offsetWidth; e.classList.add('pop'); }
+  function float(x, y, text, col, big) { floats.push({ x, y, text, col: col || '#fff', life: 1.3, big: !!big }); }
+  function burst(x, y, n, col) { if (reduceMotion) n = Math.ceil(n / 3); for (let i = 0; i < n; i++) { const a = rand(0, TAU), v = rand(40, 150); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: rand(0.4, 0.8), max: 0.8, col, r: rand(1.6, 3.2) }); } }
+
+  // ═══════ 놀이 ═══════
+  function throwBall(ang, pw) {
+    if (state !== 'play' || phase !== 'aim' || balls <= 0) return false;
+    ang = clamp(ang, AMIN, AMAX); pw = clamp(pw, PMIN, 1);
+    aim.ang = ang; aim.pw = pw; aim.drag = false; aim.id = null; if (!aim.kb) aim.show = false;
+    balls--; thrown++; ball = launch(ang, pw); ballSt = 'air'; phase = 'fly'; scored = false; trail = [];
+    paintHud(); noise(0.16, 0.05, 900, 2600); tone(300 + pw * 260, 0.14, 'sine', 0.05, 0, 620 + pw * 300);
+    return true;
+  }
+  function onScore() {
+    scored = true; phase = 'fetch'; ballSt = 'sink'; sinkT = 0.3; waitT = 0.5; fetchT = 0; cheer = 0.9; made++; streak++;
+    const off = ball.off, center = off < 0.28, first = missHere === 0;
+    const pts = 100 + Math.round(50 * (1 - off)) + (first ? 50 : 0) + Math.min(100, (stageN - 1) * 5);
+    score += pts;
+    const x = PX(bkX(lv, lt)), y = PY(bkY(lv, lt));
+    float(x, y - 22, '+' + pts, '#FFE08A', true);
+    if (center && first) float(x, y - 46, '한 번에 한가운데!', '#fff'); else if (center) float(x, y - 46, '한가운데!', '#fff'); else if (first) float(x, y - 46, '한 번에!', '#fff');
+    burst(x, y, center ? 18 : 10, center ? '#FFE08A' : '#fff');
+    sfx(center ? 'power' : 'match');
+    if (streak > 0 && streak % D.bonus === 0) { balls++; popBalls(); float(PX(OX), PY(-60), '공 +1', '#D8F36A'); sfx('heart'); }
+    if (tAnim - lastBark > 5 && (center || Math.random() < 0.45)) { lastBark = tAnim; voice('bark', 0.1, 1.1); }
+    lastTrail = trail; nextLv = null; paintHud();
+  }
+  function onMiss() {
+    phase = 'fetch'; waitT = 0.22; fetchT = 0; sad = 1.2; streak = 0; missHere++;
+    float(PX(clamp(ball.x, 20, WW - 20)), PY(-30), ball.x > bkX(lv, lt) ? '조금 멀었어요' : '조금 모자랐어요', '#fff');
+    lastTrail = trail; sfx('wrong');
+  }
+  function pickup() { ballSt = 'mouth'; phase = 'back'; sfx('munch'); }
+  function settle() {   // 공을 제자리에 내려놓고 다음으로
+    ballSt = 'tee'; phase = 'set'; setT = 0.28; kx = HOME; kmove = false; kface = 1;
+  }
+  function advance() {
+    if (scored) { stageN++; bestStage = stageN; missHere = 0; lv = nextLv || makeLevel(stageN, D); nextLv = null; lt = 0; lvT = 0; lastTrail = []; scored = false; }
+    paintHud();
+    if (balls <= 0) gameOver(); else phase = 'aim';
+  }
+  // 누르면 물어 오는 연출을 건너뛴다
+  function skip() { if (state !== 'play' || (phase !== 'fetch' && phase !== 'back')) return false; settle(); setT = 0; advance(); return true; }
+  function tick() {
+    lt += HT; if (lvT < 1) lvT = Math.min(1, lvT + HT / 0.3);
+    if (ballSt === 'air') {
+      const r = tickBall(ball, lv, lt);
+      if (ball.hit > 60) { if (ball.hit > 140) sfx('land'); else tone(180, 0.04, 'sine', 0.05); }
+      ball.hit = 0;
+      if (phase === 'fly') {
+        if ((trail.length < 400) && Math.round(ball.t / HT) % 3 === 0) trail.push(ball.x, ball.y);
+        if (r === 1) onScore(); else if (ball.g) onMiss();
+      }
+      if (r === 3) ballSt = 'rest';
+    } else if (ballSt === 'sink') {
+      sinkT -= HT;
+      if (sinkT <= 0) {   // 바구니에서 통 튀어나와 앞쪽 땅에 떨어진다
+        const bx = bkX(lv, lt), by = bkY(lv, lt);
+        ball = launch(45, 0.3); ball.pop = 1; ball.x = bx - lv.bw * 0.2; ball.y = by - 2; ball.vx = -rand(30, 60); ball.vy = -210; ballSt = 'air';
+      }
+    }
+    if (phase === 'fetch') {
+      waitT -= HT; fetchT += HT; kmove = false;
+      if (scored && !nextLv && fetchT > 0.05) nextLv = makeLevel(stageN + 1, D);   // 달려가는 사이에 다음 단계를 지어 둔다
+      if (waitT <= 0 && ballSt !== 'sink') {
+        const dir = ball.x >= kx ? 1 : -1, tx = ball.x - dir * MO, dx = tx - kx;
+        if (Math.abs(dx) > 3) { kface = dx > 0 ? 1 : -1; kx += kface * Math.min(Math.abs(dx), RUN * HT); kmove = true; }
+        else if (ball.y > -34 || ballSt === 'rest' || fetchT > 5) pickup();
+        if (fetchT > 6) pickup();
+      }
+    } else if (phase === 'back') {
+      const dx = HOME - kx;
+      if (Math.abs(dx) > 2) { kface = dx > 0 ? 1 : -1; kx += kface * Math.min(Math.abs(dx), RUN * HT); kmove = true; } else settle();
+    } else if (phase === 'set') { setT -= HT; if (setT <= 0) advance(); }
+    if (kmove) walkPh += HT * 17;
+  }
+  function update(dt) {
+    acc += dt; let n = 0;
+    while (acc >= HT && n < 600) { acc -= HT; n++; if (state === 'play') tick(); }
+    if (cheer > 0) cheer -= dt; if (sad > 0) sad -= dt;
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= 26 * dt; if (f.life <= 0) floats.splice(i, 1); }
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; p.vy += 300 * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.life <= 0) parts.splice(i, 1); }
+    if (state === 'over') { overT -= dt; if (overT <= 0) showResult(); }
+  }
+
+  // ═══════ 그리기 ═══════
+  function drawBall(g, x, y, r, rot) {
+    g.save(); g.translate(x, y); g.rotate(rot || 0);
+    const gr = g.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r); gr.addColorStop(0, '#F6FFB8'); gr.addColorStop(1, '#C9E84E');
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = r * 0.16; g.beginPath(); g.arc(-r * 1.05, 0, r * 0.95, -0.85, 0.85); g.stroke(); g.beginPath(); g.arc(r * 1.05, 0, r * 0.95, Math.PI - 0.85, Math.PI + 0.85); g.stroke();
+    g.strokeStyle = 'rgba(110,140,30,.5)'; g.lineWidth = r * 0.1; g.beginPath(); g.arc(0, 0, r - r * 0.05, 0, TAU); g.stroke();
+    g.restore();
+  }
+  function drawObstacle(g, o) {
+    if (o.k === 'fence') {
+      const x0 = o.x - o.w / 2;
+      g.fillStyle = '#FFF4E3'; g.strokeStyle = '#D9BE98'; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(x0, 2); g.lineTo(x0, -o.h + 6); g.quadraticCurveTo(o.x, -o.h - 5, x0 + o.w, -o.h + 6); g.lineTo(x0 + o.w, 2); g.closePath(); g.fill(); g.stroke();
+      g.strokeStyle = 'rgba(190,160,120,.55)'; g.lineWidth = 1; for (let y = -12; y > -o.h + 10; y -= 16) { g.beginPath(); g.moveTo(x0 + 3, y); g.lineTo(x0 + o.w - 3, y); g.stroke(); }
+      g.fillStyle = '#E9D3B2'; rr(g, x0 - 7, -Math.min(o.h * 0.55, 30), o.w + 14, 5, 2.5); g.fill();
+    } else if (o.k === 'tree') {
+      const cy = -o.h - o.r * 0.7;
+      g.fillStyle = '#A9805E'; rr(g, o.x - 4, -o.h, 8, o.h + 2, 3); g.fill();
+      g.fillStyle = '#6FC39A'; g.beginPath(); g.arc(o.x, cy, o.r, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.2)'; g.beginPath(); g.arc(o.x - o.r * 0.3, cy - o.r * 0.3, o.r * 0.5, 0, TAU); g.fill();
+      g.fillStyle = '#FFB7B2'; for (const [a, d] of [[0.6, 0.55], [2.4, 0.6], [4.4, 0.45]]) { g.beginPath(); g.arc(o.x + Math.cos(a) * o.r * d, cy + Math.sin(a) * o.r * d, 2.6, 0, TAU); g.fill(); }
+    } else {
+      const sw = reduceMotion ? 0 : Math.sin(tAnim * 1.6 + o.x) * 2;
+      g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(o.x, -o.h + o.r); g.quadraticCurveTo(o.x + sw * 2, -o.h * 0.5, o.x, 0); g.stroke();
+      const gr = g.createRadialGradient(o.x - 5, -o.h - 6, 2, o.x, -o.h, o.r); gr.addColorStop(0, '#FFD9E2'); gr.addColorStop(1, '#F59BB4');
+      g.fillStyle = gr; g.beginPath(); g.arc(o.x, -o.h, o.r, 0, TAU); g.fill();
+      g.fillStyle = '#F59BB4'; g.beginPath(); g.moveTo(o.x, -o.h + o.r - 1); g.lineTo(o.x - 3, -o.h + o.r + 4); g.lineTo(o.x + 3, -o.h + o.r + 4); g.closePath(); g.fill();
+    }
+  }
+  function basketPath(g, bx, by, half) { const hb = half * 0.74; g.beginPath(); g.moveTo(bx - half, by); g.lineTo(bx + half, by); g.lineTo(bx + hb, by + BH - 5); g.quadraticCurveTo(bx + hb, by + BH, bx + hb - 5, by + BH); g.lineTo(bx - hb + 5, by + BH); g.quadraticCurveTo(bx - hb, by + BH, bx - hb, by + BH - 5); g.closePath(); }
+  function drawBasket(g, front) {
+    const bx = bkX(lv, lt), by = bkY(lv, lt), half = lv.bw / 2;
+    if (!front) {
+      // 받침: 기둥(높이 있는 바구니) · 바퀴(좌우로 움직이는 바구니)
+      if (by + BH < -1) {
+        g.fillStyle = '#C5CAEE'; rr(g, bx - 3, by + BH, 6, -(by + BH) + 1, 2); g.fill();
+        if (lv.mv && lv.mv.axis === 'x') { g.fillStyle = '#8D93C9'; rr(g, bx - 15, -7, 30, 5, 2.5); g.fill(); g.fillStyle = '#4A4F8C'; g.beginPath(); g.arc(bx - 10, -3, 3.2, 0, TAU); g.arc(bx + 10, -3, 3.2, 0, TAU); g.fill(); }
+        else { g.fillStyle = '#A7ADDD'; rr(g, bx - 13, -4, 26, 5, 2.5); g.fill(); }
+      }
+      g.fillStyle = '#8A5E38'; g.beginPath(); g.ellipse(bx, by, half, 4.5, 0, 0, TAU); g.fill();   // 입구 안쪽
+      return;
+    }
+    basketPath(g, bx, by, half); const gr = g.createLinearGradient(0, by, 0, by + BH); gr.addColorStop(0, '#F3C891'); gr.addColorStop(1, '#D9A066'); g.fillStyle = gr; g.fill();
+    g.save(); basketPath(g, bx, by, half); g.clip();
+    g.strokeStyle = 'rgba(160,105,55,.45)'; g.lineWidth = 1.2;
+    for (let y = by + 9; y < by + BH; y += 7) { g.beginPath(); g.moveTo(bx - half, y); g.lineTo(bx + half, y); g.stroke(); }
+    for (let x = bx - half + 7; x < bx + half; x += 9) { g.beginPath(); g.moveTo(x, by); g.lineTo(bx + (x - bx) * 0.74, by + BH); g.stroke(); }
+    g.restore();
+    g.strokeStyle = '#FBE1B8'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.ellipse(bx, by, half, 4.5, 0, 0, Math.PI); g.stroke();
+    // 한가운데 표시
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(bx, by + BH * 0.55, 3, 0, TAU); g.fill();
+  }
+  function calcPreview() {
+    preview.length = 0; if (!aim.show || phase !== 'aim') return;
+    const b = launch(aim.ang, Math.max(PMIN, aim.pw)), n = Math.round(D.dots / HT); let t = lt;
+    for (let i = 1; i <= n; i++) { t += HT; const r = tickBall(b, lv, t); if (r || b.g || b.hit > 0) break; if (i % 6 === 0) preview.push(b.x, b.y); }
+  }
+  function drawKong() {
+    const t = tAnim, playing = state === 'play' || state === 'pause';
+    const moving = playing && (phase === 'fetch' || phase === 'back') && (kmove || phase === 'back' || (phase === 'fetch' && waitT <= 0));
+    if (moving) {
+      if (K.rig.pose !== 'stand') K.setPose('stand');
+      K.render({ t, facing: kface, walk: kmove ? 1 : 0, phase: walkPh, mouth: ballSt === 'mouth' ? 'closed' : 'open', tailAmp: 20, tailRate: 3.4, earLift: kmove ? 6 : 0, look: ballSt === 'mouth' ? [0, 0] : [0, -0.5] });
+    } else {
+      if (K.rig.pose !== 'sit') K.setPose('sit');
+      if (cheer > 0 || state === 'over' || state === 'result') {
+        const c = clamp(cheer / 0.9, 0, 1), hop = reduceMotion ? 0 : Math.abs(Math.sin(c * Math.PI * 2)) * 46 * (cheer > 0 ? 1 : 0);
+        K.render({ t, hop, eyes: 'happy', mouth: 'open', blush: 1, earLift: 8, tailAmp: 22, tailRate: 3.6, tilt: Math.sin(t * 2) * 3 });
+      } else if (sad > 0 && phase !== 'aim') {
+        K.render({ t, eyes: 'open', mouth: 'closed', tilt: 11, earLift: -8, tailAmp: 3, tailRate: 1, look: [0.7, 0.2] });
+      } else if (playing && phase === 'fly' && ballSt === 'air') {
+        const dx = ball.x - kx, dy = ball.y + 50, d = Math.hypot(dx, dy) || 1;
+        K.render({ t, mouth: 'open', look: [clamp(dx / d, -1, 1), clamp(dy / d, -1, 1)], earLift: 9, tailAmp: 16, tailRate: 3, tilt: clamp(dx / d * 5, -5, 5) });
+      } else if (aim.drag) {
+        K.render({ t, mouth: 'open', look: [0.9, 0.5], earLift: 3 + aim.pw * 9, tailAmp: 10 + aim.pw * 14, tailRate: 2 + aim.pw * 2.5, squash: aim.pw * 0.25 });
+      } else {
+        K.render({ t, mouth: Math.sin(t * 0.7) > 0.3 ? 'open' : 'closed', look: [0.6, 0.2], tilt: Math.sin(t * 0.9) * 4, tailAmp: 10, tailRate: 2 });
+      }
+    }
+    K.place(PX(kx), GYP + 3 * S, 1);
+  }
+  function draw() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+    const playing = state !== 'ready';
+    calcPreview();
+    // 입에 문 공은 맨 먼저(화면 좌표) — 콩이처럼 바구니·장애물 뒤로 지나가게
+    if (ballSt === 'mouth') { const m = K.mouth(); drawBall(ctx, m.x - kface * 5 * S, m.y + 1 * S, BR * S, 0); }
+    ctx.save(); ctx.translate(FX, GYP); ctx.scale(S, S);
+    // 바람 줄기
+    if (lv.wind && playing && !reduceMotion) {
+      const span = W / S + 80, x0 = -FX / S - 40, top = -GYP / S + (TOPY + 80) / S;
+      while (streaks.length < 12) streaks.push({ u: Math.random(), v: Math.random(), l: rand(14, 30) });
+      ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+      for (const s of streaks) { const u = ((s.u + tAnim * lv.wind / 260 * (0.7 + s.v * 0.6)) % 1 + 1) % 1, x = x0 + u * span, y = lerp(top, -30, s.v), l = s.l * (0.5 + Math.abs(lv.wind) / 120); ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + l * 0.5 * Math.sign(lv.wind), y - 2.5, x + l * Math.sign(lv.wind), y); ctx.stroke(); }
+    }
+    // 지난번 던진 길 (Easy·Normal)
+    if (D.trail && playing && lastTrail.length && phase === 'aim') { ctx.fillStyle = 'rgba(255,255,255,.26)'; for (let i = 0; i < lastTrail.length; i += 4) { ctx.beginPath(); ctx.arc(lastTrail[i], lastTrail[i + 1], 1.6, 0, TAU); ctx.fill(); } }
+    if (playing) {
+      const sc = lvT < 1 && !reduceMotion ? 1 - Math.pow(1 - lvT, 3) : 1;
+      for (const o of lv.obs) { ctx.save(); ctx.translate(o.x, 0); ctx.scale(sc, sc); ctx.translate(-o.x, 0); drawObstacle(ctx, o); ctx.restore(); }
+      const bx = bkX(lv, lt);
+      ctx.save(); ctx.translate(bx, 0); ctx.scale(sc, sc); ctx.translate(-bx, 0);
+      drawBasket(ctx, false);
+      if (ballSt === 'sink') { const u = 1 - clamp(sinkT / 0.3, 0, 1); drawBall(ctx, lerp(ball.x, bx, u), bkY(lv, lt) + 2 + u * 14, BR, 0); }
+      drawBasket(ctx, true); ctx.restore();
+    }
+    // 예상 길 점선 (앞부분만)
+    if (preview.length) {
+      const n = preview.length / 2;
+      for (let i = 0; i < n; i++) { const a = 1 - i / (n + 2), r = 2.6 - i / n * 0.9; ctx.fillStyle = 'rgba(30,34,86,' + (0.35 * a).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(preview[i * 2], preview[i * 2 + 1], r + 1.1, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * a).toFixed(3) + ')'; ctx.beginPath(); ctx.arc(preview[i * 2], preview[i * 2 + 1], r, 0, TAU); ctx.fill(); }
+    }
+    // 공
+    if (ballSt === 'tee') {
+      let x = OX, y = OY;
+      if (aim.drag && aim.show) {
+        const a = aim.ang * Math.PI / 180, pull = 6 + aim.pw * 22; x = OX - Math.cos(a) * pull; y = OY + Math.sin(a) * pull;
+        ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.setLineDash([1, 5]); ctx.beginPath(); ctx.moveTo(OX, OY); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(OX, OY, BR + 2, 0, TAU); ctx.stroke();
+      }
+      const sc = phase === 'set' && !reduceMotion ? 1 + clamp(setT / 0.28, 0, 1) * 0.25 : 1;
+      drawBall(ctx, x, y, BR * sc, 0);
+    } else if (ballSt === 'air' || ballSt === 'rest') drawBall(ctx, ball.x, ball.y, BR, ball.x / BR);
+    ctx.restore();
+    // 여기부터 화면 좌표
+    if (ballSt === 'air' && PY(ball.y) < -BR * S) {   // 화면 위로 나간 공: 어디쯤인지 세모로
+      const x = clamp(PX(ball.x), 14, W - 14), y = Math.max(8, SAF.t + 6);
+      ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 10); ctx.lineTo(x + 7, y + 10); ctx.closePath(); ctx.fill();
+    }
+    for (const p of parts) { ctx.globalAlpha = clamp(p.life / p.max, 0, 1); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    for (const f of floats) {
+      ctx.font = '600 ' + (f.big ? 19 : 14) + 'px ' + FONT; ctx.globalAlpha = Math.min(1, f.life / 0.35);
+      const tw = ctx.measureText(f.text).width / 2 + 6, x = clamp(f.x, tw, W - tw);
+      ctx.strokeStyle = 'rgba(12,16,48,.6)'; ctx.lineWidth = 3.5; ctx.strokeText(f.text, x, f.y); ctx.fillStyle = f.col; ctx.fillText(f.text, x, f.y);
+    }
+    ctx.globalAlpha = 1;
+    if (state === 'play' && phase === 'aim') {
+      const gx = PX(OX), gy = Math.min(H - SAF.b - 14, GYP + 26);
+      if (aim.show) {   // 각도·힘
+        const txt = Math.round(aim.ang) + '° · 힘 ' + Math.round(Math.max(PMIN, aim.pw) * 100) + '%';
+        ctx.font = '600 13px ' + FONT; const tw = ctx.measureText(txt).width + 20, x = clamp(gx, tw / 2 + 8 + SAF.l, W - tw / 2 - 8);
+        ctx.fillStyle = 'rgba(18,22,52,.62)'; rr(ctx, x - tw / 2, gy - 12, tw, 24, 12); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(txt, x, gy + 0.5);
+      } else if (thrown === 0) {   // 첫 공: 당기는 손짓
+        const u = reduceMotion ? 0.6 : (tAnim % 1.8) / 1.8, e = u < 0.7 ? u / 0.7 : 1, a = u < 0.85 ? 1 : 1 - (u - 0.85) / 0.15;
+        const hx = PX(OX) - e * 44 * S, hy = PY(OY) + e * 38 * S;
+        ctx.globalAlpha = 0.85 * a; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([2, 6]); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(PX(OX), PY(OY)); ctx.lineTo(hx, hy); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(hx, hy, 13, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(hx, hy, 6, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+        const txt = '공을 뒤로 당겼다 놓아요'; ctx.font = '600 14px ' + FONT; const tw = ctx.measureText(txt).width + 24, x = clamp(PX(WW / 2), tw / 2 + 8, W - tw / 2 - 8), y = Math.min(H - SAF.b - 16, GYP + Math.max(30, (H - GYP) * 0.55));
+        ctx.fillStyle = 'rgba(18,22,52,.62)'; rr(ctx, x - tw / 2, y - 14, tw, 28, 14); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(txt, x, y + 0.5);
+      }
+    } else if (state === 'play' && (phase === 'fetch' || phase === 'back') && fetchT > 0.7) {
+      const txt = '누르면 건너뛰어요'; ctx.font = '500 12px ' + FONT; ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.fillText(txt, W / 2, Math.min(H - SAF.b - 12, GYP + Math.max(24, (H - GYP) * 0.6)));
+    }
+    drawKong();
+  }
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    if (state !== 'pause') { tAnim += dt; update(dt); }
+    draw();
+  }
+
+  // ═══════ 흐름 ═══════
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    score = 0; stageN = bestStage = 1; balls = D.balls; made = thrown = streak = missHere = 0; acc = 0; lt = 0; lvT = 0;
+    lv = makeLevel(1, D); nextLv = null; phase = 'aim'; ballSt = 'tee'; scored = false; kx = HOME; kface = 1; kmove = false; cheer = sad = 0;
+    aim.ang = 48; aim.pw = 0.6; aim.show = aim.drag = aim.kb = false; aim.id = null; quit = false;
+    trail = []; lastTrail = []; floats.length = parts.length = 0;
+    state = 'play'; $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
+    KG.unlockAudio(); paintHud();
+  }
+  function pause() {
+    if (state !== 'play') return; state = 'pause'; aim.drag = false; aim.id = null; if (!aim.kb) aim.show = false;
+    $('psText').textContent = '공 ' + balls + '개가 남았어요. ' + J(name, '이/가') + ' 기다리고 있어요.';
+    $('cardPause').hidden = false; if (document.activeElement === btnPause) btnPause.blur();
+    try { $('btnResume').focus({ preventScroll: true }); } catch (e) {}
+  }
+  function resume() { if (state !== 'pause') return; state = 'play'; $('cardPause').hidden = true; last = performance.now(); }
+  function gameOver() {
+    if (state !== 'play') return;
+    state = 'over'; overT = 0.9; phase = 'aim'; ballSt = 'tee'; kx = HOME; kmove = false; aim.show = aim.drag = false; btnPause.hidden = true; $('wind').hidden = true;
+    [523, 659, 784].forEach((f, i) => tone(f, 0.3, 'triangle', 0.055, i * 0.13));
+  }
+  function end() { if (state === 'pause') { state = 'play'; $('cardPause').hidden = true; } if (state === 'play') { quit = balls > 0; gameOver(); } }
+  let overAt = 0, isNew = false, quit = false;   // quit: 공이 남았는데 「그만하기」로 끝냄
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now();
+    isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
+    $('edTitle').textContent = made >= 8 ? '정말 잘 던졌어요!' : quit ? '여기까지 던졌어요' : made > 0 ? '공을 다 던졌어요' : '다음엔 꼭 넣어요!';
+    $('edText').textContent = made > 0 ? '공 ' + thrown + '개를 던져 바구니에 ' + made + '번 넣었어요.' : quit ? '다음에 또 던져요.' : J(name, '이/가') + ' 공을 다 물어 왔어요.';
+    $('edScore').textContent = fmt(score); $('edStage').textContent = bestStage + '단계'; paintBest();
+    $('cardEnd').hidden = false; if (isNew) { sfx('win'); voice('bark', 0.3, 1.1); }
+    try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
+  }
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  // 결과 카드가 뜬 직후에는 난이도 단추·게임 고르기도 눌리지 않게 (두드리던 손가락)
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { aim.drag = false; aim.id = null; if (!aim.kb) aim.show = false; });
+
+  // ═══════ 입력: 화면 어디서든 누른 채 뒤로(왼쪽 아래로) 끌었다 놓는다 — 끈 반대쪽으로, 끈 만큼 세게 ═══════
+  const pullMax = () => clamp(Math.min(W, H) * 0.42, 96, 160);
+  function dragAim(e) {
+    const dx = aim.sx - e.clientX, dy = aim.sy - e.clientY, len = Math.hypot(dx, dy);
+    const raw = Math.atan2(-dy, dx) * 180 / Math.PI;   // 0° 똑바로 뒤(왼쪽) · 90° 똑바로 아래
+    if (len < 14 || raw < -30 || raw > 120) { aim.show = false; return; }   // 뒤로 당긴 것이 아니면(앞·위로 끌면) 겨눠지지 않고, 놓아도 던져지지 않는다
+    aim.show = true; aim.kb = false;
+    aim.ang = clamp(raw, AMIN, AMAX);
+    // 누른 자리에서 화면 끝까지가 짧으면(낮은 가로 화면에서 공을 잡고 당길 때) 그 안에서 힘 100% 가 나오게 줄인다
+    const a = clamp(raw, 0, 90) * Math.PI / 180, base = pullMax();
+    const room = Math.min(base, (aim.sx - SAF.l - 6) / Math.max(Math.cos(a), 0.01), (H - aim.sy - 6) / Math.max(Math.sin(a), 0.01));
+    aim.pw = clamp(len / clamp(room, 64, base), 0, 1);
+  }
+  fx.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    e.preventDefault();
+    if (phase === 'fetch' || phase === 'back') { if (fetchT > 0.25) skip(); return; }
+    if (phase !== 'aim' || aim.drag) return;
+    try { fx.setPointerCapture(e.pointerId); } catch (err) {}
+    aim.drag = true; aim.id = e.pointerId; aim.sx = e.clientX; aim.sy = e.clientY; aim.show = false; aim.kb = false;
+  });
+  fx.addEventListener('pointermove', e => { if (aim.drag && e.pointerId === aim.id && state === 'play') dragAim(e); });
+  fx.addEventListener('pointerup', e => {
+    if (!aim.drag || e.pointerId !== aim.id) return;
+    if (state === 'play') dragAim(e);
+    const go = aim.show && state === 'play' && phase === 'aim'; aim.drag = false; aim.id = null;
+    if (go) throwBall(aim.ang, aim.pw); else aim.show = false;
+  });
+  fx.addEventListener('pointercancel', e => { if (e.pointerId === aim.id) { aim.drag = false; aim.id = null; aim.show = false; } });
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') {
+      if (state !== 'play') { if (state === 'pause') e.preventDefault(); return; }
+      e.preventDefault(); if (phase !== 'aim' || aim.drag) return;
+      const big = e.shiftKey ? 5 : 1;
+      if (!aim.kb) { aim.kb = true; aim.show = true; aim.pw = Math.max(PMIN, aim.pw); }
+      if (k === 'ArrowLeft') aim.ang = clamp(aim.ang + big, AMIN, AMAX);       // ← 더 높이(뒤로 젖힘)
+      else if (k === 'ArrowRight') aim.ang = clamp(aim.ang - big, AMIN, AMAX);      // → 더 낮게(앞으로)
+      else if (k === 'ArrowUp') aim.pw = clamp(aim.pw + 0.01 * big, PMIN, 1);
+      else aim.pw = clamp(aim.pw - 0.01 * big, PMIN, 1);
+    } else if (k === ' ' || k === 'Enter') {
+      if (e.repeat) { e.preventDefault(); return; }
+      if (state === 'play') {
+        e.preventDefault(); if (KG.rulesOpen) return;
+        if (phase === 'aim') { if (!aim.kb) { aim.kb = true; aim.show = true; aim.pw = Math.max(PMIN, aim.pw); } else throwBall(aim.ang, aim.pw); }
+        else if ((phase === 'fetch' || phase === 'back') && fetchT > 0.25) skip();
+        return;
+      }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault(); if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    } else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  // ═══════ 시작 ═══════
+  layout(); paintHud();
+  // 난이도 고르기: 시작 카드는 고른 난이도의 기록, 결과 카드는 방금 끝난 판 난이도의 기록(다른 난이도를 골라 두었으면 이름을 붙인다)
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점';
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+  }
+  $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  paintBest();
+  const RULES = { key: KEY, title: TITLE, lead: '공을 던지면 ' + J(name, '이/가') + ' 신나게 물어 와요.', items: [
+    ['👆', '화면을 누른 채 뒤로 당겼다 놓으면 공이 날아가요. 길게 당길수록 세요' + (KEYS_OK ? ' (방향키·스페이스도 돼요).' : '.')],
+    ['🧺', '바구니에 넣으면 다음 단계로 가요. 한가운데에, 한 번에 넣으면 점수가 커요.'],
+    ['🍃', '단계가 오르면 바람이 불고, 장애물이 길을 막고, 바구니가 움직여요.'],
+    ['🎾', '공을 다 쓰면 끝나요. 연달아 넣으면 공을 하나 더 받아요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  (async () => { await KG.rules(RULES); focusStart(); })();
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  window.GAME = {
+    DIFF, get state() { return state; }, get phase() { return phase; }, get score() { return score; }, get stage() { return stageN; }, get balls() { return balls; },
+    get made() { return made; }, get thrown() { return thrown; }, get diff() { return diffId; }, get D() { return D; }, get level() { return lv; }, get ball() { return ball; }, get ballSt() { return ballSt; }, get aim() { return aim; }, get time() { return lt; }, get preview() { calcPreview(); return preview.slice(); },
+    field: () => ({ W, H, S, FX, GYP, TOPY, wide, XMAX, XMIN, kx, basket: { x: bkX(lv, lt), y: bkY(lv, lt) } }),
+    start, end, pause, resume, skip, over: showResult,
+    // 화면 없이 빨리 돌리기 (dt 초)
+    step: dt => { tAnim += dt; update(dt); },
+    // 풀이: 지금 바로 던지면 들어가는 각도(도)·힘(0~1). 움직이는 바구니는 때를 놓치면 null 일 수 있다(조금 뒤 다시)
+    solve: () => solve(lv, lt),
+    simulate: (ang, pw) => simulate(lv, lt, ang, pw),
+    // 봇 입력: 겨누기만(aimAt) · 던지기(throwAt)
+    aimAt: (ang, pw) => { aim.ang = clamp(ang, AMIN, AMAX); aim.pw = clamp(pw, 0, 1); aim.show = true; aim.kb = true; },
+    throwAt: (ang, pw) => throwBall(ang, pw),
+    // 단계 만들기 시험: n 단계를 난이도 id 로 지어 돌려준다(sol 에 풀이)
+    gen: (n, id) => makeLevel(n, DIFF[id || diffId] || D),
+    setStage: n => { stageN = bestStage = n; missHere = 0; lv = makeLevel(n, D); lt = 0; lvT = 1; lastTrail = []; phase = 'aim'; ballSt = 'tee'; paintHud(); return lv; },
+    setLevel: o => { lv = buildCols(Object.assign(plainLevel(stageN, D), o)); lt = 0; lvT = 1; paintHud(); return lv; }
+  };
+})();
+</script>
+</body>
+</html>

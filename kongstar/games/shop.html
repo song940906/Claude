@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 간식가게</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 간식가게: 밤하늘·가게(bg) → 콩이(stage) → 손님·계산대(fx) → 말풍선·점수판 → 진열대(panel) 순서로 겹친다 */
+#bg, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; pointer-events: none; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud .hp { padding: 0 9px; gap: 3px; }
+#hud .hp svg { width: 17px; height: 17px; display: block; transition: opacity .25s, transform .25s; }
+#hud .hp svg.off { opacity: .22; transform: scale(.82); }
+#hud .hp svg.pop { animation: hpPop .45s; }
+@keyframes hpPop { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+#hud .cu { color: #D5DBFF; font-weight: 500; }
+#hud .st { color: #FFE9A8; }
+#hud .sc { margin-left: auto; }
+#hud .sc small { font-size: 12px; font-weight: 500; color: #C9D1F2; margin-left: 1px; }
+#hud.tight { gap: 4px; }
+#hud.tight > div { padding: 0 8px; font-size: 13px; }
+#hud.tight .hp { padding: 0 7px; gap: 2px; }
+#hud.tight .hp svg { width: 15px; height: 15px; }
+
+/* 말풍선 (손님의 주문) */
+#bubble { position: fixed; z-index: 9; box-sizing: border-box; background: #fff; color: var(--ink); border-radius: 18px; padding: 8px 10px 9px; box-shadow: 0 6px 18px rgba(60,40,30,.18); text-align: center; pointer-events: none; transform-origin: 50% 100%; animation: bbIn .22s ease-out; }
+@keyframes bbIn { from { opacity: 0; transform: translateY(6px) scale(.92); } to { opacity: 1; transform: none; } }
+#bubble::after { content: ""; position: absolute; left: var(--tx, 50%); bottom: -7px; width: 14px; height: 14px; margin-left: -7px; background: #fff; transform: rotate(45deg); border-radius: 3px; }
+#bubble .items { position: relative; z-index: 1; display: flex; justify-content: center; gap: 2px; white-space: nowrap; }
+#bubble .it { width: 30px; height: 32px; display: inline-flex; align-items: center; justify-content: center; font-size: 23px; line-height: 1; border-radius: 10px; }
+#bubble .it.q { background: var(--soft); color: #9AA3B2; font-size: 16px; font-weight: 700; width: 26px; margin: 0 2px; }
+#bubble .it.x { opacity: .35; position: relative; }
+#bubble .it.x::after { content: ""; position: absolute; left: 3px; right: 3px; top: 50%; height: 2.5px; border-radius: 2px; background: #E5484D; transform: rotate(-20deg); }
+#bubble.small .it { width: 26px; height: 28px; font-size: 20px; }
+#bubble.small .it.q { width: 22px; font-size: 14px; }
+#bubble .msg { position: relative; z-index: 1; font-size: 14px; font-weight: 600; padding: 5px 6px; white-space: nowrap; }
+#bubble .not { position: relative; z-index: 1; margin-top: 4px; font-size: 12.5px; font-weight: 600; color: #C0392B; background: #FFECEC; border-radius: 9px; padding: 3px 8px; white-space: nowrap; display: inline-block; }
+#bubble .bar { position: relative; z-index: 1; height: 6px; border-radius: 3px; background: var(--soft); margin: 6px 2px 0; overflow: hidden; }
+#bubble .bar i { display: block; height: 100%; width: 100%; border-radius: 3px; background: #5CCB8F; transform-origin: 0 50%; }
+#bubble .bar i.mid { background: #FFC24D; }
+#bubble .bar i.low { background: #F0696E; }
+#bubble.good { box-shadow: 0 0 0 2.5px #7ED9A6, 0 6px 18px rgba(60,40,30,.18); }
+#bubble.bad { box-shadow: 0 0 0 2.5px #F3A0A3, 0 6px 18px rgba(60,40,30,.18); }
+body.paused #bubble .items, body.paused #bubble .not { visibility: hidden; }
+
+/* 아래 판: 쟁반 + 진열대 */
+#panel { position: fixed; z-index: 8; box-sizing: border-box; background: var(--card); color: var(--ink); border-radius: 24px 24px 0 0; padding: 12px calc(var(--sar) + 12px) calc(var(--sab) + 12px) calc(var(--sal) + 12px); box-shadow: 0 -6px 24px rgba(8,10,28,.22); --rowh: clamp(54px, 8.2vh, 68px); --trayh: clamp(48px, 7vh, 58px); }
+body.wide #panel { border-radius: 24px; padding: 12px; --rowh: 54px; --trayh: 48px; box-shadow: 0 8px 28px rgba(8,10,28,.3); }
+#trayRow { display: flex; align-items: stretch; gap: 8px; height: var(--trayh); }
+#tray { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px; background: #FFF1DF; border-radius: 16px; box-shadow: inset 0 0 0 2px #F6D9B4; padding: 0 8px; }
+#tray .slot { flex: 0 1 38px; min-width: 0; aspect-ratio: 1; max-height: calc(var(--trayh) - 10px); border-radius: 50%; box-sizing: border-box; border: 2px dashed #E7C79C; display: flex; align-items: center; justify-content: center; font-size: 22px; line-height: 1; }
+#tray .slot.on { border: 0; background: #fff; box-shadow: 0 1px 4px rgba(120,80,40,.18); animation: slotIn .16s ease-out; }
+#tray .slot.next { border-color: #E39A63; }
+@keyframes slotIn { from { transform: scale(.6); } to { transform: none; } }
+#tray.good { box-shadow: inset 0 0 0 2.5px #7ED9A6; background: #EAF9F0; }
+#tray.bad { box-shadow: inset 0 0 0 2.5px #F3A0A3; background: #FFEFEF; animation: shakeX .32s; }
+@keyframes shakeX { 0%,100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+#tray .hint { font-size: 13px; color: #B08A5E; font-weight: 500; }
+#btnReset { flex: none; height: auto; min-height: 44px; min-width: 76px; padding: 0 12px; font-size: 14px; border-radius: 16px; }
+#btnReset:disabled { opacity: .45; }
+#shelf { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: var(--rowh); gap: 6px; height: calc(var(--rowh) * 2 + 6px); margin-top: 8px; }
+#shelf button { border: 0; border-radius: 16px; background: var(--soft); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; min-width: 0; min-height: 44px; touch-action: manipulation; transition: transform .08s, background .08s; }
+#shelf .empty { border-radius: 16px; border: 2px dashed #E8EBF0; box-sizing: border-box; }
+#shelf button .e { font-size: 25px; line-height: 1.05; }
+#shelf button .n { font-size: 11px; line-height: 1.1; font-weight: 600; color: var(--sub); letter-spacing: -.3px; }
+#shelf button.hit { transform: scale(.93); background: #E6E9F4; }
+#shelf button.new { animation: newIn .5s ease-out; box-shadow: inset 0 0 0 2px var(--gold); }
+@keyframes newIn { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: none; } }
+#shelf button:focus-visible, #btnReset:focus-visible { outline: 2px solid var(--pri); outline-offset: 1px; }
+
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } #btnReset { min-width: 68px; padding: 0 8px; font-size: 13px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { #bubble, #tray .slot.on, #tray.bad, #shelf button.new { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="stage"></div>
+<canvas id="fx"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="hp" id="hudHp"></div>
+  <div class="cu" id="hudCust">손님 1</div>
+  <div class="st" id="hudStreak" hidden></div>
+  <div class="sc"><span id="hudScore">0</span><small>점</small></div>
+</div>
+
+<div id="bubble" hidden role="status" aria-live="polite">
+  <div class="items" id="bbItems"></div>
+  <div class="not" id="bbNot" hidden></div>
+  <div class="bar" id="bbBarBox"><i id="bbBar"></i></div>
+</div>
+
+<div id="panel">
+  <div id="trayRow">
+    <div id="tray" aria-label="쟁반"></div>
+    <button class="kg-btn" id="btnReset" type="button" disabled>다시 담기</button>
+  </div>
+  <div id="shelf" role="group" aria-label="간식 진열대"></div>
+</div>
+
+<div class="kg-scrim" id="cardStart">
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 간식가게</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>주문을 잘 보고</b> 아래 간식을 <b>순서대로</b> 눌러 쟁반에 담아요.<span id="stKeys" hidden> 숫자 키 1~8 로도 담을 수 있어요.</span></p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><a class="kg-btn" href="index.html">그만하기</a><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2>오늘 장사 끝!</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>맞춘 주문<b id="edServed"></b></span><span>최고 연속<b id="edStreak"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const TITLE = J(name, '의') + ' 간식가게';
+
+  // ═══════ 간식 8종 (진열대에는 앞에서부터 차례로 놓인다) · 손님 강아지 6종 ═══════
+  const SNACKS = [
+    { id: 'bone', e: '🦴', n: '뼈다귀' }, { id: 'yam', e: '🍠', n: '고구마' }, { id: 'chick', e: '🍗', n: '닭다리' }, { id: 'cheese', e: '🧀', n: '치즈' },
+    { id: 'carrot', e: '🥕', n: '당근' }, { id: 'apple', e: '🍎', n: '사과' }, { id: 'meat', e: '🥩', n: '고기' }, { id: 'cookie', e: '🍪', n: '쿠키' }
+  ];
+  const SN = {}; SNACKS.forEach((s, i) => { SN[s.id] = s; s.i = i; });
+  // 콩이(붉은 갈색 곱슬 푸들)와 헷갈리지 않게 갈색 계열은 쓰지 않는다
+  const DOGS = [
+    { id: 'nuri',  nm: '누렁이', fur: '#F6CF72', dark: '#E0AC42', muzzle: '#FFF6DC', ear: 'point' },
+    { id: 'white', nm: '흰둥이', fur: '#FFFFFF', dark: '#E9ECF5', muzzle: '#FFFFFF', ear: 'fluff', line: true },
+    { id: 'spot',  nm: '점박이', fur: '#FBFBFD', dark: '#34384A', muzzle: '#FFFFFF', ear: 'drop', spots: true, line: true },
+    { id: 'husky', nm: '허스키', fur: '#8F9BB8', dark: '#6B7797', muzzle: '#FFFFFF', ear: 'point', mask: true, eye: '#3F9BE8' },
+    { id: 'gray',  nm: '수염이', fur: '#AEB4C2', dark: '#878E9E', muzzle: '#FFFFFF', ear: 'fold', beard: true },
+    { id: 'black', nm: '까망이', fur: '#44485E', dark: '#2F3244', muzzle: '#6A6F8A', ear: 'long', bow: '#FF8DB2', light: true }
+  ];
+
+  // ═══════ 난이도 표 ═══════
+  //   len0~lenMax 주문 길이(손님 lenEvery 마리마다 +1) · kinds0~kindsMax 진열대 간식 수(kindEvery 마리마다 +1)
+  //   showBase + showPer×개수 = 주문을 보여 주는 시간(초, 둘 다 0 이면 계속 보임)
+  //   기다리는 시간 = max(waitMin, wait0 − waitDec×손님 번호) + perItem×담을 개수
+  //   vari "○○ 빼고" 주문 비율(variFrom 번째 손님부터) · reg 단골 비율(regFrom 번째부터) · heal 연속 이만큼 맞히면 하트 +1(0 = 없음)
+  const DIFF = {
+    easy:   { hearts: 3, len0: 2, lenMax: 4, lenEvery: 7, kinds0: 4, kindsMax: 5, kindEvery: 12, showBase: 0,    showPer: 0,    wait0: 16,  waitMin: 11,  waitDec: 0.15, perItem: 1.8, vari: 0.06, variFrom: 8, reg: 0.12, regFrom: 4, heal: 5 },
+    normal: { hearts: 3, len0: 2, lenMax: 5, lenEvery: 5, kinds0: 4, kindsMax: 6, kindEvery: 7,  showBase: 1.0,  showPer: 0.60, wait0: 11,  waitMin: 6.5, waitDec: 0.22, perItem: 1.3, vari: 0.15, variFrom: 5, reg: 0.14, regFrom: 4, heal: 10 },
+    hard:   { hearts: 3, len0: 3, lenMax: 6, lenEvery: 4, kinds0: 5, kindsMax: 8, kindEvery: 5,  showBase: 0.7,  showPer: 0.45, wait0: 9,   waitMin: 3.5, waitDec: 0.25, perItem: 0.9, vari: 0.25, variFrom: 3, reg: 0.14, regFrom: 4, heal: 0 },
+    vhard:  { hearts: 3, len0: 3, lenMax: 6, lenEvery: 3, kinds0: 6, kindsMax: 8, kindEvery: 4,  showBase: 0.45, showPer: 0.34, wait0: 7.5, waitMin: 2.5, waitDec: 0.30, perItem: 0.7, vari: 0.35, variFrom: 2, reg: 0.14, regFrom: 4, heal: 0 }
+  };
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
+
+  // ═══════ 화면 ═══════
+  let W = 0, H = 0, DPR = 1, wide = false, SAF = { t: 0, b: 0, l: 0, r: 0 };
+  let SC = { x: 0, y: 0, w: 300, h: 300 }, CT = 0, CH = 40, AWN = 20, KX = 0, KY = 0, KSZ = 160, CX = 0, R = 40;   // 가게 칸 · 계산대 윗면 y · 높이 · 차양 · 콩이 자리·크기 · 손님 자리 · 머리 반지름
+  const bg = $('bg'), fx = $('fx'), ctx = fx.getContext('2d'), stage = $('stage'), panel = $('panel'), bubble = $('bubble');
+  const FONT = getComputedStyle(document.body).fontFamily;
+
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = J(name, '이/가') + ' 간식가게 문을 열었어요. 강아지 손님들이 찾아와요.';
+  $('psText').textContent = '손님들이 ' + J(name, '을/를') + ' 기다리고 있어요.';
+
+  const K = kong(stage, 160);
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';            // ready · play · pause · over · result
+  let phase = 'idle';             // enter(들어옴) · show(주문 보여 줌) · order(가려지고 기다림) · leave(떠남)
+  let score = 0, hearts = 3, n = 0, served = 0, streak = 0, maxStreak = 0, shownScore = -1, kindsNow = 4;
+  let phT = 0, showDur = 0, left = 0, maxWait = 1, leaveDur = 1, visible = true, tAnim = 0, overT = 0, endAt = 0;
+  let cust = null, lastDog = -1, tray = [];
+  let kMood = 'idle', kT = 0, barkT = 0, lastBark = -99, sayText = '', sayT = 0;
+  const parts = [], floats = [];
+
+  // ═══════ 그림 조각 ═══════
+  function rr(g, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function heartPath(g, x, y, s) { g.beginPath(); g.moveTo(x, y + s * 0.9); g.bezierCurveTo(x - s * 1.5, y - s * 0.1, x - s * 0.8, y - s * 1.15, x, y - s * 0.35); g.bezierCurveTo(x + s * 0.8, y - s * 1.15, x + s * 1.5, y - s * 0.1, x, y + s * 0.9); g.closePath(); }
+  const LINE = 'rgba(70,60,95,.22)';
+  // 손님 강아지: (x, y) 가 머리 가운데, r 이 머리 반지름. mood: idle · happy · sad
+  function drawDog(g, d, x, y, r, mood, t, crown) {
+    g.save(); g.translate(x, y); g.lineJoin = 'round'; g.lineCap = 'round';
+    const paint = col => { g.fillStyle = col; g.fill(); if (d.line) { g.strokeStyle = LINE; g.lineWidth = Math.max(1, r * 0.035); g.stroke(); } };
+    const ell = (cx, cy, rx, ry, rot) => { g.beginPath(); g.ellipse(cx, cy, rx, ry, rot || 0, 0, TAU); };
+    // 몸통(어깨)
+    rr(g, -r * 0.8, r * 0.5, r * 1.6, r * 2.2, r * 0.62); paint(d.fur);
+    ell(0, r * 1.25, r * 0.4, r * 0.5); g.fillStyle = d.muzzle; g.globalAlpha = d.spots || d.id === 'white' ? 0 : 0.85; g.fill(); g.globalAlpha = 1;
+    // 귀 (머리 뒤)
+    const droop = mood === 'sad' ? 0.12 : 0;
+    for (const s of [-1, 1]) {
+      g.save(); g.scale(s, 1);
+      if (d.ear === 'point') {
+        g.beginPath(); g.moveTo(-r * 0.92, -r * 0.25); g.quadraticCurveTo(-r * 0.86, -r * 1.05, -r * (0.6 + droop), -r * (1.42 - droop * 2)); g.quadraticCurveTo(-r * 0.3, -r * 1.05, -r * 0.1, -r * 0.8); g.closePath(); paint(d.dark);
+        g.beginPath(); g.moveTo(-r * 0.76, -r * 0.6); g.quadraticCurveTo(-r * 0.72, -r * 1.0, -r * (0.6 + droop), -r * (1.2 - droop * 2)); g.quadraticCurveTo(-r * 0.45, -r * 1.0, -r * 0.36, -r * 0.82); g.closePath(); g.fillStyle = '#FFC7CF'; g.fill();
+      } else if (d.ear === 'fluff') { ell(-r * 0.98, r * (0.12 + droop), r * 0.36, r * 0.66, 0.22); paint(d.dark); }
+      else if (d.ear === 'drop') { ell(-r * 0.96, r * (0.02 + droop), r * 0.3, r * 0.6, 0.28); paint(d.dark); }
+      else if (d.ear === 'long') { ell(-r * 1.0, r * (0.4 + droop), r * 0.3, r * 0.9, 0.1); paint(d.dark); }
+      else {   // fold: 반쯤 접힌 귀
+        g.beginPath(); g.moveTo(-r * 0.95, -r * 0.3); g.lineTo(-r * 0.74, -r * 1.08); g.lineTo(-r * 0.18, -r * 0.8); g.closePath(); paint(d.fur);
+        g.beginPath(); g.moveTo(-r * 0.74, -r * 1.08); g.lineTo(-r * 0.26, -r * 0.84); g.quadraticCurveTo(-r * 0.6, -r * 0.5, -r * (0.9 + droop), -r * (0.52 - droop)); g.closePath(); paint(d.dark);
+      }
+      g.restore();
+    }
+    // 머리
+    ell(0, 0, r, r * 0.93); paint(d.fur);
+    g.save(); ell(0, 0, r, r * 0.93); g.clip();
+    if (d.mask) { g.fillStyle = '#FFFFFF'; ell(0, r * 0.42, r * 0.8, r * 0.7); g.fill(); ell(-r * 0.36, -r * 0.42, r * 0.13, r * 0.1); g.fill(); ell(r * 0.36, -r * 0.42, r * 0.13, r * 0.1); g.fill(); }
+    if (d.spots) { g.fillStyle = d.dark; ell(-r * 0.5, -r * 0.5, r * 0.3, r * 0.26, 0.4); g.fill(); ell(r * 0.72, r * 0.3, r * 0.2, r * 0.24); g.fill(); ell(r * 0.3, -r * 0.82, r * 0.16, r * 0.13); g.fill(); }
+    g.restore();
+    // 주둥이·수염
+    if (d.beard) { ell(0, r * 0.52, r * 0.56, r * 0.52); g.fillStyle = '#FFFFFF'; g.fill(); }
+    else if (!d.mask) { ell(0, r * 0.36, r * 0.44, r * 0.33); g.fillStyle = d.muzzle; g.fill(); if (d.line) { g.strokeStyle = 'rgba(70,60,95,.1)'; g.lineWidth = 1; g.stroke(); } }
+    // 볼
+    if (mood === 'happy') { g.fillStyle = 'rgba(255,130,150,.45)'; ell(-r * 0.62, r * 0.22, r * 0.16, r * 0.1); g.fill(); ell(r * 0.62, r * 0.22, r * 0.16, r * 0.1); g.fill(); }
+    // 눈
+    const ink = '#2B2A3A', ey = -r * 0.12, ex = r * 0.38;
+    g.strokeStyle = d.light ? '#F4F5FB' : ink; g.lineWidth = Math.max(1.6, r * 0.075);
+    if (mood === 'happy') { for (const s of [-1, 1]) { g.beginPath(); g.arc(s * ex, ey + r * 0.05, r * 0.13, Math.PI * 1.12, Math.PI * 1.88); g.stroke(); } }
+    else {
+      const blink = mood === 'idle' && (t % 3.4) > 3.25;
+      for (const s of [-1, 1]) {
+        if (blink) { g.beginPath(); g.moveTo(s * ex - r * 0.1, ey); g.lineTo(s * ex + r * 0.1, ey); g.stroke(); continue; }
+        g.fillStyle = d.light ? '#FFFFFF' : ink; ell(s * ex, ey, r * 0.1, r * 0.115); g.fill();
+        if (d.eye || d.light) { g.fillStyle = d.eye || ink; ell(s * ex, ey, r * 0.062, r * 0.075); g.fill(); }
+        g.fillStyle = '#FFFFFF'; ell(s * ex - r * 0.03, ey - r * 0.04, r * 0.03, r * 0.03); g.fill();
+        if (mood === 'sad') { g.beginPath(); g.moveTo(s * (ex + r * 0.15), ey - r * 0.16); g.lineTo(s * (ex - r * 0.12), ey - r * 0.27); g.stroke(); }
+      }
+    }
+    if (d.beard) { g.strokeStyle = '#FFFFFF'; g.lineWidth = r * 0.11; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * r * 0.2, -r * 0.36); g.quadraticCurveTo(s * r * 0.42, -r * 0.46, s * r * 0.6, -r * 0.3); g.stroke(); } }
+    // 코·입
+    g.fillStyle = '#2E2733'; ell(0, r * 0.2, r * 0.125, r * 0.095); g.fill();
+    g.strokeStyle = '#2E2733'; g.lineWidth = Math.max(1.4, r * 0.055);
+    if (mood === 'happy') {
+      g.beginPath(); g.moveTo(-r * 0.2, r * 0.36); g.quadraticCurveTo(0, r * 0.74, r * 0.2, r * 0.36); g.closePath(); g.fillStyle = '#7A3B46'; g.fill();
+      g.fillStyle = '#FF8FA3'; ell(0, r * 0.52, r * 0.1, r * 0.08); g.fill();
+    } else if (mood === 'sad') { g.beginPath(); g.arc(0, r * 0.56, r * 0.15, Math.PI * 1.2, Math.PI * 1.8); g.stroke(); }
+    else { g.beginPath(); g.moveTo(0, r * 0.29); g.lineTo(0, r * 0.38); g.moveTo(-r * 0.16, r * 0.4); g.quadraticCurveTo(-r * 0.08, r * 0.5, 0, r * 0.38); g.quadraticCurveTo(r * 0.08, r * 0.5, r * 0.16, r * 0.4); g.stroke(); }
+    if (d.bow) {
+      g.fillStyle = d.bow; g.save(); g.translate(r * 0.52, -r * 0.74); g.rotate(0.35);
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(-r * 0.26, -r * 0.16); g.lineTo(-r * 0.26, r * 0.16); g.closePath(); g.fill();
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(r * 0.26, -r * 0.16); g.lineTo(r * 0.26, r * 0.16); g.closePath(); g.fill();
+      g.fillStyle = '#FFC2D6'; ell(0, 0, r * 0.075, r * 0.075); g.fill(); g.restore();
+    }
+    if (crown) {   // 단골손님의 작은 왕관
+      const cy = -r * 1.0, cw = r * 0.34;
+      g.fillStyle = '#FFC94D'; g.beginPath(); g.moveTo(-cw, cy); g.lineTo(-cw * 1.1, cy - r * 0.36); g.lineTo(-cw * 0.5, cy - r * 0.17); g.lineTo(0, cy - r * 0.44); g.lineTo(cw * 0.5, cy - r * 0.17); g.lineTo(cw * 1.1, cy - r * 0.36); g.lineTo(cw, cy); g.closePath(); g.fill();
+      g.strokeStyle = '#E3A52C'; g.lineWidth = 1; g.stroke();
+      g.fillStyle = '#FF7B95'; ell(0, cy - r * 0.11, r * 0.05, r * 0.05); g.fill();
+    }
+    g.restore();
+  }
+
+  // ═══════ 배경: 밤하늘 + 불 켜진 가게 (창 크기가 바뀔 때만 다시 그린다) ═══════
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function buildBg() {
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const g = bg.getContext('2d'); g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const lg = g.createLinearGradient(0, 0, 0, H);
+    lg.addColorStop(0, '#0B0F33'); lg.addColorStop(0.5, '#1B2060'); lg.addColorStop(1, '#3A3488');
+    g.fillStyle = lg; g.fillRect(0, 0, W, H);
+    const rnd = mulberry32(37), ns = Math.round(clamp(W * H / 2600, 80, 420));
+    for (let i = 0; i < ns; i++) { const x = rnd() * W, y = rnd() * H, r = rnd() < 0.07 ? 1.1 + rnd() * 0.7 : 0.4 + rnd() * 0.7; g.globalAlpha = 0.3 + rnd() * 0.6; g.fillStyle = rnd() < 0.3 ? '#FFE9C4' : '#EAF0FF'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+    g.globalAlpha = 1;
+    // 가게에서 새어 나오는 따뜻한 빛
+    const gl = g.createRadialGradient(SC.x + SC.w / 2, SC.y + SC.h * 0.55, SC.h * 0.2, SC.x + SC.w / 2, SC.y + SC.h * 0.55, Math.max(SC.w, SC.h) * 0.95);
+    gl.addColorStop(0, 'rgba(255,214,150,.22)'); gl.addColorStop(1, 'rgba(255,214,150,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+    // 가게 안쪽 벽
+    g.save(); rr(g, SC.x, SC.y, SC.w, SC.h, 20); g.clip();
+    const wg = g.createLinearGradient(0, SC.y, 0, SC.y + SC.h); wg.addColorStop(0, '#FFF7EA'); wg.addColorStop(1, '#FFE6CF');
+    g.fillStyle = wg; g.fillRect(SC.x, SC.y, SC.w, SC.h);
+    // 벽 무늬(옅은 발자국 점) · 뒤 선반과 간식 병
+    g.fillStyle = 'rgba(240,190,140,.16)';
+    for (let yy = SC.y + AWN + 26, row = 0; yy < CT; yy += 34, row++) for (let xx = SC.x + (row % 2 ? 30 : 12); xx < SC.x + SC.w; xx += 40) { g.beginPath(); g.arc(xx, yy, 3, 0, TAU); g.fill(); }
+    const shY = SC.y + AWN + clamp(SC.h * 0.2, 40, 76), jr = mulberry32(9), jars = ['#FFD6A5', '#FFC6D0', '#CDE7FF', '#D9F2C7', '#FFE9A8', '#E3D4FF'];
+    g.fillStyle = 'rgba(214,160,110,.4)'; rr(g, SC.x + 14, shY, SC.w - 28, 5, 2.5); g.fill();
+    for (let xx = SC.x + 26; xx < SC.x + SC.w - 40; xx += 30 + jr() * 10) {
+      const jw = 16 + jr() * 6, jh = 18 + jr() * 9; g.globalAlpha = 0.6;
+      g.fillStyle = jars[Math.floor(jr() * jars.length)]; rr(g, xx, shY - jh, jw, jh, 5); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.7)'; rr(g, xx + 2, shY - jh - 3, jw - 4, 5, 2); g.fill(); g.globalAlpha = 1;
+    }
+    g.restore();
+    // 차양 (줄무늬 + 물결 끝)
+    const ax = SC.x - 5, aw = SC.w + 10, nstr = Math.max(6, Math.round(aw / 30)), sw = aw / nstr;
+    for (let i = 0; i < nstr; i++) {
+      g.fillStyle = i % 2 ? '#FFF8EF' : '#F7ABA2';
+      g.beginPath(); const x0 = ax + i * sw;
+      if (i === 0) { g.moveTo(x0 + 10, SC.y - 4); g.lineTo(x0 + sw, SC.y - 4); g.lineTo(x0 + sw, SC.y + AWN); g.arc(x0 + sw / 2, SC.y + AWN, sw / 2, 0, Math.PI); g.lineTo(x0, SC.y + 6); g.quadraticCurveTo(x0, SC.y - 4, x0 + 10, SC.y - 4); }
+      else if (i === nstr - 1) { g.moveTo(x0, SC.y - 4); g.lineTo(x0 + sw - 10, SC.y - 4); g.quadraticCurveTo(x0 + sw, SC.y - 4, x0 + sw, SC.y + 6); g.lineTo(x0 + sw, SC.y + AWN); g.arc(x0 + sw / 2, SC.y + AWN, sw / 2, 0, Math.PI); }
+      else { g.moveTo(x0, SC.y - 4); g.lineTo(x0 + sw, SC.y - 4); g.lineTo(x0 + sw, SC.y + AWN); g.arc(x0 + sw / 2, SC.y + AWN, sw / 2, 0, Math.PI); }
+      g.closePath(); g.fill();
+    }
+    g.fillStyle = 'rgba(120,60,50,.08)'; g.fillRect(ax + 4, SC.y + AWN - 2, aw - 8, 2);
+  }
+
+  // ═══════ 화면 맞추기 ═══════
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    wide = W > H && H <= 520;
+    document.body.classList.toggle('wide', wide);
+    const ps = panel.style;
+    if (wide) {
+      const pw = Math.round(clamp(W * 0.46, 300, 420)); ps.width = pw + 'px'; ps.left = 'auto'; ps.right = (SAF.r + 12) + 'px'; ps.bottom = 'auto';
+      const ph = panel.offsetHeight, top0 = SAF.t + 62, room = H - SAF.b - 10 - top0; ps.top = Math.round(top0 + Math.max(0, (room - ph) / 2)) + 'px';
+      SC.x = SAF.l + 12; SC.w = W - SAF.r - 12 - pw - 12 - SC.x; SC.y = SAF.t + 66; SC.h = H - SAF.b - 10 - SC.y;
+      CH = clamp(SC.h * 0.2, 36, 60); CT = SC.y + SC.h - CH;
+    } else {
+      const cw = Math.min(W, 520), cx = Math.round((W - cw) / 2);
+      ps.width = cw + 'px'; ps.left = cx + 'px'; ps.right = 'auto'; ps.top = 'auto'; ps.bottom = '0';
+      const pTop = H - panel.offsetHeight, top0 = SAF.t + 104;
+      SC.x = cx + 10; SC.w = cw - 20; const full = pTop - top0, vis = Math.min(full, 460);
+      SC.y = top0 + (full - vis); CH = clamp(vis * 0.16, 36, 58); CT = pTop - CH; SC.h = vis + 26;   // 가게 바닥은 아래 판 밑으로 조금 들어간다
+    }
+    AWN = clamp(SC.h * 0.07, 12, 22);
+    const room = CT - SC.y - AWN;                       // 계산대 위로 쓸 수 있는 높이
+    KSZ = Math.round(clamp(room * 0.74, 96, 250)); KX = SC.x + SC.w * 0.25; KY = CT + KSZ * 0.17;
+    R = clamp(room * 0.18, 24, 52); CX = SC.x + SC.w * 0.72;
+    K.setSize(KSZ);
+    fx.width = Math.round(W * DPR); fx.height = Math.round(H * DPR);
+    buildBg();
+    const hud = $('hud');
+    if (wide) { const bx = bar.el.firstElementChild.getBoundingClientRect().right + 8; hud.style.left = bx + 'px'; hud.style.width = Math.max(120, SC.x + SC.w - bx) + 'px'; hud.style.top = (SAF.t + 16) + 'px'; }
+    else { hud.style.left = (SC.x + 2) + 'px'; hud.style.width = (SC.w - 4) + 'px'; hud.style.top = (SAF.t + 62) + 'px'; }
+    hud.classList.toggle('tight', parseFloat(hud.style.width) < 300);
+    paintTitle();
+    placeBubble();
+  }
+  // 좁은 화면에서 놀이 중에는 일시정지 단추 때문에 제목 칸이 줄어든다 → 짧은 이름으로
+  function paintTitle() { bar.setTitle(wide ? '' : (W < 340 && !btnPause.hidden ? '간식가게' : TITLE)); }
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', () => setTimeout(layout, 250));
+
+  // ═══════ 점수판 ═══════
+  const HEART_SVG = '<svg viewBox="0 0 24 24"><path fill="#FF6B88" d="M12 20.6c-.3 0-.6-.1-.8-.3C6.2 16 3 13.2 3 9.5 3 6.9 5 5 7.4 5c1.7 0 3.3 1 4.6 2.6C13.3 6 14.9 5 16.6 5 19 5 21 6.9 21 9.5c0 3.7-3.2 6.5-8.2 10.8-.2.2-.5.3-.8.3z"/></svg>';
+  function paintHearts(popIdx) {
+    const el = $('hudHp'); if (el.children.length !== 3) el.innerHTML = HEART_SVG + HEART_SVG + HEART_SVG;
+    for (let i = 0; i < 3; i++) { const h = el.children[i]; h.classList.toggle('off', i >= hearts); h.classList.remove('pop'); if (i === popIdx) { void h.getBoundingClientRect(); h.classList.add('pop'); } }
+  }
+  function paintHud() {
+    if (shownScore !== score) { shownScore = score; $('hudScore').textContent = fmt(score); }
+    $('hudCust').textContent = '손님 ' + Math.max(1, n);
+    const st = $('hudStreak'); st.hidden = streak < 2; if (streak >= 2) st.textContent = '연속 ' + streak;
+  }
+
+  // ═══════ 말풍선 · 쟁반 · 진열대 ═══════
+  function placeBubble() {
+    if (bubble.hidden) return;
+    const narrow = SC.w < 330 && cust && cust.shown.length >= 6;
+    bubble.classList.toggle('small', !!narrow);
+    const bw = bubble.offsetWidth, lx = clamp(CX - bw / 2, SC.x + 6, SC.x + SC.w - bw - 6);
+    const headTop = CT - R * (cust && cust.dog.ear === 'point' ? 2.4 : 2.0) - (cust && cust.regular ? R * 0.3 : 0);
+    const overKong = lx < KX + KSZ * 0.34 ? KY - KSZ * 0.82 : 1e9;   // 말풍선이 길어 콩이 머리 위까지 오면 콩이 머리보다 위로
+    bubble.style.left = Math.round(lx) + 'px'; bubble.style.bottom = Math.round(H - Math.min(headTop - 12, overKong)) + 'px';
+    bubble.style.setProperty('--tx', clamp(CX - lx, 18, bw - 18).toFixed(0) + 'px');
+  }
+  // mode: 'order'(주문) · 'msg'(한마디)
+  function paintBubble(msg) {
+    const box = $('bbItems'), not = $('bbNot'); box.textContent = '';
+    bubble.classList.remove('good', 'bad');
+    if (!cust) { bubble.hidden = true; return; }
+    if (msg) { const s = document.createElement('span'); s.className = 'msg'; s.textContent = msg; box.appendChild(s); not.hidden = true; $('bbBarBox').hidden = true; }
+    else {
+      for (const id of cust.shown) {
+        const s = document.createElement('span');
+        if (visible) { s.className = 'it' + (cust.not === id && alwaysShown() ? ' x' : ''); s.textContent = SN[id].e; } else { s.className = 'it q'; s.textContent = '?'; }
+        box.appendChild(s);
+      }
+      not.hidden = !cust.not; if (cust.not) not.textContent = SN[cust.not].e + ' ' + J(SN[cust.not].n, '은/는') + ' 빼고 주세요';
+      $('bbBarBox').hidden = false;
+      bubble.setAttribute('aria-label', visible ? '주문: ' + cust.shown.map(id => SN[id].n).join(', ') + (cust.not ? ' (' + SN[cust.not].n + ' 빼고)' : '') : '주문이 가려졌어요');
+    }
+    bubble.hidden = false; placeBubble();
+  }
+  const alwaysShown = () => D.showBase + D.showPer <= 0;
+  function paintBar() {
+    const f = clamp(left / maxWait, 0, 1), el = $('bbBar');
+    el.style.transform = 'scaleX(' + f.toFixed(3) + ')'; el.classList.toggle('mid', f < 0.55 && f >= 0.28); el.classList.toggle('low', f < 0.28);
+  }
+  function paintTray(cls) {
+    const el = $('tray'); el.textContent = ''; el.classList.remove('good', 'bad'); if (cls) { void el.offsetWidth; el.classList.add(cls); }
+    if (!cust) { const h = document.createElement('span'); h.className = 'hint'; h.textContent = '쟁반'; el.appendChild(h); $('btnReset').disabled = true; return; }
+    for (let i = 0; i < cust.want.length; i++) { const s = document.createElement('span'); s.className = 'slot' + (i < tray.length ? ' on' : i === tray.length ? ' next' : ''); if (i < tray.length) s.textContent = SN[tray[i]].e; el.appendChild(s); }
+    $('btnReset').disabled = !tray.length || !canTap();
+  }
+  function paintShelf(newIdx) {
+    const el = $('shelf'); el.textContent = '';
+    for (let i = 0; i < kindsNow; i++) {
+      const s = SNACKS[i], b = document.createElement('button'); b.type = 'button'; b.dataset.id = s.id; b.setAttribute('aria-label', s.n + (KEYS_OK ? ' (' + (i + 1) + ')' : ''));
+      b.innerHTML = '<span class="e" aria-hidden="true">' + s.e + '</span><span class="n" aria-hidden="true">' + s.n + '</span>';
+      if (i === newIdx) { b.className = 'new'; setTimeout(() => b.classList.remove('new'), 2600); }
+      el.appendChild(b);
+    }
+    for (let i = kindsNow; i < 8; i++) { const d = document.createElement('div'); d.className = 'empty'; d.setAttribute('aria-hidden', 'true'); el.appendChild(d); }   // 아직 빈 진열 칸
+  }
+  function say(t, sec) { sayText = t; sayT = sec || 2.4; }
+
+  // ═══════ 효과 ═══════
+  function burst(x, y, cnt, kind) {
+    if (reduceMotion) cnt = Math.ceil(cnt / 2);
+    for (let i = 0; i < cnt && parts.length < 60; i++) { const life = rand(0.7, 1.2); parts.push({ x: x + rand(-R, R) * 0.7, y: y + rand(-8, 8), vx: rand(-26, 26), vy: rand(-90, -45), life, max: life, s: rand(4, 7), kind }); }
+  }
+  function floatText(x, y, text, col) { floats.push({ x: clamp(x, SC.x + 40, SC.x + SC.w - 40), y, text, col: col || '#FFFFFF', life: 1.2, max: 1.2 }); if (floats.length > 6) floats.shift(); }
+  function stepFx(dt) {
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; if (p.life <= 0) { parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 30 * dt; }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= 26 * dt; if (f.life <= 0) floats.splice(i, 1); }
+    kT = Math.max(0, kT - dt); barkT = Math.max(0, barkT - dt); sayT = Math.max(0, sayT - dt);
+  }
+  function bark(force) { if (force || tAnim - lastBark > 8) { lastBark = tAnim; barkT = 0.9; voice('bark', 0, 1.1); } }
+
+  // ═══════ 손님 ═══════
+  function seq(len, pool) { const a = []; for (let i = 0; i < len; i++) { let s = pick(pool); if (pool.length > 1) for (let k = 0; k < 4 && s === a[i - 1]; k++) s = pick(pool); a.push(s); } return a; }
+  function nextCustomer() {
+    n++; const idx = n - 1;
+    const kinds = clamp(D.kinds0 + Math.floor(idx / D.kindEvery), D.kinds0, D.kindsMax);
+    if (kinds !== kindsNow) { const added = kinds > kindsNow && idx > 0; kindsNow = kinds; paintShelf(added ? kinds - 1 : -1); if (added) { say('새 간식이 들어왔어요 ' + SNACKS[kinds - 1].e, 2.6); sfx('coin'); } }
+    const pool = SNACKS.slice(0, kindsNow).map(s => s.id);
+    const regular = idx >= D.regFrom && Math.random() < D.reg, vari = idx >= D.variFrom && Math.random() < D.vari;
+    const len = Math.min(6, clamp(D.len0 + Math.floor(idx / D.lenEvery), D.len0, D.lenMax) + (regular ? 1 : 0));
+    let di = Math.floor(Math.random() * DOGS.length); if (di === lastDog) di = (di + 1 + Math.floor(Math.random() * (DOGS.length - 1))) % DOGS.length; lastDog = di;
+    cust = { dog: DOGS[di], regular, not: null, shown: null, want: null, mood: 'idle' };
+    if (vari) {   // "○○ 빼고": 보여 준 것 가운데 그 간식만 빼고 담는다
+      const x = pick(pool), rest = pool.filter(p => p !== x), want = seq(Math.max(2, len - 1), rest), shown = want.slice();
+      shown.splice(Math.floor(Math.random() * (shown.length + 1)), 0, x);
+      if (shown.length < 6 && len >= 5) { let p = Math.floor(Math.random() * (shown.length + 1)); if (shown[p] === x || shown[p - 1] === x) p = shown[0] === x ? shown.length : 0; shown.splice(p, 0, x); }
+      cust.not = x; cust.want = want; cust.shown = shown;
+    } else { cust.want = seq(len, pool); cust.shown = cust.want.slice(); }
+    tray = []; visible = true;
+    maxWait = Math.max(D.waitMin, D.wait0 - D.waitDec * idx) + D.perItem * cust.want.length; left = maxWait;
+    showDur = alwaysShown() ? 0 : D.showBase + D.showPer * cust.shown.length + (cust.not ? 0.4 : 0);
+    phase = 'enter'; phT = 0; kMood = 'idle';
+    bubble.hidden = true; paintTray(); paintHud(); paintBar();
+    tone(1175, 0.12, 'sine', 0.04); tone(1568, 0.2, 'sine', 0.04, 0.1);   // 딸랑 (문에 달린 종)
+    if (regular) say('단골손님이에요! 점수 2배', 2.6);
+  }
+  const canTap = () => state === 'play' && (phase === 'show' || phase === 'order') && cust && tray.length < cust.want.length;
+  function tap(id) {
+    if (!canTap() || !SN[id] || SN[id].i >= kindsNow) return false;
+    if (phase === 'show') { phase = 'order'; phT = 0; visible = false; paintBubble(); sfx('flip'); }   // 담기 시작하면 주문을 가린다 (보면서 따라 누르지 못하게 — Easy 는 처음부터 'order' 라 계속 보인다)
+    tray.push(id); sfx('pop'); paintTray();
+    if (tray.length >= cust.want.length) judge();
+    return true;
+  }
+  function resetTray() { if (!canTap() || !tray.length) return false; tray = []; sfx('swap'); paintTray(); return true; }
+  function judge() {
+    const ok = tray.length === cust.want.length && tray.every((id, i) => id === cust.want[i]);
+    if (ok) success(); else fail('wrong');
+  }
+  function success() {
+    streak++; served++; maxStreak = Math.max(maxStreak, streak);
+    const L = cust.want.length, frac = clamp(left / maxWait, 0, 1);
+    let pts = 10 * L + Math.round(frac * 10 * L) + Math.min(streak - 1, 10) * 5 + (cust.not ? 15 : 0);   // 기본 + 빨리 담은 만큼 + 연속 + 빼고 주문
+    if (cust.regular) pts *= 2;
+    score += pts;
+    cust.mood = 'happy'; phase = 'leave'; phT = 0; leaveDur = 1.15; kMood = 'happy'; kT = 1.15;
+    paintTray('good'); visible = true; paintBubble(pick(['고마워요!', '맛있겠다!', '딱 맞아요!', '최고예요!'])); bubble.classList.add('good');
+    sfx('match'); burst(CX, CT - R * 2, cust.regular ? 9 : 5, 'heart');
+    floatText(CX, CT - R * 2.6, '+' + fmt(pts) + (cust.regular ? ' 단골' : streak >= 3 ? ' · 연속 ' + streak : ''), '#FFFFFF');
+    if (D.heal && streak % D.heal === 0 && hearts < 3) { hearts++; paintHearts(hearts - 1); sfx('heart'); say('잘하고 있어요! 하트를 하나 받았어요', 2.6); }
+    if (cust.regular || streak % 5 === 0 || Math.random() < 0.22) bark(cust.regular || streak % 5 === 0);
+    paintHud();
+  }
+  function fail(why) {
+    streak = 0; hearts = Math.max(0, hearts - 1); paintHearts();
+    cust.mood = 'sad'; phase = 'leave'; phT = 0; leaveDur = 1.7; kMood = 'sad'; kT = 1.5;
+    visible = true;
+    if (why === 'time') { paintBubble('너무 오래 걸려요…'); paintTray('bad'); } else { paintBubble(); paintTray('bad'); $('bbBarBox').hidden = true; }   // 틀리면 주문을 다시 보여 준다
+    bubble.classList.add('bad');
+    sfx('wrong'); if (navigator.vibrate && !reduceMotion) { try { navigator.vibrate(40); } catch (e) {} }
+    floatText(CX, CT - R * 2.6, why === 'time' ? '손님이 그냥 갔어요' : '주문이랑 달라요', '#FFD9DC');
+    paintHud();
+  }
+
+  // ═══════ 한 프레임 ═══════
+  function update(dt) {
+    stepFx(dt);
+    if (state === 'over') { overT += dt; if (overT > 1.5) showResult(); return; }
+    phT += dt;
+    if (phase === 'enter') {
+      if (phT >= 0.55) { phT = 0; paintBubble(); paintBar(); if (showDur > 0) phase = 'show'; else phase = 'order'; paintTray(); }
+    } else if (phase === 'show') {
+      if (phT >= showDur) { phase = 'order'; phT = 0; visible = false; paintBubble(); sfx('flip'); }
+    } else if (phase === 'order') {
+      left -= dt; paintBar();
+      if (left <= 0) fail('time');
+    } else if (phase === 'leave') {
+      if (phT >= leaveDur) { if (hearts <= 0) gameOver(); else nextCustomer(); }
+    }
+  }
+  const ease = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  function drawKong() {
+    const o = { t: tAnim, tailAmp: 10, tailRate: 2, mouth: 'closed' };
+    const playing = state === 'play' || state === 'pause';
+    if (kMood === 'happy' && kT > 0) { Object.assign(o, { eyes: 'happy', mouth: 'open', blush: 1, hop: reduceMotion ? 0 : Math.abs(Math.sin(kT * 9)) * 16, tailAmp: 22, tailRate: 4.2, earLift: 8 }); }
+    else if ((kMood === 'sad' && kT > 0) || state === 'over') { Object.assign(o, { eyes: 'closed', nod: 9, earLift: -7, tailAmp: 1, tilt: -4 }); }
+    else if (playing && (phase === 'enter' || phase === 'show')) { Object.assign(o, { tilt: 14 * ease(phT / 0.4 + (phase === 'show' ? 1 : 0)), look: [0.8, -0.1], earLift: 6 }); }   // 주문을 받을 때 고개를 갸웃
+    else if (playing) { Object.assign(o, { tilt: Math.sin(tAnim * 1.3) * 3, look: [0.35, 0.4], mouth: 'open', tailAmp: 14, tailRate: 2.6 }); }
+    else { Object.assign(o, { tilt: Math.sin(tAnim * 1.1) * 4, mouth: 'open', eyes: state === 'result' ? 'happy' : 'open', tailAmp: 16, tailRate: 2.6, blush: state === 'result' ? 1 : 0 }); }
+    if (barkT > 0) { o.mouth = 'open'; o.earLift = (o.earLift || 0) + 6; o.nod = -3; }
+    K.render(o); K.place(KX, KY, 1);
+  }
+  function draw() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.clearRect(0, 0, W, H);
+    // 손님 (가게 칸 안에서만 보인다 — 오른쪽에서 들어오고 나간다)
+    if (cust && state !== 'ready') {
+      let off = 0;
+      if (phase === 'enter') off = 1 - ease(phT / 0.5);
+      else if (phase === 'leave') off = Math.pow(clamp((phT - leaveDur * 0.62) / (leaveDur * 0.38), 0, 1), 2);
+      const far = SC.x + SC.w + R * 1.6 - CX;
+      let bob = reduceMotion ? 0 : Math.sin(tAnim * 2.6) * 1.5;
+      if (cust.mood === 'happy' && !reduceMotion) bob = -Math.abs(Math.sin(phT * 10)) * R * 0.2;
+      if (cust.mood === 'sad') bob = R * 0.1;
+      if ((phase === 'enter' || off > 0) && !reduceMotion) bob += Math.sin(tAnim * 16) * 2.5;
+      ctx.save(); ctx.beginPath(); ctx.rect(SC.x, SC.y - 10, SC.w, SC.h + 10); ctx.clip();
+      drawDog(ctx, cust.dog, CX + off * far, CT - R * 1.02 + bob, R, cust.mood, tAnim, cust.regular);
+      ctx.restore();
+      cust.px = CX + off * far;
+    }
+    // 계산대 (콩이와 손님의 아랫몸을 가린다)
+    const cb = wide ? SC.y + SC.h : CT + CH + 30;
+    ctx.save(); rr(ctx, SC.x, SC.y, SC.w, SC.h, 20); ctx.clip();
+    ctx.fillStyle = 'rgba(150,90,50,.12)'; ctx.fillRect(SC.x, CT - 3, SC.w, 4);
+    ctx.fillStyle = '#F9D7AE'; ctx.fillRect(SC.x, CT, SC.w, 9);
+    const cg = ctx.createLinearGradient(0, CT + 9, 0, cb); cg.addColorStop(0, '#F0BE8C'); cg.addColorStop(1, '#E7AC78');
+    ctx.fillStyle = cg; ctx.fillRect(SC.x, CT + 9, SC.w, cb - CT - 9);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(SC.x, CT, SC.w, 2);
+    ctx.restore();
+    // 계산대 앞 글 (가게 이름 · 알림)
+    const txt = sayT > 0 ? sayText : name + '네 간식가게', ty = CT + 9 + (CH - 9) / 2 + 1;
+    let fs = clamp(CH * 0.32, 12, 16); ctx.font = '600 ' + fs + 'px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let tw = ctx.measureText(txt).width; if (tw > SC.w - 44) { fs = Math.max(10, fs * (SC.w - 44) / tw); ctx.font = '600 ' + fs + 'px ' + FONT; tw = ctx.measureText(txt).width; }
+    ctx.fillStyle = sayT > 0 ? '#FFFFFF' : 'rgba(255,248,238,.75)'; rr(ctx, SC.x + SC.w / 2 - tw / 2 - 12, ty - fs * 0.85 - 1, tw + 24, fs * 1.7 + 2, fs); ctx.fill();
+    ctx.fillStyle = sayT > 0 ? '#B5562F' : '#9A623A'; ctx.fillText(txt, SC.x + SC.w / 2, ty);
+    // 손님 앞발 (계산대 위에 올려놓는다)
+    if (cust && state !== 'ready' && cust.px != null && cust.px < SC.x + SC.w - R * 0.4) {
+      const d = cust.dog;
+      for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(cust.px + s * R * 0.48, CT + 1, R * 0.23, R * 0.15, 0, 0, TAU); ctx.fillStyle = d.spots ? '#FBFBFD' : d.fur; ctx.fill(); ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+    // 하트·떠오르는 글
+    for (const p of parts) { const a = Math.min(1, p.life / 0.4); ctx.globalAlpha = a; ctx.fillStyle = '#FF7B95'; heartPath(ctx, p.x, p.y, p.s); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if (floats.length) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '700 15px ' + FONT; ctx.lineJoin = 'round';
+      for (const f of floats) { ctx.globalAlpha = Math.min(1, f.life / 0.35); ctx.strokeStyle = 'rgba(90,50,40,.55)'; ctx.lineWidth = 3.5; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y); }
+      ctx.globalAlpha = 1;
+    }
+    drawKong();
+  }
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    tAnim += dt;
+    if (state === 'play' || state === 'over') update(dt); else if (state !== 'pause') stepFx(dt);
+    draw();
+  }
+
+  // ═══════ 흐름 ═══════
+  const focusBtn = id => { try { $(id).focus({ preventScroll: true }); } catch (e) {} };
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    score = 0; hearts = D.hearts; n = 0; served = 0; streak = 0; maxStreak = 0; shownScore = -1; overT = 0; kT = 0; barkT = 0; lastDog = -1;
+    parts.length = floats.length = 0; cust = null; tray = [];
+    kindsNow = D.kinds0; paintShelf(-1); paintHearts(); paintHud();
+    state = 'play'; document.body.classList.remove('paused');
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; paintTitle();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); say('어서 오세요!', 1.8); nextCustomer();
+  }
+  function pause() { if (state !== 'play') return; state = 'pause'; document.body.classList.add('paused'); $('cardPause').hidden = false; focusBtn('btnResume'); }
+  function resume() { if (state !== 'pause') return; state = 'play'; document.body.classList.remove('paused'); $('cardPause').hidden = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+  function gameOver() {
+    if (state !== 'play') return;
+    state = 'over'; overT = 0; phase = 'idle'; hearts = Math.max(0, hearts); paintHearts(); btnPause.hidden = true; paintTitle(); bubble.hidden = true; cust = null; tray = []; paintTray();
+    say('오늘 장사는 여기까지예요', 3); sfx('lose');
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; endAt = performance.now();
+    const isNew = score > 0 && setBest(KG.dkey('shop', diffId), score);
+    $('edScore').textContent = fmt(score); $('edServed').textContent = fmt(served) + '번'; $('edStreak').textContent = fmt(maxStreak) + '번'; paintBest();
+    $('edNew').hidden = !isNew;
+    $('edText').textContent = served > 0 ? '강아지 손님 ' + fmt(served) + '마리가 맛있게 먹고 갔어요.' : J(name, '이랑/랑') + ' 가게를 열어 봤어요.';
+    $('cardEnd').hidden = false; focusBtn('btnAgain'); if (isNew) sfx('win');
+  }
+  const guard = () => performance.now() - endAt < 450;   // 결과 카드가 뜬 직후에는 누름을 넘긴다 (간식을 두드리던 손가락)
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen && state === 'ready') start(); });
+  $('btnAgain').addEventListener('click', () => { if (guard() || state !== 'result') return; start(); });
+  $('cardEnd').addEventListener('click', e => { if (guard()) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', resume);
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+
+  // ═══════ 입력 ═══════
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  let held = false, upAt = -9999;   // 손가락·마우스가 눌려 있는가 · 마지막으로 뗀 때
+  function press(b) { if (!b) return; if (tap(b.dataset.id)) { b.classList.remove('new'); b.classList.add('hit'); setTimeout(() => b.classList.remove('hit'), 110); } }
+  $('shelf').addEventListener('pointerdown', e => { const b = e.target.closest && e.target.closest('button'); if (!b || (e.pointerType === 'mouse' && e.button !== 0)) return; held = true; press(b); });
+  for (const ev of ['pointerup', 'pointercancel']) window.addEventListener(ev, () => { if (held) { held = false; upAt = performance.now(); } }, true);
+  $('shelf').addEventListener('click', e => { if (held || performance.now() - upAt < 500) return; press(e.target.closest && e.target.closest('button')); });   // 키보드·보조 기기로 누른 것만 (손가락은 닿는 순간 이미 담겼다 — 오래 누르고 있다 떼어도 두 번 담기지 않게, 뗀 때를 기준으로 가른다)
+  $('btnReset').addEventListener('click', resetTray);
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;   // 새로 고침(Ctrl+R)·인쇄(Ctrl+P) 같은 브라우저 단축키는 그대로 둔다
+    if (k >= '1' && k <= '8') { if (!e.repeat && canTap()) { const b = $('shelf').children[+k - 1]; if (b) press(b); } }
+    else if (k === 'Backspace' || k === 'Delete' || k === 'r' || k === 'R') { if (state === 'play') { resetTray(); e.preventDefault(); } }
+    else if (k === ' ' || k === 'Enter') {
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) { if (state === 'result' && guard()) e.preventDefault(); return; }   // 단추 위에서는 단추가 알아서
+      e.preventDefault();
+      if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (!guard()) start(); } else if (state === 'pause') resume();
+    } else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+
+  // ═══════ 시작 ═══════
+  if (KEYS_OK) $('stKeys').hidden = false;
+  paintShelf(-1); paintTray(); layout(); paintHearts(); paintHud();
+  // 난이도 고르기: 시작 카드·결과 카드에만 (고르면 그 난이도의 최고 기록을 보여 준다, 없으면 숨김)
+  function paintBest() {
+    const b = best(KG.dkey('shop'));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점';
+    // 결과 카드는 방금 끝난 판(diffId)의 기록으로 고정 — 다음 판 난이도를 바꿔도 그 판 점수·'새 기록' 딱지와 어긋나지 않게. 다른 난이도를 골라 두었으면 어느 난이도 기록인지 밝힌다
+    const e = best(KG.dkey('shop', diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+  }
+  $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  paintBest();
+  const RULES = { key: 'shop', title: TITLE, lead: '강아지 손님의 주문을 맞춰 주세요.', items: [
+    ['💬', '손님의 말풍선 주문을 잘 보고 순서를 기억해요. 담기 시작하면 주문이 가려져요.'],
+    ['👆', '아래 간식을 주문 순서대로 눌러 쟁반에 담아요. 잘못 눌렀으면 「다시 담기」.'],
+    ['💗', '틀리거나 너무 오래 걸리면 하트가 줄고, 하트 3개가 없어지면 끝나요.'],
+    ['👑', '「○○ 빼고」는 그 간식만 빼고 담아요. 왕관 쓴 단골은 점수 2배!']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) focusBtn('btnStart'); };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(focusStart);
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // 시험·디버그용
+  window.GAME = {
+    get state() { return state; }, get score() { return score; }, get hearts() { return hearts; }, get phase() { return phase; }, get n() { return n; },
+    get served() { return served; }, get streak() { return streak; }, get diff() { return diffId; }, get D() { return D; }, get kinds() { return kindsNow; },
+    get visible() { return visible && !!cust && (phase === 'show' || phase === 'order'); },   // 지금 주문이 눈에 보이는가
+    get shown() { return cust ? cust.shown.slice() : []; }, get order() { return cust ? cust.want.slice() : []; }, get not() { return cust ? cust.not : null; },
+    get regular() { return !!(cust && cust.regular); }, get tray() { return tray.slice(); }, get wait() { return { left, max: maxWait, show: showDur }; },
+    scene: () => ({ SC, CT, CH, KX, KY, KSZ, CX, R, wide, W, H }),
+    start, pause, resume, tap, reset: resetTray,
+    end: () => { if (state === 'pause') resume(); if (state === 'play') { hearts = 0; paintHearts(); gameOver(); } },
+    step: dt => { tAnim += dt; if (state === 'play' || state === 'over') { update(dt); drawKong(); } }   // 시험용: 화면 없이 빨리 돌리기
+  };
+})();
+</script>
+</body>
+</html>

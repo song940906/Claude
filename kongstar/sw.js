@@ -1,6 +1,6 @@
 // node make.js 가 생성 — 직접 고치지 말 것
-const CACHE = 'kongstar-fd5afc62a3';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './games/common.js', './games/basket.html', './games/index.html', './games/jump.html', './games/puzzle.html', './games/run.html', './games/seek.html', './games/shoot.html', './games/stack.html', './games/toys.html'];
+const CACHE = 'kongstar-232a561f99';
+const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './games/common.js', './games/basket.html', './games/bowl.html', './games/index.html', './games/jump.html', './games/puzzle.html', './games/rope.html', './games/run.html', './games/seek.html', './games/shoot.html', './games/shop.html', './games/stack.html', './games/throw.html', './games/toys.html'];
 
 self.addEventListener('install', e => {
   // HTTP 캐시(GitHub Pages 10분)를 거치지 않고 새로 받아 새 캐시에 넣는다

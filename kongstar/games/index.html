@@ -56,6 +56,10 @@
   <a class="card" href="toys.html"><span class="ico" style="background:#FBE9F0">🧸</span><span class="txt"><b id="tTitle">콩이의 장난감잡기</b><small>쏙 나오는 장난감을 빨리 잡아요</small></span><span class="rec" data-rec="toys" data-unit="점"></span></a>
   <a class="card" href="stack.html"><span class="ico" style="background:#F1EAFB">🥞</span><span class="txt"><b id="kTitle">콩이의 간식쌓기</b><small>간식을 딱 맞춰 높이 쌓아요</small></span><span class="rec" data-rec="stack" data-unit="층"></span></a>
   <a class="card" href="seek.html"><span class="ico" style="background:#E6F6F1">🔍</span><span class="txt"><b id="hkTitle">콩이의 숨바꼭질</b><small>방 안에 숨은 콩이와 장난감 찾기</small></span><span class="rec" data-rec="seek" data-unit="점"></span></a>
+  <a class="card" href="throw.html"><span class="ico" style="background:#E8F5EC">🎾</span><span class="txt"><b id="thTitle">콩이의 공 던지기</b><small>당겼다 놓아 공을 던져요</small></span><span class="rec" data-rec="throw" data-unit="점"></span></a>
+  <a class="card" href="rope.html"><span class="ico" style="background:#FFF1E3">🪢</span><span class="txt"><b id="rpTitle">콩이의 줄넘기</b><small>돌아오는 줄을 폴짝 넘어요</small></span><span class="rec" data-rec="rope" data-unit="번"></span></a>
+  <a class="card" href="shop.html"><span class="ico" style="background:#FBE9F0">🏪</span><span class="txt"><b id="shTitle">콩이의 간식가게</b><small>주문을 기억해 간식을 담아 줘요</small></span><span class="rec" data-rec="shop" data-unit="점"></span></a>
+  <a class="card" href="bowl.html"><span class="ico" style="background:#E9ECFB">🥣</span><span class="txt"><b id="bwTitle">콩이의 사료그릇</b><small>섞인 사료를 색깔별로 모아요</small></span><span class="rec" data-rec="bowl" data-unit="단계"></span></a>
 </div></div>
 <script src="common.js"></script>
 <script>
@@ -67,7 +71,7 @@
   document.getElementById('dTitle').textContent = J(name, '의') + ' 일상';
   document.getElementById('pTitle').textContent = J(name, '의') + ' 퍼즐';
   document.getElementById('sTitle').textContent = J(name, '의') + ' 슈팅';
-  for (const [id, t] of [['bTitle', '간식바구니'], ['jTitle', '점프 점프'], ['tTitle', '장난감잡기'], ['kTitle', '간식쌓기'], ['hkTitle', '숨바꼭질']]) document.getElementById(id).textContent = J(name, '의') + ' ' + t;
+  for (const [id, t] of [['bTitle', '간식바구니'], ['jTitle', '점프 점프'], ['tTitle', '장난감잡기'], ['kTitle', '간식쌓기'], ['hkTitle', '숨바꼭질'], ['thTitle', '공 던지기'], ['rpTitle', '줄넘기'], ['shTitle', '간식가게'], ['bwTitle', '사료그릇']]) document.getElementById(id).textContent = J(name, '의') + ' ' + t;
   document.title = name + '별 게임';
   function paintRecs() {   // 고른 난이도의 최고 기록 (없으면 비워 둔다)
     for (const el of document.querySelectorAll('[data-rec]')) {
