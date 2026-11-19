@@ -377,7 +377,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
 .kg-btn.pri:active { background:var(--pri-press); }
 /* 결과·시작 카드 (흰 카드, 일상 앱의 시트와 같은 느낌) */
 .kg-scrim { position:fixed; inset:0; z-index:25; background:rgba(8,10,28,.5); display:flex; align-items:center; justify-content:center; padding:calc(var(--sat) + 16px) calc(var(--sar) + 16px) calc(var(--sab) + 16px) calc(var(--sal) + 16px); }
-.kg-card { width:min(100%,360px); max-height:100%; overflow:auto; background:var(--card); color:var(--ink); border-radius:24px; padding:22px 20px 18px; box-shadow:0 12px 40px rgba(0,0,0,.3); text-align:center; }
+.kg-card { width:min(100%,360px); max-height:100%; overflow-x:hidden; overflow-y:auto; background:var(--card); color:var(--ink); border-radius:24px; padding:22px 20px 18px; box-shadow:0 12px 40px rgba(0,0,0,.3); text-align:center; }
 .kg-card h2 { margin:0 0 6px; font-size:21px; letter-spacing:-.3px; }
 .kg-card p { margin:0 0 4px; font-size:15px; line-height:1.5; color:var(--sub); }
 .kg-card .big { font-size:40px; font-weight:800; letter-spacing:-1px; color:var(--ink); margin:8px 0 2px; font-variant-numeric:tabular-nums; }
@@ -491,7 +491,12 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { key: 'throw', title: '공 던지기', ico: '🎾', unit: '점', lower: false, href: 'throw.html' },
     { key: 'rope', title: '줄넘기', ico: '🪢', unit: '번', lower: false, href: 'rope.html' },
     { key: 'shop', title: '간식가게', ico: '🏪', unit: '점', lower: false, href: 'shop.html' },
-    { key: 'bowl', title: '사료그릇', ico: '🥣', unit: '단계', lower: false, href: 'bowl.html' }
+    { key: 'bowl', title: '사료그릇', ico: '🥣', unit: '단계', lower: false, href: 'bowl.html' },
+    { key: 'quiz', title: '퀴즈 퀴즈', ico: '❓', unit: '점', lower: false, href: 'quiz.html' },
+    { key: 'fish', title: '어부체험', ico: '🎣', unit: '점', lower: false, href: 'fish.html' },
+    { key: 'deliver', title: '로켓배송', ico: '🚀', unit: '단계', lower: false, href: 'deliver.html' },
+    { key: 'dig', title: '도굴단', ico: '🦴', unit: '점', lower: false, href: 'dig.html' },
+    { key: 'race', title: '달리기왕', ico: '🏅', unit: '점', lower: false, href: 'race.html' }
   ];
   const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };
   const RK = { me: 'kongstar.rank.me', cfg: 'kongstar.rank.cfg', dirty: 'kongstar.rank.dirty', last: 'kongstar.rank.last', cache: 'kongstar.rank.cache', seen: 'kongstar.rank.seen' };

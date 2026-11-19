@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 퀴즈 퀴즈</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 퀴즈 퀴즈: 밤하늘(body·#sky) 위에 사회자 콩이(#host) → 문제 카드(#qcard) → 시간 막대 → 보기(#opts) → 찬스·해설(#foot) */
+html body { background: linear-gradient(180deg, #0B1030 0%, #1A2057 52%, #343A82 100%); }
+#sky { position: fixed; inset: 0; pointer-events: none; opacity: .75;
+  background-image:
+    radial-gradient(1.3px 1.3px at 8% 14%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 22% 31%, #DDE3FF 50%, transparent 52%),
+    radial-gradient(1.4px 1.4px at 37% 9%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 51% 24%, #FFE9B8 50%, transparent 52%),
+    radial-gradient(1.2px 1.2px at 66% 12%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 79% 29%, #DDE3FF 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 92% 17%, #fff 50%, transparent 52%), radial-gradient(1px 1px at 14% 52%, #fff 50%, transparent 52%),
+    radial-gradient(1.2px 1.2px at 46% 61%, #DDE3FF 50%, transparent 52%), radial-gradient(1px 1px at 87% 56%, #fff 50%, transparent 52%),
+    radial-gradient(1.2px 1.2px at 30% 78%, #FFE9B8 50%, transparent 52%), radial-gradient(1px 1px at 71% 83%, #fff 50%, transparent 52%); }
+#game { position: fixed; inset: 0; box-sizing: border-box; --kh: 78px; --oh: 52px; --fh: 68px;
+  padding: calc(var(--sat) + 62px) calc(var(--sar) + 14px) calc(var(--sab) + 12px) calc(var(--sal) + 14px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+#left, #right { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+#left { flex: 1 1 auto; max-height: 340px; }
+#right { flex: none; }
+#host { display: flex; align-items: flex-end; gap: 8px; height: var(--kh); flex: none; }
+#kongBox { position: relative; flex: none; width: calc(var(--kh) * .86); height: 100%; }
+#hostR { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; justify-content: flex-end; padding-bottom: 2px; }
+#hud { display: flex; align-items: center; gap: 5px; }
+#hud > div { height: 30px; box-sizing: border-box; border-radius: 15px; padding: 0 9px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 3px; font-size: 13.5px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud .hp { gap: 2px; padding: 0 8px; }
+#hud .hp svg { width: 14px; height: 14px; display: block; transition: opacity .25s, transform .25s; }
+#hud .hp svg.off { opacity: .22; transform: scale(.82); }
+#hud .hp svg.pop { animation: hpPop .45s; }
+@keyframes hpPop { 0% { transform: scale(1); } 40% { transform: scale(1.5); } 100% { transform: scale(.82); } }
+#hud .st { color: #FFE2A6; }
+#hud .st small { font-size: 12px; font-weight: 500; color: #E9D7AE; margin-right: 2px; }
+#hud .sc { margin-left: auto; }
+#hud .sc small { font-size: 12px; font-weight: 500; color: #C9D1F2; margin-left: 1px; }
+#say { align-self: flex-start; max-width: 100%; box-sizing: border-box; background: #fff; color: var(--ink); border-radius: 14px 14px 14px 4px; padding: 6px 12px; font-size: 13.5px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 3px 10px rgba(5,8,30,.2); }
+#say.ok { color: #1F9D5B; } #say.no { color: #D93D42; }
+#qcard { flex: 1 1 0; min-height: 76px; box-sizing: border-box; background: #fff; color: var(--ink); border-radius: 20px; padding: 10px 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(6px * var(--qs, 1)); text-align: center; overflow: hidden; box-shadow: 0 8px 24px rgba(5,8,30,.28); }
+#qTag { flex: none; font-size: 12px; font-weight: 700; color: var(--pri); background: #EEF0FB; border-radius: 999px; padding: 3px 10px; letter-spacing: -.2px; }
+#qBig { flex: none; font-size: calc(34px * var(--qs, 1)); line-height: 1.2; font-weight: 700; color: var(--pri); }
+#qBig.cs { letter-spacing: .32em; margin-right: -.32em; font-size: calc(36px * var(--qs, 1)); }
+#qBig.em { letter-spacing: .06em; font-weight: 400; color: var(--ink); }
+#qText { flex: none; font-size: calc(17px * var(--qs, 1)); line-height: 1.4; font-weight: 600; letter-spacing: -.3px; text-wrap: balance; }
+#qText.sub { font-size: calc(15px * var(--qs, 1)); font-weight: 500; color: #4E5968; }
+#timer { flex: none; height: 8px; border-radius: 4px; background: rgba(255,255,255,.16); overflow: hidden; }
+#timer i { display: block; height: 100%; width: 100%; transform-origin: 0 50%; background: var(--gold); border-radius: 4px; }
+#timer.low i { background: #FF8A7A; }
+#opts { display: grid; grid-template-columns: 1fr; grid-auto-rows: var(--oh); gap: 6px; --n: 4; }
+#opts.ox { grid-template-columns: 1fr 1fr; grid-auto-rows: calc(var(--n) * var(--oh) + (var(--n) - 1) * 6px); gap: 8px; }
+.opt { position: relative; box-sizing: border-box; min-width: 0; border: 2px solid transparent; border-radius: 16px; background: #fff; color: var(--ink); display: flex; align-items: center; gap: 10px; padding: 0 38px 0 10px; text-align: left; font-size: 15.5px; font-weight: 600; letter-spacing: -.3px; line-height: 1.22; overflow: hidden; box-shadow: 0 3px 10px rgba(5,8,30,.18); transition: opacity .2s, background .15s, border-color .15s; }
+.opt:active { filter: brightness(.96); }
+.opt .no { flex: none; width: 26px; height: 26px; border-radius: 9px; background: var(--soft); color: var(--sub); font-size: 13px; font-weight: 700; font-style: normal; display: flex; align-items: center; justify-content: center; }
+.opt .tx { flex: 1; min-width: 0; }
+.opt .mk { position: absolute; right: 9px; top: 50%; width: 24px; height: 24px; margin-top: -12px; border-radius: 50%; display: none; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700; font-style: normal; line-height: 1; }
+.opt.good { background: #E9F9EF; border-color: #2DB670; }
+.opt.good .mk { display: flex; background: #2DB670; }
+.opt.bad { background: #FDEDED; border-color: #E5484D; }
+.opt.bad .mk { display: flex; background: #E5484D; }
+.opt.gone { opacity: .3; box-shadow: none; }
+.opt.rest { opacity: .55; }
+.opt.oxb { flex-direction: column; justify-content: center; gap: 6px; padding: 0; text-align: center; font-size: 14px; color: var(--sub); font-weight: 600; }
+.opt.oxb svg { width: 58px; height: 58px; display: block; }
+.opt.oxb .mk { top: 12px; right: 12px; margin-top: 0; }
+#foot { position: relative; flex: none; height: var(--fh); }
+#life { display: flex; gap: 8px; height: 100%; align-items: center; }
+#life button { flex: 1 1 0; min-width: 0; height: 48px; border-radius: 16px; border: 1px solid var(--glass-line); background: var(--glass); color: #fff; font-size: 15px; font-weight: 600; letter-spacing: -.2px; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+#life button:active { filter: brightness(1.2); }
+#life button b { background: rgba(255,255,255,.18); border-radius: 10px; padding: 1px 8px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#life button:disabled { opacity: .36; }
+#fb { position: absolute; inset: 0; width: 100%; box-sizing: border-box; border: 0; border-radius: 16px; background: #fff; color: var(--ink); text-align: left; padding: 6px 38px 8px 14px; display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; box-shadow: 0 3px 12px rgba(5,8,30,.24); }
+#fb b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#fb.ok b { color: #1F9D5B; } #fb.no b { color: #D93D42; }
+#fb span { display: block; font-size: 13px; line-height: 1.3; font-weight: 500; color: #4E5968; letter-spacing: -.3px; }
+#fb em { position: absolute; right: 12px; top: 50%; margin-top: -11px; width: 22px; height: 22px; border-radius: 50%; background: var(--soft); color: var(--sub); font-style: normal; font-size: 15px; line-height: 22px; text-align: center; }
+#fb u { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #C9D1F2; transform-origin: 0 50%; text-decoration: none; }
+/* 시작 전·일시정지 중에는 문제와 보기를 가린다 (멈춰 놓고 오래 생각하지 못하게) */
+#game.veil #qcard > *, #game.veil #opts, #game.veil #fb { visibility: hidden; }
+#game.idle #right, #game.idle #timer { visibility: hidden; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 문제 종류 고르기(모두 섞기·상식·넌센스): 난이도 고르기와 같은 알약 단추, 바로 아래에 난이도가 붙는다 */
+.kg-card .qmode + .kg-diff { margin-top: 6px; }
+.kg-card .mnote { margin: 8px 0 0; font-size: 12.5px; line-height: 1.35; color: var(--sub); letter-spacing: -.3px; }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+/* 넉넉한 세로 화면: 콩이를 조금 크게 */
+@media (min-height: 720px) and (orientation: portrait) { #game { --kh: 96px; gap: 10px; } #left { max-height: 380px; gap: 10px; } #right { gap: 10px; } }
+/* 낮은 세로 화면(320×568 쯤): 콩이·해설 칸을 줄여 보기 네 개와 찬스 단추가 한 화면에 들어오게 */
+@media (max-height: 620px) and (orientation: portrait) {
+  #game { --kh: 66px; --fh: 62px; gap: 6px; padding-bottom: calc(var(--sab) + 8px); }
+  #left, #right { gap: 6px; }
+  #hud > div { height: 28px; }   /* 하트·점수 칸(28) + 간격(6) + 말풍선(30) + 아래 여백(2) = 66: 위 줄 단추 밑으로 삐져나오지 않게 */
+  #qcard { padding: 8px 12px; border-radius: 18px; }
+  #fb { padding: 4px 36px 6px 12px; } #fb b { font-size: 14px; } #fb span { font-size: 12.5px; line-height: 1.25; }
+  #life button { height: 46px; }
+  /* 결과 카드: 문제 종류 고르기 줄이 늘어 위 줄 단추와 겹치지 않게 — 한 줄 소개를 숨기고 「새 기록」 딱지를 점수 옆에, 카드는 위 줄 아래에 */
+  #edText { display: none; }
+  #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 8px); }
+  #cardEnd .big { display: inline-block; vertical-align: middle; } #cardEnd .new { vertical-align: middle; margin: 0 0 0 8px; }
+}
+@media (max-width: 340px) {
+  body .kg-card .kg-diff button { font-size: 12px; }
+  #game { padding-left: calc(var(--sal) + 10px); padding-right: calc(var(--sar) + 10px); }
+  #hud { gap: 4px; } #hud > div { padding: 0 7px; font-size: 13px; } #hud .st small { font-size: 11px; }
+  #hud .hp svg { width: 13px; height: 13px; }
+  .opt { font-size: 15px; gap: 8px; padding-left: 8px; }
+  body .kg-card .rec { gap: 6px; } body .kg-card .rec span { padding: 6px 9px; font-size: 12.5px; letter-spacing: -.3px; }
+}
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 가로 휴대폰: 왼쪽에 콩이와 문제, 오른쪽에 보기(두 줄 두 칸)와 찬스 */
+@media (orientation: landscape) and (max-height: 500px) {
+  #game { flex-direction: row; align-items: stretch; justify-content: center; gap: 14px; --kh: 84px; --fh: 62px; padding-top: calc(var(--sat) + 60px); padding-bottom: calc(var(--sab) + 10px); }
+  #left { flex: 1 1 0; max-width: 430px; max-height: none; gap: 6px; }
+  #right { flex: 1 1 0; max-width: 430px; gap: 8px; }
+  #opts { flex: 1 1 0; min-height: 0; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; grid-auto-rows: 1fr; gap: 8px; }
+  #opts.n3 .opt:last-child { grid-column: 1 / -1; }
+  #opts.ox { grid-template-rows: 1fr; grid-auto-rows: 1fr; }
+  /* 칸이 좁다: ✓/✗ 자리를 오른쪽에 따로 비워 두지 않고, 결과를 보여 줄 때 번호 칸 자리에 겹쳐 놓는다 (글 칸이 넓어져 보기 글이 잘게 쪼개지지 않는다) */
+  .opt { padding-right: 8px; gap: 8px; }
+  .opt .no { width: 22px; height: 22px; border-radius: 8px; font-size: 12px; }
+  .opt:not(.oxb) .mk { left: 9px; right: auto; width: 24px; height: 24px; }
+  .opt.good .no, .opt.bad .no { visibility: hidden; }
+  #fb b { font-size: 14px; } #fb span { font-size: 12.5px; line-height: 1.25; }
+}
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .how p + p { margin-top: 2px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .qmode + .kg-diff { margin-top: 4px; }
+  body .kg-card .mnote { margin-top: 5px; font-size: 12px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+  /* 결과 카드가 위 줄 제목을 덮지 않게: 한 줄 소개를 숨기고 기록 칸을 한 줄로 */
+  #edText { display: none; }
+  #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 8px); }
+  #cardEnd .kg-card { width: min(100%, 440px); padding: 10px 20px; }
+  #cardEnd .big { display: inline-block; vertical-align: middle; } #cardEnd .new { vertical-align: middle; margin: 0 0 0 8px; }   /* 「새 기록」 딱지를 점수 옆에 놓아 한 줄을 아낀다 */
+  /* 시작 카드도 같다: 문제 종류 고르기가 한 줄 늘었으므로 수치 두 줄을 한 줄로 모으고 위 줄 아래에 놓는다 */
+  #cardStart { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 8px); }
+  #cardStart .kg-card { width: min(100%, 440px); padding: 12px 20px; }
+  #cardStart .how { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; }
+  #cardStart .how p + p { margin-top: 0; }
+  #cardEnd .rec { gap: 6px; flex-wrap: nowrap; } #cardEnd .rec span { padding: 6px 9px; font-size: 12.5px; letter-spacing: -.3px; white-space: nowrap; }
+}
+@media (prefers-reduced-motion: reduce) { .opt, #hud .hp svg { transition: none; } #hud .hp svg.pop { animation: none; } }
+</style>
+</head>
+<body>
+<div id="sky" aria-hidden="true"></div>
+
+<div id="game" class="idle veil">
+  <div id="left">
+    <div id="host">
+      <div id="kongBox" aria-hidden="true"></div>
+      <div id="hostR">
+        <div id="hud" aria-hidden="true">
+          <div class="hp" id="hudHp"></div>
+          <div class="st" id="hudStreak" hidden><small>연속</small><span id="hudStreakN">0</span></div>
+          <div class="sc"><span id="hudScore">0</span><small>점</small></div>
+        </div>
+        <div id="say" role="status" aria-live="polite">문제를 준비했어요</div>
+      </div>
+    </div>
+    <div id="qcard" aria-live="polite">
+      <div id="qTag">퀴즈</div>
+      <div id="qBig" hidden></div>
+      <div id="qText"></div>
+    </div>
+    <div id="timer" aria-hidden="true"><i></i></div>
+  </div>
+  <div id="right">
+    <div id="opts" role="group" aria-label="보기"></div>
+    <div id="foot">
+      <div id="life">
+        <button type="button" id="btnHint"><span aria-hidden="true">💡</span>힌트<b id="nHint">0</b></button>
+        <button type="button" id="btnSkip"><span aria-hidden="true">⏭️</span>넘기기<b id="nSkip">0</b></button>
+      </div>
+      <button type="button" id="fb" hidden><b id="fbT"></b><span id="fbX"></span><em aria-hidden="true">›</em><u></u></button>
+    </div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardStart">
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 퀴즈 퀴즈</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>제한 시간</b> <span id="stTime"></span> · <b>하트</b> <span id="stHearts"></span></p>
+      <p><b>찬스</b> <span id="stLife"></span></p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <p class="mnote" id="stNote" hidden>가족 순위에는 모두 섞기 기록만 올라가요</p>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><a class="kg-btn" href="index.html">그만하기</a><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2>퀴즈가 끝났어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>맞힌 문제<b id="edCorrect"></b></span><span>가장 긴 연속<b id="edStreak"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <p class="mnote" id="edNote" hidden>가족 순위에는 모두 섞기 기록만 올라가요</p>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, voice, best, setBest, topbar, clamp, lerp, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+
+  // ═══════ 문제 은행 ═══════
+  //   형식 ox(OX 퀴즈) · mc(고르기) · cs(초성 퀴즈) · em(그림 퀴즈) · ns(넌센스 — 재치·말장난, 화면은 고르기와 같다)
+  //   분야 dog 강아지 상식 · ani 동물 · sci 자연·과학 · food 음식·생활 · kor 우리말 · math 셈·규칙 · kong 콩이별
+  //   난이도 1(아주 쉬움) ~ 4(어려움). 보기는 **첫 칸이 정답**이고 낼 때마다 섞는다(OX 는 O 왼쪽·X 오른쪽 고정).
+  //   넣는 기준: 사실이 확실하고 답이 하나로 갈리는 것만 (기록·순위처럼 바뀌는 것, 견해가 갈리는 것, 약·치료, 가족 개인 정보는 넣지 않는다)
+  const CATS = { dog: '강아지 상식', ani: '동물', sci: '자연·과학', food: '음식·생활', kor: '우리말', math: '셈·규칙', kong: '콩이별', fun: '넌센스' };
+  const TYPES = { ox: 'OX 퀴즈', mc: '고르기', cs: '초성 퀴즈', em: '그림 퀴즈', ns: '넌센스' };
+  const BANK = [];
+  const ox = (cat, lv, q, a, exp) => BANK.push({ id: BANK.length, type: 'ox', cat, lv, q, opts: ['O', 'X'], ans: a ? 0 : 1, exp });
+  const mc = (cat, lv, q, opts, exp) => BANK.push({ id: BANK.length, type: 'mc', cat, lv, q, opts, ans: 0, exp });
+  const cs = (cat, lv, big, q, opts, exp) => BANK.push({ id: BANK.length, type: 'cs', cat, lv, big, q, opts, ans: 0, exp });
+  const em = (cat, lv, big, opts, exp, q) => BANK.push({ id: BANK.length, type: 'em', cat, lv, big, q: q || '무엇을 나타낼까요?', opts, ans: 0, exp });
+  const ns = (lv, q, opts, exp) => BANK.push({ id: BANK.length, type: 'ns', cat: 'fun', lv, q, opts, ans: 0, exp });
+
+  // ── OX 퀴즈 (O 30 · X 30)
+  ox('dog', 1, '강아지는 기분이 좋으면 꼬리를 흔들기도 한다.', true, '반가울 때 꼬리를 살랑살랑 흔들어요.');
+  ox('dog', 1, '초콜릿은 강아지에게 좋은 간식이다.', false, '초콜릿은 강아지에게 해로워서 주면 안 돼요.');
+  ox('ani', 1, '펭귄은 하늘을 날 수 있다.', false, '펭귄은 날지 못하지만 헤엄을 아주 잘 쳐요.');
+  ox('sci', 1, '해는 서쪽에서 뜬다.', false, '해는 동쪽에서 떠서 서쪽으로 져요.');
+  ox('food', 1, '식빵은 밀가루로 만든다.', true, '밀가루 반죽을 부풀려 구운 것이 식빵이에요.');
+  ox('dog', 1, '강아지는 네 발로 걷는다.', true, '앞발 둘, 뒷발 둘로 걸어요.');
+  ox('math', 1, '4 더하기 4는 9다.', false, '4 더하기 4는 8이에요.');
+  ox('ani', 1, '물고기는 아가미로 숨을 쉰다.', true, '아가미로 물속의 산소를 걸러 숨을 쉬어요.');
+  ox('kor', 1, '\'멍멍\'은 강아지가 짖는 소리를 흉내 낸 말이다.', true, '소리를 흉내 낸 말을 의성어라고 해요.');
+  ox('sci', 1, '얼음은 물이 얼어서 된 것이다.', true, '물이 차가워져 얼면 단단한 얼음이 돼요.');
+  ox('ani', 1, '뱀은 다리가 네 개다.', false, '뱀은 다리가 없어서 몸으로 기어 다녀요.');
+  ox('food', 1, '소금은 단맛이 난다.', false, '소금은 짠맛, 설탕이 단맛이에요.');
+  ox('dog', 1, '강아지는 사람보다 냄새를 훨씬 잘 맡는다.', true, '강아지는 코가 아주 뛰어난 동물이에요.');
+  ox('math', 1, '10은 7보다 작다.', false, '10은 7보다 3만큼 커요.');
+  ox('sci', 1, '별은 맑은 밤하늘에서 잘 보인다.', true, '낮에는 햇빛이 밝아서 별이 보이지 않아요.');
+  ox('dog', 2, '포도는 강아지에게 먹이면 안 되는 과일이다.', true, '포도와 건포도는 강아지에게 해로워요.');
+  ox('dog', 2, '강아지는 사람처럼 온몸으로 땀을 흘려 더위를 식힌다.', false, '강아지는 주로 혀를 내밀고 헐떡여서 열을 식혀요.');
+  ox('ani', 2, '고래는 물고기다.', false, '고래는 새끼를 낳아 젖을 먹이는 포유류예요.');
+  ox('ani', 2, '박쥐는 새다.', false, '박쥐는 날 수 있지만 포유류예요.');
+  ox('sci', 2, '달은 스스로 빛을 낸다.', false, '달은 햇빛을 받아 반사해서 빛나 보여요.');
+  ox('sci', 2, '식물은 햇빛을 받아 양분을 만든다.', true, '잎에서 햇빛으로 양분을 만들어요.');
+  ox('food', 2, '두부는 콩으로 만든다.', true, '콩을 갈아 만든 콩물을 굳힌 것이 두부예요.');
+  ox('food', 2, '치즈는 우유로 만든다.', true, '우유를 굳혀서 만들고, 오래 숙성시키기도 해요.');
+  ox('kor', 2, '\'낮말은 새가 듣고 밤말은 쥐가 듣는다\'는 말을 조심하라는 속담이다.', true, '아무도 없는 것 같아도 말은 새어 나갈 수 있어요.');
+  ox('kor', 2, '\'안녕하새요\'는 올바르게 쓴 인사말이다.', false, '\'안녕하세요\'가 올바른 표기예요.');
+  ox('math', 2, '간식 10개 가운데 4개를 먹으면 5개가 남는다.', false, '10에서 4를 빼면 6개가 남아요.');
+  ox('math', 2, '삼각형의 변은 3개다.', true, '세 개의 변과 세 개의 꼭짓점이 있어요.');
+  ox('kong', 2, '푸들은 귀가 뾰족하게 서 있는 견종이다.', false, '푸들의 귀는 아래로 길게 늘어져 있어요.');
+  ox('ani', 2, '기린은 나뭇잎을 먹는 초식동물이다.', true, '긴 목으로 높은 나무의 잎을 따 먹어요.');
+  ox('ani', 2, '거미의 다리는 6개다.', false, '거미의 다리는 8개예요. 6개는 곤충이에요.');
+  ox('dog', 3, '양파는 강아지가 먹어도 괜찮은 채소다.', false, '양파와 파는 강아지에게 해로워요.');
+  ox('dog', 3, '강아지의 코 무늬는 사람의 지문처럼 저마다 다르다.', true, '코 무늬로 강아지를 구별할 수도 있어요.');
+  ox('dog', 3, '강아지는 눈을 뜬 채로 태어난다.', false, '눈을 감고 태어나 두 주쯤 지나야 눈을 떠요.');
+  ox('ani', 3, '문어의 다리는 8개다.', true, '문어는 8개, 오징어는 10개예요.');
+  ox('ani', 3, '낙타의 혹에는 물이 가득 들어 있다.', false, '혹에는 물이 아니라 지방이 들어 있어요.');
+  ox('ani', 3, '타조는 날지 못하는 새다.', true, '날지는 못하지만 아주 빨리 달려요.');
+  ox('sci', 3, '물은 보통 섭씨 100도에서 끓는다.', true, '평지에서 물은 100도에서 끓어요.');
+  ox('sci', 3, '소리는 빛보다 빠르다.', false, '빛이 훨씬 빨라서 번개가 먼저 보이고 천둥이 나중에 들려요.');
+  ox('sci', 3, '지구는 태양 둘레를 돈다.', true, '한 바퀴 도는 데 일 년이 걸려요.');
+  ox('food', 3, '건포도는 포도를 말린 것이다.', true, '포도를 말리면 쪼글쪼글한 건포도가 돼요.');
+  ox('food', 3, '식혜는 콩으로 만든 음료다.', false, '식혜는 밥과 엿기름으로 만들어요.');
+  ox('kor', 3, '\'가는 말이 고와야 오는 말이 곱다\'는 내가 먼저 곱게 말하라는 뜻이다.', true, '내가 좋게 말해야 남도 좋게 말해요.');
+  ox('kor', 3, '\'몇 일\'이 아니라 \'며칠\'이 올바른 표기다.', true, '언제나 \'며칠\'로 적어요.');
+  ox('math', 3, '20을 5로 나누면 5다.', false, '20을 5로 나누면 4예요.');
+  ox('kong', 3, '푸들은 털이 많이 빠지기로 유명한 견종이다.', false, '푸들은 털이 잘 빠지지 않는 편이에요.');
+  ox('dog', 4, '강아지의 평소 체온은 사람보다 조금 높다.', true, '강아지 체온은 보통 38도를 조금 넘어요.');
+  ox('dog', 4, '다 자란 강아지의 이빨은 보통 42개다.', true, '젖니는 28개, 영구치는 42개예요.');
+  ox('dog', 4, '강아지는 세상을 흑백으로만 본다.', false, '파란색과 노란색 계열은 구별할 수 있어요.');
+  ox('ani', 4, '고양이는 발톱을 숨길 수 없다.', false, '고양이는 평소에 발톱을 발 속에 넣어 두어요.');
+  ox('ani', 4, '돌고래는 아가미로 숨을 쉰다.', false, '돌고래는 포유류라서 물 위로 올라와 폐로 숨을 쉬어요.');
+  ox('ani', 4, '올챙이는 아가미로 숨을 쉰다.', true, '개구리가 되면서 폐로 숨을 쉬게 돼요.');
+  ox('sci', 4, '태양은 행성이다.', false, '태양은 스스로 빛을 내는 별이에요.');
+  ox('sci', 4, '달에서는 몸무게가 지구에서보다 무겁게 나온다.', false, '달은 끌어당기는 힘이 약해 6분의 1쯤으로 가벼워져요.');
+  ox('sci', 4, '다이아몬드와 연필심의 흑연은 둘 다 탄소로 이루어져 있다.', true, '흑연과 다이아몬드는 같은 탄소지만 짜임새가 달라요.');
+  ox('food', 4, '매운맛은 혀가 아픔으로 느끼는 감각이다.', true, '매운맛은 맛이 아니라 따가운 느낌이에요.');
+  ox('food', 4, '땅콩은 나무에 열린다.', false, '땅콩은 땅속에서 꼬투리가 자라요.');
+  ox('kor', 4, '\'어의없다\'는 올바른 표기다.', false, '\'어이없다\'가 올바른 표기예요.');
+  ox('kor', 4, '\'등잔 밑이 어둡다\'는 가까이 있는 것을 오히려 모른다는 뜻이다.', true, '가까운 일을 도리어 잘 모를 때 써요.');
+  ox('math', 4, '1부터 10까지 모두 더하면 50이다.', false, '1부터 10까지 더하면 55예요.');
+  ox('kong', 4, '푸들은 원래 물가에서 사냥을 돕던 견종이다.', true, '물에 떨어진 새를 물어 오는 일을 했어요.');
+
+  // ── 고르기 (첫 칸이 정답)
+  mc('dog', 1, '강아지가 냄새를 맡을 때 쓰는 곳은?', ['코', '귀', '꼬리', '발바닥'], '킁킁, 코로 냄새를 맡아요.');
+  mc('dog', 1, '산책할 때 강아지에게 매는 줄은?', ['목줄', '빨랫줄', '줄넘기', '낚싯줄'], '밖에서는 안전하게 목줄이나 가슴줄을 매요.');
+  mc('ani', 1, '\'야옹\' 하고 우는 동물은?', ['고양이', '소', '닭', '오리'], '고양이는 야옹야옹 울어요.');
+  mc('ani', 1, '목이 가장 긴 동물은?', ['기린', '하마', '사자', '곰'], '기린은 땅 위에서 키가 가장 큰 동물이에요.');
+  mc('sci', 1, '아침에 떠서 저녁에 지는 것은?', ['해', '구름', '무지개', '번개'], '해가 뜨면 낮, 지면 밤이 돼요.');
+  mc('sci', 1, '가을에 붉고 노랗게 물드는 나뭇잎은?', ['단풍잎', '새싹', '꽃봉오리', '솔잎'], '가을이 되면 나뭇잎이 단풍으로 물들어요.');
+  mc('food', 1, '밥을 지을 때 쓰는 것은?', ['쌀', '소금', '설탕', '후추'], '쌀을 씻어 물을 붓고 익히면 밥이 돼요.');
+  mc('food', 1, '국물을 떠먹을 때 쓰는 것은?', ['숟가락', '젓가락', '포크', '가위'], '국과 밥은 숟가락으로 떠먹어요.');
+  mc('kor', 1, '\'사과\'를 거꾸로 읽으면?', ['과사', '사과', '가사', '과자'], '\'사\'와 \'과\'의 자리를 바꾸면 \'과사\'예요.');
+  mc('kor', 1, '\'크다\'의 반대말은?', ['작다', '높다', '길다', '넓다'], '크다 ↔ 작다.');
+  mc('math', 1, '간식 3개와 2개를 합치면?', ['5개', '4개', '6개', '7개'], '3 더하기 2는 5예요.');
+  mc('math', 1, '10, 9, 8, 7 다음에 올 수는?', ['6', '5', '8', '4'], '하나씩 작아지는 규칙이에요.');
+  mc('kong', 1, '푸들은 어떤 동물일까요?', ['강아지', '고양이', '토끼', '앵무새'], '푸들은 강아지의 한 종류예요.');
+  mc('dog', 1, '강아지가 \'왈왈\' 소리를 내는 것을 뭐라고 할까요?', ['짖는다', '지저귄다', '야옹거린다', '꿀꿀거린다'], '강아지는 \'짖는다\'고 말해요.');
+  mc('ani', 1, '어두운 밤, 꽁무니에서 빛을 내는 곤충은?', ['반딧불이', '매미', '메뚜기', '무당벌레'], '반딧불이는 배 끝에서 빛을 내요.');
+  mc('dog', 2, '강아지에게 주면 안 되는 것은?', ['자일리톨 껌', '삶은 닭가슴살', '삶은 단호박', '오이'], '자일리톨은 강아지에게 아주 위험해요.');
+  mc('dog', 2, '개의 새끼를 뭐라고 부를까요?', ['강아지', '송아지', '망아지', '병아리'], '송아지는 소, 망아지는 말, 병아리는 닭의 새끼예요.');
+  mc('ani', 2, '알을 낳는 동물은?', ['닭', '개', '고양이', '소'], '새는 알을 낳고, 개·고양이·소는 새끼를 낳아요.');
+  mc('ani', 2, '겨울잠을 자는 동물은?', ['곰', '호랑이', '늑대', '말'], '곰은 추운 겨울 동안 굴에서 잠을 자요.');
+  mc('sci', 2, '지구가 스스로 한 바퀴 도는 데 걸리는 시간은?', ['하루', '한 달', '일 년', '한 시간'], '지구가 스스로 돌아서 낮과 밤이 생겨요.');
+  mc('sci', 2, '식물의 뿌리가 주로 하는 일은?', ['물을 빨아들인다', '꽃가루를 옮긴다', '씨앗을 퍼뜨린다', '햇빛을 받는다'], '뿌리는 물을 빨아들이고 식물을 붙들어 줘요.');
+  mc('food', 2, '김밥의 겉을 감싸는 것은?', ['김', '상추', '배춧잎', '미역'], '김 위에 밥과 재료를 올려 돌돌 말아요.');
+  mc('food', 2, '팝콘은 무엇을 튀겨 만들까요?', ['옥수수', '쌀', '콩', '감자'], '옥수수 알갱이가 톡톡 터져 팝콘이 돼요.');
+  mc('kor', 2, '\'티끌 모아 ○○\'의 빈칸은?', ['태산', '바다', '하늘', '동산'], '작은 것도 모이면 큰 것이 된다는 속담이에요.');
+  mc('kor', 2, '그릇을 씻는 일, 올바르게 쓴 말은?', ['설거지', '설겆이', '설거찌', '설걷이'], '\'설거지\'가 올바른 표기예요.');
+  mc('math', 2, '간식을 하루에 2개씩 먹으면 5일 동안 몇 개?', ['10개', '7개', '8개', '12개'], '2개씩 5일이면 2 × 5 = 10개예요.');
+  mc('math', 2, '2, 4, 6, 8 다음에 올 수는?', ['10', '9', '12', '16'], '2씩 커지는 규칙이에요.');
+  mc('kong', 2, '토이푸들의 \'토이\'가 뜻하는 것은?', ['장난감처럼 작다', '털이 길다', '달리기가 빠르다', '귀가 뾰족하다'], '토이(toy)는 장난감이라는 뜻이에요.');
+  mc('sci', 2, '물이 끓어 기체가 된 것은?', ['수증기', '얼음', '이슬', '서리'], '물이 끓으면 눈에 보이지 않는 수증기가 돼요.');
+  mc('ani', 2, '곤충인 것은?', ['잠자리', '거미', '지렁이', '달팽이'], '곤충은 다리가 6개예요. 잠자리가 곤충이에요.');
+  mc('dog', 3, '강아지가 꼬리를 다리 사이로 말아 넣는 때는?', ['무섭거나 불안할 때', '아주 신날 때', '배가 부를 때', '잠이 올 때'], '겁이 나면 꼬리를 다리 사이로 감춰요.');
+  mc('dog', 3, '강아지의 조상으로 알려진 동물은?', ['늑대', '여우', '곰', '하이에나'], '아주 오래전 늑대가 사람과 살면서 개가 되었어요.');
+  mc('dog', 3, '앞다리를 쭉 뻗고 엉덩이를 치켜든 강아지의 마음은?', ['같이 놀자', '저리 가', '배고파', '졸려'], '놀고 싶을 때 하는 인사 자세예요.');
+  mc('ani', 3, '지금 살아 있는 동물 가운데 가장 큰 것은?', ['대왕고래', '아프리카코끼리', '기린', '백상아리'], '대왕고래는 지구에서 가장 큰 동물이에요.');
+  mc('ani', 3, '캥거루가 새끼를 넣어 키우는 곳은?', ['배 주머니', '등 위', '나무 구멍', '땅굴'], '새끼는 엄마 배의 주머니 속에서 자라요.');
+  mc('ani', 3, '몸 색깔을 바꾸는 것으로 유명한 동물은?', ['카멜레온', '악어', '거북', '코알라'], '카멜레온은 몸 색깔을 바꿀 수 있어요.');
+  mc('sci', 3, '태양계에서 가장 큰 행성은?', ['목성', '지구', '화성', '금성'], '목성은 태양계 행성 가운데 가장 커요.');
+  mc('sci', 3, '무지개의 색은 흔히 몇 가지라고 할까요?', ['일곱 가지', '세 가지', '다섯 가지', '열 가지'], '빨주노초파남보, 일곱 빛깔이에요.');
+  mc('sci', 3, '자석에 붙는 것은?', ['쇠못', '나무젓가락', '유리컵', '고무줄'], '자석은 쇠로 된 물건을 끌어당겨요.');
+  mc('food', 3, '메주로 담그는 것은?', ['된장', '식혜', '수정과', '묵'], '콩으로 쑨 메주로 된장과 간장을 담가요.');
+  mc('food', 3, '추석에 빚어 먹는 음식은?', ['송편', '떡국', '팥죽', '삼계탕'], '추석에는 반달 모양 송편을 빚어요.');
+  mc('kor', 3, '\'소 잃고 ○○○ 고친다\'의 빈칸은?', ['외양간', '대문', '우물', '지붕'], '일이 벌어진 뒤에야 손쓴다는 속담이에요.');
+  mc('kor', 3, '끓여 먹는 국물 음식, 올바르게 쓴 말은?', ['찌개', '찌게', '찌계', '찌깨'], '\'김치찌개\'처럼 \'찌개\'로 적어요.');
+  mc('math', 3, '간식 12개를 세 마리가 똑같이 나누면 한 마리 몫은?', ['4개', '3개', '5개', '6개'], '12 ÷ 3 = 4개씩이에요.');
+  mc('kong', 3, '푸들의 곱슬한 털이 엉키지 않게 자주 해 주는 것은?', ['빗질', '낮잠', '양치', '발톱 깎기'], '곱슬한 털은 잘 엉켜서 자주 빗어 줘요.');
+  mc('ani', 3, '개가 속한 동물 무리는?', ['포유류', '파충류', '양서류', '조류'], '새끼를 낳아 젖을 먹여 키우는 포유류예요.');
+  mc('dog', 4, '강아지의 임신 기간은 보통 얼마쯤일까요?', ['약 두 달', '약 2주', '약 여섯 달', '약 열 달'], '강아지는 두 달쯤 지나면 새끼를 낳아요.');
+  mc('dog', 4, '강아지의 수염이 하는 일은?', ['주변을 느낀다', '체온을 낮춘다', '냄새를 맡는다', '소리를 듣는다'], '수염으로 가까운 물건과 바람의 움직임을 느껴요.');
+  mc('dog', 4, '개와 같은 \'갯과\'에 속하는 동물은?', ['여우', '고양이', '곰', '수달'], '늑대와 여우는 개와 같은 갯과 동물이에요.');
+  mc('ani', 4, '새 가운데 몸집이 가장 큰 것은?', ['타조', '독수리', '황제펭귄', '두루미'], '타조는 세상에서 가장 큰 새예요.');
+  mc('ani', 4, '젖을 먹여 키우지만 알을 낳는 동물은?', ['오리너구리', '박쥐', '고래', '캥거루'], '오리너구리는 알을 낳는 드문 포유류예요.');
+  mc('ani', 4, '애벌레가 나비가 되기 바로 전 단계는?', ['번데기', '알', '올챙이', '허물'], '알 → 애벌레 → 번데기 → 나비 순서예요.');
+  mc('sci', 4, '물을 이루는 두 가지 원소는?', ['수소와 산소', '질소와 산소', '탄소와 수소', '산소와 헬륨'], '물은 수소와 산소가 만나 이루어져요.');
+  mc('sci', 4, '태양에 가장 가까운 행성은?', ['수성', '금성', '지구', '화성'], '수·금·지·화·목·토·천·해 순서예요.');
+  mc('sci', 4, '소리가 전해지지 않는 곳은?', ['공기가 없는 우주', '물속', '쇠막대 속', '공기 중'], '소리는 전해 줄 물질이 있어야 퍼져요.');
+  mc('food', 4, '팥죽을 먹는 풍습이 있는 날은?', ['동지', '추석', '설날', '단오'], '밤이 가장 긴 동지에 팥죽을 쑤어 먹어요.');
+  mc('food', 4, '바닷물을 가두고 말려 소금을 얻는 곳은?', ['염전', '논', '양식장', '갯바위'], '염전에서 햇볕과 바람으로 소금을 만들어요.');
+  mc('kor', 4, '\'○○○도 제 말 하면 온다\'의 빈칸은?', ['호랑이', '까치', '도깨비', '손님'], '이야기하던 사람이 마침 나타날 때 쓰는 속담이에요.');
+  mc('kor', 4, '잘 때 머리에 받치는 것, 올바르게 쓴 말은?', ['베개', '배게', '베게', '배개'], '머리에 \'베는\' 것이라 \'베개\'예요.');
+  mc('math', 4, '2, 4, 8, 16 다음에 올 수는?', ['32', '18', '24', '20'], '두 배씩 커지는 규칙이에요.');
+  mc('math', 4, '6개들이 간식 4봉지에서 5개를 먹으면 남는 것은?', ['19개', '24개', '15개', '29개'], '6 × 4 = 24, 24 − 5 = 19개예요.');
+  mc('kong', 4, '\'푸들\'이라는 이름의 뿌리가 된 독일어 낱말의 뜻은?', ['물을 첨벙거리다', '몸집이 작다', '털이 곱슬하다', '빛깔이 붉다'], '물에서 일하던 개라서 붙은 이름이에요.');
+
+  // ── 초성 퀴즈 (초성 · 힌트 · 보기)
+  cs('dog', 1, 'ㄱㅇㅈ', '\'멍멍\' 짖는 귀여운 동물', ['강아지', '고양이', '코끼리', '다람쥐'], '멍멍 짖는 동물은 강아지예요.');
+  cs('dog', 1, 'ㄱㅅ', '강아지가 잘했을 때 주는 맛있는 것', ['간식', '사료', '우유', '물통'], '잘했을 때 간식을 주면 좋아해요.');
+  cs('dog', 1, 'ㅅㅊ', '강아지와 함께 밖을 걷는 일', ['산책', '목욕', '낮잠', '소풍'], '강아지는 산책을 아주 좋아해요.');
+  cs('ani', 1, 'ㅌㄲ', '귀가 길고 깡충깡충 뛰는 동물', ['토끼', '사슴', '여우', '기린'], '깡충깡충 뛰는 토끼예요.');
+  cs('food', 1, 'ㅅㄱ', '빨갛고 아삭한 과일', ['사과', '수박', '포도', '딸기'], '아삭아삭한 사과예요.');
+  cs('food', 1, 'ㅂㄴㄴ', '길고 노란 과일', ['바나나', '복숭아', '토마토', '옥수수'], '껍질을 벗겨 먹는 바나나예요.');
+  cs('sci', 1, 'ㅎㄴ', '구름이 떠 있는 높은 곳', ['하늘', '바다', '땅속', '마당'], '구름은 하늘에 떠 있어요.');
+  cs('sci', 1, 'ㅂㄷ', '파도가 치는 넓고 짠 물', ['바다', '강물', '호수', '하늘'], '바닷물은 짜요.');
+  cs('food', 1, 'ㅎㄱ', '친구들과 공부하러 가는 곳', ['학교', '병원', '시장', '공원'], '학교에서 친구들과 함께 배워요.');
+  cs('dog', 1, 'ㅂㅂㄷ', '강아지 발 아래쪽의 말랑한 곳', ['발바닥', '손바닥', '콧구멍', '귓바퀴'], '강아지 발바닥은 말랑말랑해요.');
+  cs('ani', 1, 'ㅋㄲㄹ', '코가 길고 몸집이 큰 동물', ['코끼리', '호랑이', '얼룩말', '다람쥐'], '코끼리는 긴 코로 물도 마시고 먹이도 집어요.');
+  cs('food', 1, 'ㅇㅅ', '비 오는 날 쓰는 것', ['우산', '장화', '모자', '양말'], '비가 오면 우산을 써요.');
+  cs('sci', 1, 'ㅁㅈㄱ', '비 온 뒤 하늘에 뜨는 알록달록한 다리', ['무지개', '소나기', '번갯불', '먹구름'], '비가 그치고 해가 나면 무지개가 떠요.');
+  cs('kong', 1, 'ㅍㄷ', '콩이는 레드 토이 ○○', ['푸들', '시추', '퍼그', '비숑'], '콩이는 레드 토이푸들이에요.');
+  cs('math', 1, 'ㄷㅅ', '넷 다음에 오는 수', ['다섯', '여섯', '일곱', '아홉'], '하나, 둘, 셋, 넷, 다섯!');
+  cs('dog', 2, 'ㅅㄹ', '강아지가 끼니마다 먹는 알갱이 밥', ['사료', '간식', '우유', '과자'], '강아지의 밥은 사료예요.');
+  cs('dog', 2, 'ㅁㅇ', '따뜻한 물과 샴푸로 몸을 씻는 일', ['목욕', '세수', '양치', '빨래'], '목욕을 하면 몸이 깨끗해져요.');
+  cs('ani', 2, 'ㅍㄱ', '뒤뚱뒤뚱 걷고 헤엄을 잘 치는, 날지 못하는 새', ['펭귄', '타조', '참새', '까치'], '펭귄은 뒤뚱뒤뚱 걸어요.');
+  cs('ani', 2, 'ㄱㅂㅇ', '등딱지를 지고 느릿느릿 걷는 동물', ['거북이', '달팽이', '개구리', '도마뱀'], '거북이는 단단한 등딱지가 있어요.');
+  cs('sci', 2, 'ㄷㅌㄹ', '다람쥐가 즐겨 먹는 참나무 열매', ['도토리', '은행잎', '솔방울', '옥수수'], '도토리는 참나무에 열려요.');
+  cs('ani', 2, 'ㄴㅂ', '꽃 사이를 팔랑팔랑 나는 곤충', ['나비', '매미', '개미', '모기'], '나비는 꽃의 꿀을 먹어요.');
+  cs('food', 2, 'ㄸㅂㅇ', '매콤달콤한 빨간 떡 요리', ['떡볶이', '김치전', '비빔밥', '칼국수'], '떡을 고추장 양념에 볶은 떡볶이예요.');
+  cs('food', 2, 'ㄴㅈㄱ', '음식을 차갑게 넣어 두는 곳', ['냉장고', '세탁기', '청소기', '선풍기'], '냉장고에 넣으면 음식이 오래가요.');
+  cs('kor', 2, 'ㅊㄱ', '사이좋게 함께 노는 사이', ['친구', '이웃', '동생', '선배'], '함께 놀고 마음을 나누는 친구예요.');
+  cs('kor', 2, 'ㄱㅁㄷ', '도움을 받았을 때 전하는 말', ['고맙다', '미안해', '반갑다', '괜찮다'], '도움을 받으면 \'고맙다\'고 말해요.');
+  cs('sci', 2, 'ㄱㄹ', '하늘에 둥실 떠 있는 하얀 것', ['구름', '바람', '노을', '번개'], '구름은 작은 물방울이 모인 것이에요.');
+  cs('sci', 2, 'ㅂㄹ', '눈에 보이지 않지만 나뭇잎을 흔드는 것', ['바람', '구름', '햇빛', '소리'], '공기가 움직이는 것이 바람이에요.');
+  cs('math', 2, 'ㅇㅈㅇ', '월요일부터 일요일까지를 묶은 말', ['일주일', '한나절', '사흘째', '보름날'], '일주일은 7일이에요.');
+  cs('math', 2, 'ㅈㅂ', '똑같이 둘로 나눈 것의 하나', ['절반', '갑절', '모두', '조금'], '반으로 나눈 한쪽이 절반이에요.');
+  cs('kong', 2, 'ㄱㅅㄱㅅ', '푸들의 털 모양을 나타내는 말', ['곱슬곱슬', '반짝반짝', '매끈매끈', '뾰족뾰족'], '푸들의 털은 곱슬곱슬해요.');
+  cs('dog', 2, 'ㅂㄹㄷㅁ', '가족처럼 함께 살아가는 동물', ['반려동물', '야생동물', '멸종동물', '바다동물'], '함께 사는 강아지·고양이는 반려동물이에요.');
+  cs('dog', 3, 'ㅇㅇ', '보호소의 동물을 새 가족으로 맞이하는 일', ['입양', '이사', '초대', '방문'], '새 가족으로 맞이하는 일이 입양이에요.');
+  cs('dog', 3, 'ㅇㅂㅈㅈ', '병에 걸리지 않게 미리 주사를 맞는 일', ['예방접종', '건강검진', '응급처치', '물리치료'], '병을 미리 막으려고 예방접종을 해요.');
+  cs('ani', 3, 'ㄱㅅㄷㅊ', '온몸에 가시가 돋은 작은 동물', ['고슴도치', '딱따구리', '오랑우탄', '불가사리'], '고슴도치는 위험하면 몸을 동그랗게 말아요.');
+  cs('ani', 3, 'ㅇㄹㅁ', '검고 흰 줄무늬가 있는 말', ['얼룩말', '조랑말', '당나귀', '코뿔소'], '얼룩말은 줄무늬가 저마다 달라요.');
+  cs('sci', 3, 'ㅎㅂㄹㄱ', '해를 닮은 크고 노란 꽃', ['해바라기', '코스모스', '진달래꽃', '봉숭아꽃'], '해바라기는 해를 닮은 큰 꽃이에요.');
+  cs('sci', 3, 'ㅂㄱ', '비구름 속에서 번쩍하는 빛', ['번개', '천둥', '우박', '안개'], '번쩍하는 빛은 번개, 우르릉 소리는 천둥이에요.');
+  cs('sci', 3, 'ㅈㄹ', '물건을 땅으로 끌어당기는 힘', ['중력', '탄성', '마찰', '부력'], '중력 때문에 물건이 아래로 떨어져요.');
+  cs('food', 3, 'ㅂㅂㅂ', '밥 위에 여러 나물을 올려 섞어 먹는 음식', ['비빔밥', '볶음밥', '김치전', '미역국'], '나물과 고추장을 넣어 비비면 비빔밥이에요.');
+  cs('food', 3, 'ㅈㄱㄹ', '반찬을 집는 가느다란 막대 한 쌍', ['젓가락', '숟가락', '밥그릇', '도시락'], '젓가락 두 짝으로 반찬을 집어요.');
+  cs('kor', 3, 'ㅅㄷ', '옛날부터 전해 오는, 교훈이 담긴 짧은 말', ['속담', '동화', '편지', '일기'], '\'세 살 버릇 여든까지 간다\' 같은 말이 속담이에요.');
+  cs('kor', 3, 'ㅂㅊ', '\'강\'의 \'ㅇ\'처럼 글자 아래에 쓰는 자음', ['받침', '모음', '낱말', '문장'], '글자 아래에 받쳐 적어서 받침이에요.');
+  cs('kor', 3, 'ㄸㅇㅆㄱ', '글을 쓸 때 낱말 사이에 빈칸을 두는 일', ['띄어쓰기', '받아쓰기', '소리내기', '줄바꾸기'], '낱말 사이를 띄어 쓰면 읽기 쉬워요.');
+  cs('math', 3, 'ㄱㅅ', '같은 수를 여러 번 더하는 것을 간단히 하는 셈', ['곱셈', '덧셈', '뺄셈', '분수'], '3을 네 번 더하면 3 × 4예요.');
+  cs('math', 3, 'ㅉㅅ', '2, 4, 6처럼 둘씩 짝 지을 수 있는 수', ['짝수', '홀수', '분수', '소수'], '둘씩 짝이 딱 맞는 수가 짝수예요.');
+  cs('kong', 3, 'ㄱㅈ', '푸들·진돗개처럼 강아지의 종류를 이르는 말', ['견종', '체중', '성격', '나이'], '강아지의 종류를 견종이라고 해요.');
+  cs('kor', 3, 'ㅂㄷㅁ', '\'높다\'와 \'낮다\'처럼 뜻이 서로 맞서는 말', ['반대말', '높임말', '꾸밈말', '사투리'], '뜻이 서로 반대인 말이 반대말이에요.');
+  cs('sci', 3, 'ㅈㅈ', '땅이 갑자기 흔들리는 자연 현상', ['지진', '태풍', '홍수', '가뭄'], '땅속의 힘 때문에 땅이 흔들리는 것이 지진이에요.');
+  cs('dog', 4, 'ㅂㄹㅂㅇ', '보호자와 떨어지면 몹시 불안해하는 것', ['분리불안', '배변훈련', '산책예절', '기초체력'], '혼자 남으면 불안해하는 것이 분리불안이에요.');
+  cs('ani', 4, 'ㅌㄱㅇ', '묵은 털이 빠지고 새 털이 나는 일', ['털갈이', '겨울잠', '탈바꿈', '짝짓기'], '계절이 바뀔 때 털갈이를 하는 동물이 많아요.');
+  cs('ani', 4, 'ㅇㅅㄹ', '개구리처럼 물과 땅을 오가며 사는 동물 무리', ['양서류', '파충류', '포유류', '갑각류'], '개구리·도롱뇽이 양서류예요.');
+  cs('ani', 4, 'ㅊㅅㄷㅁ', '풀이나 나뭇잎만 먹고 사는 동물', ['초식동물', '육식동물', '잡식동물', '반려동물'], '토끼·소·기린이 초식동물이에요.');
+  cs('sci', 4, 'ㅈㅂ', '물이 수증기가 되어 공기 속으로 날아가는 것', ['증발', '응결', '결빙', '용해'], '젖은 빨래가 마르는 것도 증발이에요.');
+  cs('sci', 4, 'ㅂㄱㅅ', '밤하늘에서 북쪽을 알려 주는 별', ['북극성', '은하수', '보름달', '별똥별'], '북극성은 늘 북쪽 하늘에 있어요.');
+  cs('food', 4, 'ㅂㅎ', '김치나 된장이 미생물 덕분에 맛있게 익는 것', ['발효', '부패', '건조', '가열'], '몸에 좋게 익으면 발효, 상하면 부패예요.');
+  cs('food', 4, 'ㄴㄹㅈ', '솥 바닥에 눌어붙은 밥', ['누룽지', '볶음밥', '주먹밥', '찹쌀떡'], '누룽지에 물을 부어 끓이면 숭늉이 돼요.');
+  cs('kor', 4, 'ㅇㅅㅇㅈ', '한 가지 일로 두 가지 이득을 얻는다는 사자성어', ['일석이조', '유비무환', '일취월장', '우왕좌왕'], '돌 하나로 새 두 마리를 잡는다는 뜻이에요.');
+  cs('kor', 4, 'ㅈㅅㅅㅇ', '굳게 먹은 마음이 사흘을 못 간다는 사자성어', ['작심삼일', '죽마고우', '다다익선', '금시초문'], '결심이 오래가지 못할 때 써요.');
+  cs('kor', 4, 'ㄷㅁㅅㄷ', '묻는 말에 엉뚱한 대답을 한다는 사자성어', ['동문서답', '유비무환', '천고마비', '십중팔구'], '동쪽을 묻는데 서쪽을 답한다는 뜻이에요.');
+  cs('math', 4, 'ㅈㄹ', '원의 중심을 지나 원 위의 두 점을 잇는 선분', ['지름', '둘레', '넓이', '높이'], '지름은 반지름의 두 배예요.');
+  cs('math', 4, 'ㄴㅁㅈ', '7을 2로 나누면 몫은 3. 이때 남는 1을 이르는 말', ['나머지', '곱하기', '더하기', '나누기'], '나누고 남은 수를 나머지라고 해요.');
+  cs('kong', 4, 'ㅈㄴ', '푸들이 뛰어나다고 널리 알려진, 배우고 생각하는 힘', ['지능', '체중', '식욕', '수면'], '푸들은 영리한 견종으로 손꼽혀요.');
+  cs('ani', 4, 'ㅁㅈ', '한 종류의 생물이 지구에서 완전히 사라지는 일', ['멸종', '진화', '번식', '서식'], '티라노사우루스 같은 공룡은 아주 오래전에 멸종했어요.');
+
+  // ── 그림 퀴즈 (그림 · 보기 · 해설 · 물음)
+  em('ani', 1, '🐝🍯', ['꿀벌', '나비', '개미', '잠자리'], '꿀벌은 꽃에서 꿀을 모아요.');
+  em('sci', 1, '☁️💧☂️', ['비', '눈', '바람', '안개'], '구름에서 물방울이 떨어지면 비예요.', '어떤 날씨일까요?');
+  em('sci', 1, '❄️⛄🧣', ['겨울', '여름', '봄', '가을'], '눈이 내리고 눈사람을 만드는 겨울이에요.', '어느 계절일까요?');
+  em('dog', 1, '🐶🎾', ['공놀이', '목욕', '낮잠', '빗질'], '강아지는 공을 쫓아 달리는 놀이를 좋아해요.', '강아지가 무엇을 할까요?');
+  em('ani', 1, '🥚🐣', ['병아리', '강아지', '고양이', '토끼'], '알을 깨고 병아리가 나와요.', '누가 태어났을까요?');
+  em('food', 1, '🎂🕯️🎁', ['생일', '소풍', '운동회', '방학'], '케이크에 초를 꽂고 축하하는 생일이에요.', '무슨 날일까요?');
+  em('sci', 1, '🌙⭐😴', ['밤', '낮', '아침', '점심'], '달과 별이 뜨는 밤이에요.', '언제일까요?');
+  em('dog', 1, '🐶💤🛏️', ['잠자기', '밥 먹기', '달리기', '짖기'], '강아지는 사람보다 훨씬 오래 자요.', '강아지가 무엇을 할까요?');
+  em('math', 1, '🍎🍎 ➕ 🍎', ['3개', '2개', '4개', '5개'], '2개에 1개를 더하면 3개예요.', '모두 몇 개일까요?');
+  em('kong', 1, '🔴🐩', ['레드 푸들', '흰 진돗개', '검은 고양이', '노란 병아리'], '붉은 갈색 털의 푸들이 레드 푸들이에요.');
+  em('food', 1, '🐄🥛', ['우유', '주스', '식혜', '꿀물'], '젖소에게서 우유를 얻어요.');
+  em('ani', 1, '🦁👑', ['사자', '호랑이', '곰', '늑대'], '갈기가 멋진 사자예요.', '어떤 동물일까요?');
+  em('food', 1, '✏️📓🏫', ['공부', '운동', '요리', '청소'], '연필과 공책으로 공부해요.', '무엇을 할까요?');
+  em('food', 1, '😁🦷✨', ['양치', '세수', '목욕', '빗질'], '칫솔로 이를 깨끗이 닦아요.', '무엇을 할까요?');
+  em('sci', 1, '🌱 ➡️ 🌳', ['자라기', '시들기', '얼기', '녹기'], '새싹이 자라 큰 나무가 돼요.');
+  em('ani', 2, '💧 ➕ 🐶', ['물개', '수달', '해달', '하마'], '물 + 개 = 물개!', '두 낱말을 합치면?');
+  em('ani', 2, '🐴 ➕ 🐝', ['말벌', '꿀벌', '나비', '개미'], '말 + 벌 = 말벌! 원래 「말」은 크다는 뜻이에요.', '두 낱말을 합치면?');
+  em('food', 2, '👁️ ➕ 💧', ['눈물', '콧물', '빗물', '땀방울'], '눈 + 물 = 눈물!', '두 낱말을 합치면?');
+  em('sci', 2, '❄️ ➕ 🧑', ['눈사람', '허수아비', '인형', '로봇'], '눈 + 사람 = 눈사람!', '두 낱말을 합치면?');
+  em('food', 2, '🔥🚗💦', ['소방차', '구급차', '경찰차', '버스'], '불을 끄러 달려가는 소방차예요.', '어떤 차일까요?');
+  em('food', 2, '🐟 ➕ 🍞', ['붕어빵', '호떡', '찐빵', '꽈배기'], '물고기(붕어) 모양 빵, 붕어빵!', '어떤 간식일까요?');
+  em('ani', 2, '🌊 ➕ 🐴', ['해마', '문어', '물개', '고래'], '바다(해) + 말(마) = 해마!', '어떤 동물일까요?');
+  em('ani', 2, '🐯 ➕ 🦋', ['호랑나비', '배추흰나비', '잠자리', '무당벌레'], '호랑이 + 나비 = 호랑나비!', '두 낱말을 합치면?');
+  em('sci', 2, '🍉🏖️☀️', ['여름', '겨울', '봄', '가을'], '수박을 먹고 바닷가에 가는 여름이에요.', '어느 계절일까요?');
+  em('dog', 2, '🐶 ➕ 🏠', ['개집', '새장', '어항', '외양간'], '개 + 집 = 개집!', '두 낱말을 합치면?');
+  em('kong', 2, '🐩✂️🎀', ['강아지 미용', '강아지 산책', '강아지 목욕', '강아지 낮잠'], '푸들은 털이 계속 자라 미용이 필요해요.');
+  em('math', 2, '2️⃣ ✖️ 3️⃣', ['6', '5', '8', '9'], '2 곱하기 3은 6이에요.', '답은 얼마일까요?');
+  em('math', 2, '🕒', ['3시', '6시', '9시', '12시'], '짧은바늘이 3, 긴바늘이 12를 가리켜요.', '시계가 가리키는 시각은?');
+  em('sci', 2, '⛄☀️ ➡️ 💧', ['녹기', '얼기', '끓기', '마르기'], '눈과 얼음이 녹으면 물이 돼요.');
+  em('food', 2, '🤫📚🪑', ['도서관', '놀이터', '시장', '수영장'], '조용히 책을 읽는 도서관이에요.', '어디일까요?');
+  em('kor', 3, '🕳️🐸', ['우물 안 개구리', '물 만난 고기', '꿩 대신 닭', '독 안에 든 쥐'], '넓은 세상을 모르는 사람을 빗댄 말이에요.', '어떤 속담일까요?');
+  em('kor', 3, '🥚👊🪨', ['계란으로 바위 치기', '누워서 떡 먹기', '수박 겉 핥기', '식은 죽 먹기'], '도저히 이길 수 없는 일에 덤빈다는 뜻이에요.', '어떤 속담일까요?');
+  em('kor', 3, '🛌🍡😋', ['누워서 떡 먹기', '그림의 떡', '계란으로 바위 치기', '우물 안 개구리'], '아주 쉬운 일을 빗댄 말이에요.', '어떤 속담일까요?');
+  em('kor', 3, '🐋💥🐋 🦐😵', ['고래 싸움에 새우 등 터진다', '가재는 게 편', '물 만난 고기', '게 눈 감추듯'], '센 쪽끼리 싸우는 통에 약한 쪽이 피해를 본다는 뜻이에요.', '어떤 속담일까요?');
+  em('kor', 3, '🪨🌉👆👣', ['돌다리도 두들겨 보고 건너라', '천 리 길도 한 걸음부터', '가는 날이 장날', '티끌 모아 태산'], '잘 아는 일도 조심해서 하라는 뜻이에요.', '어떤 속담일까요?');
+  em('sci', 3, '🌑🌓🌕', ['달의 모양 변화', '일식', '밀물과 썰물', '사계절'], '달은 한 달 동안 모양이 바뀌어 보여요.');
+  em('ani', 3, '🥚 ➡️ 🐛 ➡️ 🦋', ['나비의 한살이', '개구리의 한살이', '닭의 한살이', '꿀벌의 한살이'], '알 → 애벌레 → 번데기를 거쳐 나비가 돼요.');
+  em('sci', 3, '💧 ➡️ ☁️ ➡️ 🌧️', ['물의 순환', '사계절', '낮과 밤', '화산 폭발'], '물은 구름이 되었다가 비로 다시 내려요.');
+  em('dog', 3, '🐕🦯🕶️🚶', ['안내견', '썰매개', '사냥개', '양치기 개'], '안내견은 눈이 불편한 사람의 길을 도와요.', '어떤 일을 하는 개일까요?');
+  em('food', 3, '🌾 ➡️ 🍚', ['벼', '보리', '밀', '옥수수'], '벼를 찧으면 쌀이 되고, 쌀로 밥을 지어요.', '쌀을 얻는 이 식물은?');
+  em('math', 3, '🐶🐶🐶 🦵❓', ['12개', '8개', '10개', '16개'], '한 마리에 4개씩, 4 × 3 = 12개예요.', '다리는 모두 몇 개일까요?');
+  em('math', 3, '🕐 ➡️ 🕓', ['3시간', '2시간', '4시간', '5시간'], '1시에서 4시까지는 3시간이에요.', '몇 시간이 지났을까요?');
+  em('dog', 3, '🐕💉🏥', ['동물병원', '미용실', '놀이터', '학교'], '강아지가 아프거나 주사를 맞을 때 가는 곳이에요.', '어디일까요?');
+  em('food', 3, '🥬🌶️🧄🧂', ['김치', '된장', '떡국', '식혜'], '절인 배추에 고춧가루와 마늘 양념을 버무려요.', '무엇을 만들까요?');
+  em('sci', 3, '🌋🔥💨', ['화산', '지진', '태풍', '홍수'], '땅속의 뜨거운 마그마가 솟아오르는 화산이에요.');
+  em('dog', 3, '🐕🐑🐑🌄', ['양치기 개', '안내견', '썰매개', '탐지견'], '양 떼를 몰고 지키는 개예요.', '어떤 일을 하는 개일까요?');
+  em('math', 3, '🔺 ➕ ⬜', ['7개', '6개', '8개', '9개'], '삼각형 3개 + 사각형 4개 = 7개예요.', '변은 모두 몇 개일까요?');
+  em('kor', 4, '🍉👅', ['수박 겉 핥기', '누워서 떡 먹기', '그림의 떡', '식은 죽 먹기'], '속은 모르고 겉만 건드린다는 뜻이에요.', '어떤 속담일까요?');
+  em('kor', 4, '🐄👂📖', ['쇠귀에 경 읽기', '낫 놓고 기역 자도 모른다', '우물 안 개구리', '개천에서 용 난다'], '아무리 일러 줘도 알아듣지 못한다는 뜻이에요.', '어떤 속담일까요?');
+  em('kor', 4, '🏺🐭', ['독 안에 든 쥐', '고양이 목에 방울 달기', '쥐구멍에도 볕 들 날 있다', '우물 안 개구리'], '달아날 곳이 없는 처지를 빗댄 말이에요.', '어떤 속담일까요?');
+  em('kor', 4, '🦀👀🙈💨', ['게 눈 감추듯', '가재는 게 편', '물 만난 고기', '번갯불에 콩 볶아 먹듯'], '음식을 눈 깜짝할 새 먹어 치운다는 뜻이에요.', '어떤 속담일까요?');
+  em('kor', 4, '🐟🌊😄', ['물 만난 고기', '우물 안 개구리', '독 안에 든 쥐', '그림의 떡'], '제 세상을 만난 듯 신이 난 모습이에요.', '어떤 속담일까요?');
+  em('kor', 4, '🐿️🎡🔁', ['다람쥐 쳇바퀴 돌듯', '원숭이도 나무에서 떨어진다', '고양이 목에 방울 달기', '가는 날이 장날'], '같은 일만 되풀이한다는 뜻이에요.', '어떤 속담일까요?');
+  em('sci', 4, '🌍🌡️⬆️ 🧊💧', ['지구 온난화', '황사', '지진', '태풍'], '지구가 더워져 빙하가 녹고 있어요.');
+  em('sci', 4, '☀️ 🌑 🌍', ['일식', '월식', '보름달', '별똥별'], '달이 해를 가리는 현상이 일식이에요.', '해·달·지구가 이 순서로 한 줄이 되면?');
+  em('sci', 4, '🧲⬆️🗺️', ['나침반', '온도계', '저울', '망원경'], '나침반의 바늘은 자석이라 북쪽을 가리켜요.', '어떤 도구일까요?');
+  em('sci', 4, '🦖🦴⛏️', ['화석', '보석', '석탄', '운석'], '옛 생물의 흔적이 돌에 남은 것이 화석이에요.');
+  em('ani', 4, '🐛🍃 ➡️ 🧵👗', ['누에', '거미', '꿀벌', '지렁이'], '뽕잎을 먹는 누에의 고치에서 비단실을 뽑아요.', '어떤 벌레일까요?');
+  em('ani', 4, '🐻‍❄️🧊', ['북극', '남극', '사막', '정글'], '북극곰은 북극의 얼음 위에서 살아요.', '이 동물이 사는 곳은?');
+  em('math', 4, '🍪🍪🍪🍪 ✖️ 3 ➖ 2', ['10개', '12개', '14개', '9개'], '4 × 3 = 12, 12 − 2 = 10개예요.', '모두 몇 개일까요?');
+  em('math', 4, '🐔🐔🐔 🐱🐱 🦵❓', ['14개', '16개', '12개', '10개'], '닭은 2개씩 6개, 고양이는 4개씩 8개, 모두 14개예요.', '다리는 모두 몇 개일까요?');
+
+  // ── 넌센스 퀴즈 (난이도 · 문제 · 보기(첫 칸이 정답) · 말장난 풀이)
+  //   넣는 기준: 풀이를 들으면 「아하」 하고 납득되는 말장난만. 오답 보기는 그럴듯하되 그것도 말이 되는 답이면 안 된다.
+  //   넣지 않는 것: 사람·집단·지역·외모를 놀리는 것, 무섭거나 선정적인 것, 정치·종교, 상표·연예인을 알아야 풀리는 것, 어려운 한자·영어
+  //   (기존 문제의 번호(id)가 바뀌지 않게 은행 맨 뒤에 붙인다 — 최근에 낸 문제 목록(seen)이 번호로 기억한다)
+  ns(1, '일곱 빛깔 옷을 입은 개는?', ['무지개', '베개', '지우개', '찌개'], '하늘에 뜨는 일곱 빛깔 「개」, 무지개예요.');
+  ns(1, '발에 신고 다니는 말은?', ['양말', '주말', '조랑말', '거짓말'], '타는 말이 아니라 신는 말, 양말이에요.');
+  ns(1, '뜨겁지 않고 덮으면 따뜻한 불은?', ['이불', '촛불', '모닥불', '등불'], '덮고 자는 불, 이불이에요.');
+  ns(1, '잠은 못 자지만 들고 다니는 방은?', ['가방', '안방', '주방', '다락방'], '어깨에 메고 손에 드는 방, 가방이에요.');
+  ns(1, '길이는 못 재지만 앉을 수 있는 자는?', ['의자', '모자', '과자', '그림자'], '눈금 대신 다리가 달린 자, 의자예요.');
+  ns(1, '날개를 달고 팔랑팔랑 나는 비는?', ['나비', '이슬비', '장맛비', '갈비'], '하늘에서 내리지 않고 날아다니는 비, 나비예요.');
+  ns(1, '우리 집에 찾아오는 손은?', ['손님', '손톱', '손수건', '손바닥'], '놀러 오는 손, 손님이에요.');
+  ns(1, '잘못했을 때 건네는 과일은?', ['사과', '참외', '자두', '포도'], '미안할 때는 「사과」를 해요.');
+  ns(1, '병아리가 아플 때 먹는 약은?', ['삐약', '물약', '가루약', '안약'], '병아리는 「삐약삐약」 울어요.');
+  ns(1, '자동차가 가장 좋아하는 빵은?', ['빵빵', '식빵', '붕어빵', '크림빵'], '자동차 경적 소리가 「빵빵」이에요.');
+  ns(1, '숫자 9로 시작하고 하늘에 둥둥 떠다니는 것은?', ['구름', '구두', '구슬', '구멍'], '9(구)로 시작하는 구름이에요.');
+  ns(1, '굴리면 굴릴수록 커지는 눈은?', ['눈덩이', '눈물', '눈썹', '눈치'], '눈을 굴리면 눈덩이가 점점 커져요.');
+  ns(1, '아무도 모르게 숨겨 둔 비는?', ['비밀', '비누', '비옷', '비행기'], '꼭꼭 숨겨 둔 비, 비밀이에요.');
+  ns(1, '웃을 때 얼굴에 피어나는 소는?', ['미소', '염소', '황소', '청소'], '빙그레 웃는 웃음이 미소예요.');
+  ns(1, '날지 못하고 바다에 사는 파리는?', ['해파리', '초파리', '똥파리', '쉬파리'], '바다에 둥둥 떠다니는 해파리예요.');
+  ns(1, '상자를 집 앞까지 가져다주는 배는?', ['택배', '선배', '건배', '돛단배'], '물건을 집까지 날라 주는 택배예요.');
+  ns(1, '졸업식 날 꽃으로 받는 발은?', ['꽃다발', '오리발', '맨발', '출발'], '꽃을 한데 묶은 꽃다발이에요.');
+  ns(1, '「진짜 새」를 두 글자로 줄이면?', ['참새', '까치', '제비', '오리'], '「참」은 진짜라는 뜻, 그래서 참새!');
+  ns(1, '물은 물인데 모두가 무서워하는 물은?', ['괴물', '국물', '선물', '나물'], '으르렁, 무서운 괴물이에요.');
+  ns(1, '닦으면 닦을수록 더러워지는 것은?', ['걸레', '거울', '접시', '구두'], '걸레는 닦을수록 제 몸이 더러워져요.');
+  ns(1, '먹으면 먹을수록 늘어나는 것은?', ['나이', '용돈', '간식', '머리카락'], '나이는 「먹는다」고 말해요.');
+  ns(1, '가슴이 두근두근 뛸 때 나오는 콩은?', ['콩닥콩닥', '완두콩', '강낭콩', '땅콩'], '설레면 가슴이 콩닥콩닥 뛰어요.');
+  ns(2, '잠꾸러기가 가장 좋아하는 과일은?', ['자두', '사과', '수박', '딸기'], '「자두」가 「자도 자도」처럼 들려요.');
+  ns(2, '거짓말을 못 하는 과일은?', ['참외', '자두', '수박', '앵두'], '「참」은 거짓이 아니라는 뜻이에요.');
+  ns(2, '세상에서 가장 빠른 닭은?', ['후다닥', '통닭', '수탉', '꼬꼬닭'], '후다닥! 재빨리 움직일 때 쓰는 말이에요.');
+  ns(2, '우르르 쾅쾅, 하늘에서 치는 1000은?', ['천둥', '천장', '천사', '천막'], '1000(천)으로 시작하는 천둥이에요.');
+  ns(2, '오리를 날것으로 먹으면?', ['회오리', '오리발', '오리알', '탕수육'], '날것으로 먹는 「회」 + 오리 = 회오리!');
+  ns(2, '세상에서 가장 급하게 만든 떡은?', ['헐레벌떡', '시루떡', '가래떡', '무지개떡'], '급히 서두르는 모습이 헐레벌떡이에요.');
+  ns(2, '별 가운데 가장 슬픈 별은?', ['이별', '샛별', '별똥별', '북극성'], '헤어지는 이별이 가장 슬퍼요.');
+  ns(2, '세상에서 가장 멋없는 춤은?', ['엉거주춤', '부채춤', '탈춤', '어깨춤'], '어정쩡하게 선 모습이 엉거주춤이에요.');
+  ns(2, '추운 겨울에 가장 많이 찾는 끈은?', ['따끈따끈', '신발끈', '머리끈', '노끈'], '추울 때는 따끈따끈한 것이 최고예요.');
+  ns(2, '아무것도 자르지 못하는 칼은?', ['머리칼', '부엌칼', '과일칼', '회칼'], '머리칼은 머리카락을 이르는 말이에요.');
+  ns(2, '내 것인데 남이 더 많이 쓰는 것은?', ['이름', '칫솔', '일기장', '베개'], '내 이름은 남이 더 많이 불러 줘요.');
+  ns(2, '많이 맞을수록 좋은 것은?', ['시험 문제', '소나기', '꿀밤', '눈덩이'], '시험 문제는 많이 맞아야 좋아요.');
+  ns(2, '페인트를 칠할 때 외치는 나라는?', ['칠레', '가나', '인도', '독일'], '「칠해!」가 「칠레」처럼 들려요.');
+  ns(2, '땅을 캐냐고 묻는 나라는?', ['캐나다', '멕시코', '브라질', '스페인'], '「캐나?」 「캐나다!」');
+  ns(2, '친구의 마음을 잘 알아주는 해는?', ['이해', '방해', '손해', '올해'], '남의 마음을 알아주는 것이 이해예요.');
+  ns(2, '목욕탕에서 푹 쉬고 나온 곰은?', ['곰탕', '북극곰', '곰돌이', '곰팡이'], '탕에 들어갔다 나온 곰이라 곰탕!');
+  ns(2, '막 웃음을 터뜨리려는 사과는?', ['풋사과', '꿀사과', '사과잼', '사과즙'], '「풋!」 하고 웃음이 터져요.');
+  ns(2, '물고기의 반대말은?', ['불고기', '물소', '새우', '산토끼'], '물의 반대는 불, 그래서 불고기!');
+  ns(2, '할아버지가 가장 좋아하는 돈은?', ['할머니', '용돈', '세뱃돈', '저금통'], '돈은 영어로 「머니」, 그래서 할머니!');
+  ns(2, '고기를 먹으면 꼭 찾게 되는 개는?', ['이쑤시개', '베개', '지우개', '무지개'], '이에 낀 고기를 빼는 이쑤시개예요.');
+  ns(2, '문은 문인데 닫을 수 없는 문은?', ['소문', '창문', '대문', '방문'], '입에서 입으로 퍼지는 소문은 못 닫아요.');
+  ns(2, '다 자랐는데도 자꾸 자라라고 불리는 동물은?', ['자라', '거북', '달팽이', '개구리'], '이름이 「자라」라서 늘 자라라고 해요.');
+  ns(2, '소가 크게 웃으면 나는 소리는?', ['우하하', '음메메', '히히힝', '꿀꿀꿀'], '소는 한자로 「우」, 그래서 우하하!');
+  ns(2, '개는 개인데 손으로 잡을 수 없는 개는?', ['안개', '삽살개', '풍산개', '진돗개'], '뿌연 안개는 손에 잡히지 않아요.');
+  ns(3, '세상에서 가장 뜨거운 과일은?', ['천도복숭아', '파인애플', '청포도', '한라봉'], '「천 도」나 되니까 가장 뜨거워요.');
+  ns(3, '세상에서 가장 억울한 도형은?', ['원통', '세모', '마름모', '육각형'], '분하고 억울한 것을 「원통하다」고 해요.');
+  ns(3, '몸무게가 가장 많이 나갈 때는?', ['철들 때', '모자 쓸 때', '잠들 때', '겨울일 때'], '무거운 「철」이 들었으니까요.');
+  ns(3, '날마다 흑심을 품고 있는 것은?', ['연필', '지우개', '색종이', '공책'], '연필 속 검은 심이 「흑심」이에요.');
+  ns(3, '집을 두 채 가진 나라는?', ['이집트', '스위스', '프랑스', '그리스'], '이름에 「이(2) 집」이 들어 있어요.');
+  ns(3, '기가 막혀 말이 안 나올 때 타는 것은?', ['기차', '버스', '택시', '자전거'], '어이없을 때 「기가 차다」고 해요.');
+  ns(3, '신발이 화가 나면?', ['발끈', '발등', '발톱', '발목'], '신「발끈」! 발끈 화를 내요.');
+  ns(3, '딸기가 일자리를 잃으면?', ['딸기시럽', '딸기잼', '딸기우유', '딸기주스'], '일자리를 잃는 것이 「실업」, 딸기 시럽!');
+  ns(3, '이름만 들어도 정말 길 것 같은 양념은?', ['참기름', '들기름', '고추장', '된장'], '「참 길음」처럼 들려요.');
+  ns(3, '세상에서 가장 화가 난 바다는?', ['열바다', '봄 바다', '밤바다', '겨울 바다'], '「열받아」와 소리가 같아요.');
+  ns(3, '이상한 사람들이 모이는 곳은?', ['치과', '놀이터', '도서관', '미술관'], '「이 상한」 사람들은 치과에 가요.');
+  ns(3, '왕이 궁에 들어가기 싫을 때 하는 말은?', ['궁시렁궁시렁', '궁금궁금', '왕왕왕', '빙글빙글'], '「궁 싫엉」처럼 들려요. (바른 표기는 구시렁구시렁)');
+  ns(3, '세상에서 가장 지루한 중학교는?', ['로딩중', '방학중', '식사중', '통화중'], '로딩 중에는 하염없이 기다려야 해요.');
+  ns(3, '깨뜨리면 칭찬받는 것은?', ['신기록', '유리창', '접시', '약속'], '기록은 깨야 박수를 받아요.');
+  ns(3, '토끼가 쓰는 빗은?', ['래빗', '참빗', '머리빗', '꼬리빗'], '토끼는 영어로 「래빗」이에요.');
+  ns(3, '우유가 넘어지면 내는 소리는?', ['아야', '우유', '으악', '어머'], '「우유」 글자를 옆으로 눕히면 「아야」!');
+  ns(3, '아홉 명의 아이를 세 글자로 줄이면?', ['아이구', '구남매', '대가족', '아홉이'], '아이가 구(9) 명, 아이구! (바른 표기는 아이고)');
+  ns(3, '소나무가 삐지면?', ['칫솔', '솔방울', '솔잎', '빗자루'], '「칫!」 하고 삐진 솔, 칫솔이에요.');
+  ns(3, '세 사람만 탈 수 있는 차는?', ['인삼차', '유자차', '녹차', '보리차'], '「인(사람) 삼(3)」 차라서요.');
+  ns(3, '차가 울면?', ['잉카', '붕붕카', '유모차', '세차'], '「잉」 하고 우는 「카(차)」, 잉카!');
+  ns(3, '소가 계단을 오르면?', ['소오름', '소나기', '소금', '소풍'], '소가 오르니까 「소 오름」, 소름이 쫙!');
+  ns(3, '아이스크림이 길을 못 건넌 까닭은?', ['차가워서', '동그래서', '달아서', '미끄러워서'], '「차가 와서」 못 건넜어요.');
+  ns(3, '설날에 세뱃돈을 못 받으면?', ['설거지', '설렁탕', '설탕', '눈썰매'], '설 + 거지 = 설거지!');
+  ns(4, '세상에서 가장 가난한 왕은?', ['최저임금', '사자왕', '눈의 여왕', '개구리 왕자'], '임금(왕)과 임금(품삯)의 소리가 같아요.');
+  ns(4, '반성문을 영어로 하면?', ['글로벌', '쏘리 레터', '미안 노트', '리포트'], '「글로 벌」을 받는 것이 반성문이에요.');
+  ns(4, '오리가 꽁꽁 얼면?', ['언덕', '얼음', '빙수', '썰매'], '오리는 영어로 「덕」, 「언 덕」이에요.');
+  ns(4, '자동차가 깜짝 놀라면?', ['카놀라유', '참기름', '올리브유', '들기름'], '「카(차) 놀라유」처럼 들려요.');
+  ns(4, '소금의 유통 기한은?', ['천 일', '백 일', '하루', '일 년'], '「천일염」이니까 천 일!');
+  ns(4, '「미소」의 반대말은?', ['당기소', '울상', '찡그림', '눈물'], '「밀어소」의 반대는 「당기소」!');
+  ns(4, '「자가용」의 반대말은?', ['커용', '버스', '택시', '걸어용'], '「작아용」의 반대는 「커용」!');
+  ns(4, '귀가 버스를 타면?', ['타이어', '귀걸이', '이어폰', '자전거'], '귀는 영어로 「이어」, 버스를 타는 이어!');
+  ns(4, '햄버거의 색깔은?', ['버건디', '케첩색', '갈색', '노란색'], '「버거」가 들어간 색, 버건디예요.');
+  ns(4, '도둑이 훔친 돈을 무엇이라고 할까?', ['슬그머니', '쌈짓돈', '용돈', '비상금'], '슬그 + 머니(돈) = 슬그머니!');
+  ns(4, '엄마가 길을 잃으면?', ['맘마미아', '엄마야', '맘모스', '맘대로'], '맘(엄마)이 미아가 됐어요.');
+  ns(4, '「눈사람」의 반대말은?', ['일어선 사람', '불사람', '비사람', '여름 사람'], '「누운 사람」의 반대니까요.');
+  ns(4, '왕이 헤어질 때 하는 인사는?', ['바이킹', '왕만두', '킹콩', '왕안녕'], '바이(안녕) + 킹(왕) = 바이킹!');
+  ns(4, '사자를 넣고 끓인 국은?', ['동물의 왕국', '밀림의 왕', '사자 찌개', '맹수 전골'], '사자는 동물의 왕, 왕으로 끓인 「왕국」!');
+  ns(4, '칼이 정색하면?', ['검정', '빨강', '은색', '칼라'], '칼(검)이 정색해서 「검정」!');
+  ns(4, '「보」 내기 싫을 때는 어떻게 할까?', ['가위나 바위를 낸다', '손바닥을 편다', '보자기를 편다', '손을 흔든다'], '「보」를 내기 싫으면 가위나 바위!');
+  ns(4, '손으로 직접 만든 총은?', ['손수건', '물총', '딱총', '새총'], '「손수」 만든 「건(총)」이에요.');
+  ns(4, '세상에서 가장 쉬운 숫자는?', ['십구만', '이십만', '삼천', '구십구'], '「십구만」이 「쉽구만」처럼 들려요.');
+  ns(4, '개가 사람을 가르치는 것을 네 글자로 하면?', ['개인지도', '개과천선', '애견학교', '멍멍수업'], '「개인 지도」를 개 + 인(사람) 지도로!');
+  ns(4, '빨간 길에 떨어진 동전을 네 글자로 하면?', ['홍길동전', '흥부놀부', '콩쥐팥쥐', '금도끼전'], '붉을 홍 + 길 + 동전 = 홍길동전!');
+  ns(4, '세상에서 가장 썰렁한 바다는?', ['썰렁해', '따뜻해', '포근해', '미안해'], '바다는 한자로 「해」, 그래서 썰렁해!');
+
+  // 한글 초성 뽑기 (가~힣)
+  const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+  const chosung = s => Array.from(s).map(ch => { const c = ch.charCodeAt(0); return c >= 0xAC00 && c <= 0xD7A3 ? CHO[Math.floor((c - 0xAC00) / 588)] : ch === ' ' ? '' : ch; }).join('');
+  // 은행 자체 점검: 문제 목록(issues)이 비어야 한다
+  function check() {
+    const issues = [], types = {}, levels = {}, cats = {}, tl = {}, oxn = { O: 0, X: 0 }, seenQ = new Map(), seenA = new Map();
+    const bad = (q, m) => issues.push('#' + q.id + ' [' + q.type + '] ' + (q.big ? q.big + ' ' : '') + q.q + ' → ' + m);
+    for (const q of BANK) {
+      types[q.type] = (types[q.type] || 0) + 1; levels[q.lv] = (levels[q.lv] || 0) + 1; cats[q.cat] = (cats[q.cat] || 0) + 1; tl[q.type + q.lv] = (tl[q.type + q.lv] || 0) + 1;
+      if (!TYPES[q.type]) bad(q, '모르는 형식'); if (!CATS[q.cat]) bad(q, '모르는 분야'); if (![1, 2, 3, 4].includes(q.lv)) bad(q, '난이도 범위 밖');
+      if (!q.q || !q.q.trim()) bad(q, '문제 글이 비었다'); if (!q.exp || !q.exp.trim()) bad(q, '해설이 비었다');
+      if (q.q && q.q.length > 60) bad(q, '문제 글이 길다(' + q.q.length + ')'); if (q.exp && q.exp.length > 46) bad(q, '해설이 길다(' + q.exp.length + ')');
+      if (!Array.isArray(q.opts) || !(q.ans >= 0 && q.ans < q.opts.length)) { bad(q, '정답 번호가 보기 범위 밖'); continue; }
+      if (q.type === 'ox') { if (q.opts.length !== 2) bad(q, 'OX 보기는 둘'); oxn[q.ans === 0 ? 'O' : 'X']++; }
+      else {
+        if (q.opts.length !== 4) bad(q, '보기는 넷이어야 한다');
+        const norm = q.opts.map(o => String(o).replace(/\s+/g, '')); if (new Set(norm).size !== norm.length) bad(q, '보기 중복'); if (norm.some(o => !o)) bad(q, '빈 보기');
+        for (const o of q.opts) if (o.length > 16) bad(q, '보기가 길다: ' + o);
+        const ak = q.type + ':' + norm[q.ans]; if (q.type !== 'mc') { if (seenA.has(ak)) bad(q, '같은 형식에서 정답이 겹친다(#' + seenA.get(ak) + ')'); seenA.set(ak, q.id); }
+      }
+      if (q.type === 'cs') {
+        if (!q.big) bad(q, '초성이 없다'); else {
+          if (chosung(q.opts[q.ans]) !== q.big) bad(q, '초성이 정답과 다르다(' + chosung(q.opts[q.ans]) + ')');
+          q.opts.forEach((o, i) => { if (i !== q.ans && chosung(o) === q.big) bad(q, '오답의 초성이 같다: ' + o); if (i !== q.ans && Array.from(o).length !== Array.from(q.opts[q.ans]).length) bad(q, '오답의 글자 수가 다르다: ' + o); });
+          if (q.q.includes(q.opts[q.ans])) bad(q, '힌트에 정답이 들어 있다');
+        }
+      }
+      if (q.type === 'em' && !q.big) bad(q, '그림이 없다');
+      const key = (q.type === 'cs' ? q.big + '|' + q.q : q.type === 'em' ? q.big : q.q).replace(/\s+/g, '');
+      if (seenQ.has(key)) bad(q, '문제 글 중복(#' + seenQ.get(key) + ')'); seenQ.set(key, q.id);
+    }
+    if (BANK.length < 240) issues.push('문제 수 부족: ' + BANK.length);
+    if ((types.ns || 0) < 80) issues.push('넌센스 문제 부족: ' + (types.ns || 0));
+    for (const t in TYPES) { if ((types[t] || 0) < 40) issues.push('형식 ' + t + ' 문제 부족: ' + (types[t] || 0)); for (let l = 1; l <= 4; l++) if ((tl[t + l] || 0) < 10) issues.push(t + ' 난이도 ' + l + ' 문제 부족: ' + (tl[t + l] || 0)); }
+    const r = oxn.O / Math.max(1, oxn.O + oxn.X); if (r < 0.45 || r > 0.55) issues.push('OX 정답이 한쪽으로 쏠렸다: O ' + oxn.O + ' · X ' + oxn.X);
+    return { total: BANK.length, types, levels, typeLevel: tl, cats, ox: oxn, issues };
+  }
+
+  // ═══════ 난이도 표 ═══════
+  //   time 문제당 제한 시간(초) · hearts 하트 · opts 보기 수 · hint/skip 찬스 횟수 · mult 점수 배율 · show 틀렸을 때 해설을 보여 주는 시간(초, 맞히면 0.6배)
+  //   lv0 → lv1: 문제 난이도 1~4단계가 나올 비율(처음 → ramp 문제를 맞힌 뒤). 맞힌 수가 늘수록 lv1 쪽으로 옮겨 간다
+  const DIFF = {
+    easy:   { time: 20, hearts: 5, opts: 3, hint: 3, skip: 3, mult: 1.0, show: 4.6, lv0: [75, 25, 0, 0],   lv1: [35, 45, 17, 3],  ramp: 30 },
+    normal: { time: 14, hearts: 3, opts: 4, hint: 2, skip: 2, mult: 1.2, show: 3.8, lv0: [45, 40, 15, 0],  lv1: [10, 35, 40, 15], ramp: 25 },
+    hard:   { time: 10, hearts: 3, opts: 4, hint: 1, skip: 1, mult: 1.5, show: 3.2, lv0: [15, 45, 30, 10], lv1: [0, 20, 45, 35],  ramp: 20 },
+    vhard:  { time: 7,  hearts: 2, opts: 4, hint: 1, skip: 0, mult: 2.0, show: 2.8, lv0: [0, 20, 45, 35],  lv1: [0, 5, 40, 55],   ramp: 15 }
+  };
+  const BASE = 100, TIME_BONUS = 50, STREAK_BONUS = 10, STREAK_CAP = 10;   // 한 문제 점수 = (기본 + 남은 시간 + 연속 정답) × 배율
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
+  // ═══════ 문제 종류 ═══════
+  //   all 모두 섞기(기존 네 형식 + 넌센스) · gen 상식 퀴즈(기존 네 형식만) · ns 넌센스 퀴즈(넌센스만)
+  //   기록: all 은 공통 기록(KG.dkey('quiz') — 가족 순위에 올라간다). gen·ns 는 가족 순위 저장소가 모르는 열쇠라 공통 setBest 를 쓰지 않고
+  //   여기서 직접 kongstar.game.quiz.<gen|ns>.<난이도> 에 둔다 (normal 도 난이도를 붙인다)
+  const MODES = [{ id: 'all', label: '모두 섞기', short: '모두 섞기' }, { id: 'gen', label: '상식 퀴즈', short: '상식' }, { id: 'ns', label: '넌센스 퀴즈', short: '넌센스' }];
+  const MODE_KEY = 'kongstar.game.quiz.mode';
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  let modeSel = lsGet(MODE_KEY); if (!MODES.some(m => m.id === modeSel)) modeSel = 'all';   // 카드에서 고른 종류
+  let modeId = modeSel;                                                                     // 이 판의 종류 (시작할 때 한 번 읽어 그 판 동안 그대로)
+  const inMode = q => modeId === 'all' || (modeId === 'ns') === (q.type === 'ns');
+  const recOf = (m, d) => { if (m === 'all') return best(KG.dkey('quiz', d)); const v = parseFloat(lsGet('kongstar.game.quiz.' + m + '.' + d)); return isFinite(v) && v > 0 ? v : 0; };
+  function putRec(m, d, v) { if (!(v > 0)) return false; if (m === 'all') return setBest(KG.dkey('quiz', d), v); if (v > recOf(m, d)) { lsSet('kongstar.game.quiz.' + m + '.' + d, String(Math.round(v))); return true; } return false; }
+  const modePickers = [];
+  const paintMode = () => { for (const el of modePickers) for (const b of el.children) { const on = b.dataset.m === modeSel; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); } };
+  function setMode(id) { if (!MODES.some(m => m.id === id) || id === modeSel) return false; modeSel = id; lsSet(MODE_KEY, id); paintMode(); paintBest(); return true; }
+  function modePicker() {
+    const el = document.createElement('div'); el.className = 'kg-diff qmode'; el.setAttribute('role', 'radiogroup'); el.setAttribute('aria-label', '문제 종류');
+    for (const m of MODES) { const b = document.createElement('button'); b.type = 'button'; b.dataset.m = m.id; b.textContent = m.label; b.setAttribute('role', 'radio'); b.addEventListener('click', () => { sfx('tap'); setMode(m.id); }); el.appendChild(b); }
+    modePickers.push(el); paintMode(); return el;
+  }
+
+  // ═══════ 화면 ═══════
+  const game = $('game'), optsEl = $('opts');
+  const bar = topbar({ title: J(name, '의') + ' 퀴즈 퀴즈', back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = J(name, '의') + ' 퀴즈 퀴즈';
+  $('stTitle').textContent = J(name, '의') + ' 퀴즈 퀴즈';
+  $('stLead').textContent = '사회자 ' + J(name, '이/가') + ' 내는 문제를 맞혀 보세요.';
+  $('psText').textContent = J(name, '이/가') + ' 문제를 들고 기다리고 있어요.';
+
+  const K = kong($('kongBox'), 96);
+  function layout() {
+    const box = $('kongBox'), h = box.clientHeight || 78, w = box.clientWidth || 66;
+    K.setSize(Math.round(h * 1.16)); K.place(w / 2, h + 1);
+    fitAll(); fitTitle();
+  }
+  // 글자 크기를 칸에 맞춰 줄인다 (문제 카드는 --qs 배율로, 보기·해설은 글자 크기로)
+  function fitAll() {
+    const c = $('qcard'); let s = 1; c.style.setProperty('--qs', '1');
+    while (s > 0.6 && c.scrollHeight > c.clientHeight + 1) { s -= 0.05; c.style.setProperty('--qs', s.toFixed(2)); }
+    for (const b of optsEl.children) {
+      const tx = b.querySelector('.tx'); if (!tx) continue; tx.style.fontSize = ''; let f = parseFloat(getComputedStyle(b).fontSize) || 15;
+      while (f > 11.5 && tx.scrollHeight > b.clientHeight - 6) { f -= 0.5; tx.style.fontSize = f + 'px'; }
+    }
+    const fb = $('fb'); if (!fb.hidden) { fitHead(); const x = $('fbX'); x.style.fontSize = ''; let f = parseFloat(getComputedStyle(x).fontSize) || 13; while (f > 10.5 && fb.scrollHeight > fb.clientHeight + 1) { f -= 0.5; x.style.fontSize = f + 'px'; } }
+  }
+  // 해설 머리글: 정답 낱말이 말줄임(…)으로 잘리지 않게, 칸 폭에 들어가는 가장 긴 후보를 쓴다
+  function fitHead() {
+    const b = $('fbT'), hs = cur && cur.heads; if (!hs || $('fb').hidden) return;
+    for (const h of hs) { b.textContent = h; if (b.scrollWidth <= b.clientWidth + 0.5) return; }
+  }
+  // 위 줄 제목: 놀이 중에는 멈춤 단추가 생겨 좁다 — 다 안 들어가면 짧은 이름으로
+  const TITLE = J(name, '의') + ' 퀴즈 퀴즈';
+  function fitTitle() { const t = bar.el.querySelector('.kg-title'); t.textContent = TITLE; if (t.scrollWidth > t.clientWidth + 0.5) t.textContent = '퀴즈 퀴즈'; }
+  addEventListener('resize', layout);
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';            // ready → play ⇄ pause → result
+  let phase = 'ask';              // 놀이 중: ask(답을 기다림) · show(정답과 해설을 보여 줌 — 시간은 흐르지 않는다)
+  let score = 0, hearts = 3, streak = 0, maxStreak = 0, correct = 0, asked = 0, hints = 0, skips = 0;
+  let cur = null, showT = 0, showLen = 1, tAnim = 0, mood = 'idle', moodT = 0, askAt = 0, showAt = 0, endAt = -1e9, lastTick = 0;
+  let recNew = null;   // 이 판의 기록을 저장했는지(null: 아직) — 마지막 하트를 잃는 순간 바로 저장해, 해설을 보다 나가도 기록이 남게 한다
+  const saveRec = () => { if (recNew === null) recNew = score > 0 && putRec(modeId, diffId, score); return recNew; };
+  const used = new Set(); let runType = '', runN = 0, lastId = -1;
+  const SEEN_KEY = 'kongstar.game.quiz.seen', SEEN_MAX = 120;
+  let seen = [];
+  function loadSeen() { try { const a = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); seen = Array.isArray(a) ? a.filter(n => Number.isInteger(n) && n >= 0 && n < BANK.length).slice(-SEEN_MAX) : []; } catch (e) { seen = []; } }
+  function pushSeen(id) { const i = seen.indexOf(id); if (i >= 0) seen.splice(i, 1); seen.push(id); if (seen.length > SEEN_MAX) seen.splice(0, seen.length - SEEN_MAX); try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (e) {} }
+
+  // ═══════ 문제 고르기 ═══════
+  function pickLevel() {
+    const p = clamp(correct / D.ramp, 0, 1), w = D.lv0.map((a, i) => lerp(a, D.lv1[i], p));
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < 4; i++) { r -= w[i]; if (r < 0) return i + 1; }
+    return 4;
+  }
+  // 형식을 고르게: 후보에 있는 형식 가운데 하나를 먼저 뽑고 그 형식의 문제를 뽑는다
+  function pickEven(pool) { const ts = [...new Set(pool.map(q => q.type))], t = ts[Math.floor(Math.random() * ts.length)], a = pool.filter(q => q.type === t); return a[Math.floor(Math.random() * a.length)]; }
+  function pickQuestion() {
+    const lv = pickLevel(), ban = modeId !== 'ns' && runN >= 2 ? runType : '';   // 같은 형식은 두 번까지만 잇달아 낸다 (넌센스만 내는 판은 형식이 하나라 끈다)
+    const POOL = BANK.filter(inMode);   // 이 판의 문제 종류에 드는 문제만
+    let cand = POOL.filter(q => !used.has(q.id) && q.type !== ban);
+    if (!cand.length) cand = POOL.filter(q => !used.has(q.id));
+    if (!cand.length) { used.clear(); cand = POOL.filter(q => q.id !== lastId && q.type !== ban); }   // 은행을 다 돌았으면(아주 긴 판) 처음부터 다시
+    const at = new Map(seen.map((id, i) => [id, i]));
+    for (let d = 0; d < 4; d++) { const pool = cand.filter(q => Math.abs(q.lv - lv) === d && !at.has(q.id)); if (pool.length) return pickEven(pool); }
+    // 남은 것이 모두 최근에 낸 문제: 난이도가 가까운 것 가운데 가장 오래전에 낸 것
+    cand.sort((a, b) => (Math.min(2, Math.abs(a.lv - lv)) - Math.min(2, Math.abs(b.lv - lv))) || (at.get(a.id) - at.get(b.id)));
+    return cand[0];
+  }
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // ═══════ 그리기 ═══════
+  const HEART = '<svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-7.5-10A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z" fill="#FF7B8E"/></svg>';
+  function paintHearts(lost) {
+    const el = $('hudHp'); if (el.children.length !== D.hearts) el.innerHTML = HEART.repeat(D.hearts);
+    [...el.children].forEach((s, i) => { s.classList.toggle('off', i >= hearts); s.classList.toggle('pop', !!lost && i === hearts); });
+  }
+  function paintHud() {
+    $('hudScore').textContent = fmt(score); $('hudStreak').hidden = streak < 2; $('hudStreakN').textContent = streak;
+    $('nHint').textContent = hints; $('nSkip').textContent = skips;
+    const asking = state === 'play' && phase === 'ask';
+    $('btnHint').disabled = !asking || hints <= 0 || !cur || cur.q.type === 'ox' || cur.hinted;
+    $('btnSkip').disabled = !asking || skips <= 0;
+  }
+  const say = (t, cls) => { const el = $('say'); el.textContent = t; el.className = cls || ''; };
+  const OX_SVG = ['<svg viewBox="0 0 64 64" fill="none" stroke="#4C7DF0" stroke-width="8" stroke-linecap="round"><circle cx="32" cy="32" r="21"/></svg>', '<svg viewBox="0 0 64 64" fill="none" stroke="#F0707C" stroke-width="8" stroke-linecap="round"><path d="M14 14l36 36M50 14L14 50"/></svg>'];
+  function paintQuestion() {
+    const q = cur.q, isOx = q.type === 'ox';
+    $('qTag').textContent = q.type === 'ns' ? TYPES.ns : TYPES[q.type] + ' · ' + CATS[q.cat];
+    const big = $('qBig'); big.hidden = !q.big; big.textContent = q.big || ''; big.className = q.type === 'cs' ? 'cs' : q.type === 'em' ? 'em' : '';
+    const tx = $('qText'); tx.textContent = q.q; tx.className = q.big ? 'sub' : '';
+    optsEl.innerHTML = ''; optsEl.className = (isOx ? 'ox ' : '') + 'n' + cur.opts.length; optsEl.style.setProperty('--n', D.opts);
+    cur.opts.forEach((o, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'opt' + (isOx ? ' oxb' : ''); b.dataset.i = i;
+      if (isOx) { b.innerHTML = OX_SVG[i] + '<span>' + (i === 0 ? '맞아요' : '아니에요') + '</span><i class="mk"></i>'; b.setAttribute('aria-label', i === 0 ? 'O, 맞아요' : 'X, 아니에요'); }
+      else { const no = document.createElement('i'); no.className = 'no'; no.textContent = i + 1; const s = document.createElement('span'); s.className = 'tx'; s.textContent = o.t; const m = document.createElement('i'); m.className = 'mk'; b.append(no, s, m); }
+      optsEl.appendChild(b);
+    });
+    $('fb').hidden = true; $('life').hidden = false;
+    say(asked + '번 문제예요', '');
+    paintHud(); fitAll();
+  }
+  function paintResult(picked, ok, gain) {
+    [...optsEl.children].forEach((b, i) => {
+      const o = cur.opts[i], mk = b.querySelector('.mk');
+      if (o.ok) { b.classList.add('good'); mk.textContent = '✓'; }
+      else if (i === picked) { b.classList.add('bad'); mk.textContent = '✗'; }
+      else b.classList.add('rest');
+      b.classList.remove('gone');
+    });
+    const ansT = cur.opts[cur.ans].t, fb = $('fb');
+    fb.className = ok ? 'ok' : 'no';
+    // 머리글 후보(긴 것부터): 정답을 붙인 것 → (시간 초과) 짧은 말 + 정답 → 정답 없이. fitHead 가 칸 폭에 들어가는 첫 번째 것을 쓴다
+    const head = picked < 0 ? '✗ 시간이 다 됐어요' : '✗ 아쉬워요', tail = ' · 정답은 ' + (cur.q.type === 'ox' ? ansT : '「' + ansT + '」');
+    cur.heads = ok ? ['✓ 정답이에요  +' + fmt(gain) + '점'] : picked < 0 ? [head + tail, '✗ 시간 끝' + tail, head] : [head + tail, head];
+    $('fbX').textContent = cur.q.exp;
+    fb.hidden = false; $('life').hidden = true; fitHead();
+    fb.setAttribute('aria-label', cur.heads[0] + '. ' + cur.q.exp + ' 누르면 ' + (hearts > 0 ? '다음 문제' : '결과 보기'));
+    say(ok ? (streak >= 3 ? streak + '문제 연속 정답!' : KG.pick(['정답이에요!', '딩동댕!', '멋져요!', '왈! 맞았어요'])) : picked < 0 ? '시간이 다 됐어요' : '아쉬워요…', ok ? 'ok' : 'no');
+    paintHearts(!ok); paintHud(); fitAll();
+  }
+
+  // ═══════ 진행 ═══════
+  function ask() {
+    const q = pickQuestion(); used.add(q.id); pushSeen(q.id); lastId = q.id; asked++;
+    if (q.type === runType) runN++; else { runType = q.type; runN = 1; }
+    let opts;
+    if (q.type === 'ox') opts = [{ t: 'O', ok: q.ans === 0 }, { t: 'X', ok: q.ans === 1 }];
+    else { const wrong = shuffle(q.opts.filter((_, i) => i !== q.ans)).slice(0, D.opts - 1); opts = shuffle([{ t: q.opts[q.ans], ok: true }].concat(wrong.map(t => ({ t, ok: false })))); }
+    cur = { q, opts, ans: opts.findIndex(o => o.ok), t: D.time, limit: D.time, hinted: false, picked: null };
+    phase = 'ask'; askAt = performance.now(); mood = 'ask'; moodT = 0; lastTick = 0;
+    $('timer').classList.remove('low');
+    paintQuestion();
+  }
+  // i 번 보기를 골랐다 (-1: 시간이 다 됨)
+  function resolve(i) {
+    if (state !== 'play' || phase !== 'ask' || !cur) return false;
+    if (i >= 0 && (!cur.opts[i] || cur.opts[i].gone)) return false;
+    const ok = i >= 0 && cur.opts[i].ok; let gain = 0;
+    cur.picked = i;
+    if (ok) {
+      gain = Math.round((BASE + TIME_BONUS * clamp(cur.t / cur.limit, 0, 1) + STREAK_BONUS * Math.min(streak, STREAK_CAP)) * D.mult);
+      score += gain; streak++; correct++; maxStreak = Math.max(maxStreak, streak);
+      mood = 'happy'; moodT = 0;
+      if (streak % 5 === 0) { sfx('power'); voice('bark', 0.15); } else { sfx('coin'); if (Math.random() < 0.16) voice('bark', 0.1); }
+    } else { hearts = Math.max(0, hearts - 1); streak = 0; mood = 'sad'; moodT = 0; sfx('wrong'); if (hearts <= 0) saveRec(); }
+    phase = 'show'; showLen = showT = ok ? D.show * 0.6 : D.show; showAt = performance.now();
+    paintResult(i, ok, gain);
+    return ok;
+  }
+  // 해설 넘기기
+  function next() {
+    if (state !== 'play' || phase !== 'show') return;
+    if (hearts <= 0) finish(); else ask();
+  }
+  function hint() {
+    if (state !== 'play' || phase !== 'ask' || hints <= 0 || cur.q.type === 'ox' || cur.hinted) return false;
+    hints--; cur.hinted = true;
+    const wrong = shuffle(cur.opts.map((o, i) => i).filter(i => !cur.opts[i].ok)).slice(0, cur.opts.length - 2);   // 정답과 오답 하나만 남긴다
+    for (const i of wrong) { cur.opts[i].gone = true; const b = optsEl.children[i]; if (b) { b.classList.add('gone'); b.disabled = true; } }
+    sfx('flip'); say('틀린 보기를 지웠어요', ''); paintHud(); return true;
+  }
+  function skip() {
+    if (state !== 'play' || phase !== 'ask' || skips <= 0) return false;
+    skips--; streak = 0; sfx('swap'); ask(); say('넘겼어요. ' + asked + '번 문제예요', ''); return true;
+  }
+  function reset() {
+    score = 0; hearts = D.hearts; streak = maxStreak = correct = asked = 0; hints = D.hint; skips = D.skip;
+    used.clear(); runType = ''; runN = 0; cur = null; recNew = null; loadSeen();
+    $('hudHp').innerHTML = ''; paintHearts(); paintHud();
+  }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal; modeId = modeSel;
+    reset(); state = 'play';
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
+    game.classList.remove('idle', 'veil'); fitTitle();
+    KG.unlockAudio(); ask();
+  }
+  function pause() { if (state !== 'play') return; state = 'pause'; $('cardPause').hidden = false; game.classList.add('veil'); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); try { $('btnResume').focus({ preventScroll: true }); } catch (e) {} }
+  function resume() { if (state !== 'pause') return; state = 'play'; $('cardPause').hidden = true; game.classList.remove('veil'); askAt = showAt = performance.now(); }
+  function finish() {
+    if (state !== 'play' && state !== 'pause') return;
+    state = 'result'; endAt = performance.now(); btnPause.hidden = true; $('cardPause').hidden = true; game.classList.remove('veil'); fitTitle();
+    const isNew = saveRec();
+    $('edScore').textContent = fmt(score); $('edCorrect').textContent = fmt(correct) + '문제'; $('edStreak').textContent = fmt(maxStreak) + '번'; paintBest();
+    $('edNew').hidden = !isNew;
+    $('edText').textContent = correct > 0 ? J(name, '이/가') + ' 낸 문제 ' + fmt(asked) + '개 가운데 ' + fmt(correct) + '개를 맞혔어요.' : J(name, '이랑/랑') + ' 다시 한번 풀어 봐요.';
+    $('cardEnd').hidden = false; mood = correct > 0 ? 'happy' : 'idle'; moodT = 0;
+    if (isNew) sfx('win'); else sfx('lose');
+    try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
+  }
+
+  function update(dt) {
+    if (state !== 'play' || !cur) return;
+    if (phase === 'ask') {
+      cur.t -= dt;
+      if (cur.t <= 3 && cur.t > 0 && Math.ceil(cur.t) !== lastTick) { lastTick = Math.ceil(cur.t); tone(660, 0.05, 'sine', 0.04); }
+      if (cur.t <= 0) { cur.t = 0; resolve(-1); }
+    } else { showT -= dt; if (showT <= 0) next(); }
+  }
+  function draw() {
+    const t = tAnim;
+    if (cur) {
+      const r = clamp(cur.t / cur.limit, 0, 1), bar = $('timer');
+      bar.firstElementChild.style.transform = 'scaleX(' + r.toFixed(4) + ')'; bar.classList.toggle('low', r < 0.28);
+      if (phase === 'show' && !$('fb').hidden) $('fb').lastElementChild.style.transform = 'scaleX(' + clamp(showT / showLen, 0, 1).toFixed(4) + ')';
+    }
+    // 사회자 콩이: 문제를 낼 때 고개 갸웃, 맞히면 폴짝, 틀리면 시무룩, 시간이 얼마 안 남으면 귀를 쫑긋
+    if (mood === 'happy') {
+      const p = Math.min(1, moodT / 1.4);
+      K.render({ t, eyes: 'happy', mouth: 'open', blush: 1, tailAmp: 26, tailRate: 5, earLift: 6, hop: reduceMotion ? 0 : Math.abs(Math.sin(moodT * 7)) * 46 * (1 - p), tilt: Math.sin(moodT * 8) * 4 * (1 - p) });
+    } else if (mood === 'sad') {
+      K.render({ t, eyes: 'closed', mouth: 'closed', tilt: -9, earLift: -6, nod: 2, tailAmp: 2, tailRate: 1 });
+    } else if (mood === 'ask') {
+      const p = Math.min(1, moodT / 0.35), back = clamp((moodT - 1.5) / 0.5, 0, 1), low = cur && state === 'play' && cur.t / cur.limit < 0.28;
+      K.render({ t, eyes: 'open', mouth: low ? 'open' : 'closed', tilt: 11 * p * (1 - back) + Math.sin(t * 1.1) * 2.5 * back, look: [0.5, 0.15], earLift: low ? 7 : 4 * p, tailAmp: low ? 18 : 10, tailRate: low ? 3.6 : 2 });
+    } else K.render({ t, eyes: 'open', mouth: 'open', tilt: Math.sin(t * 1.1) * 3, tailAmp: 12, tailRate: 2.2 });
+  }
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+    tAnim += dt; moodT += dt;
+    update(dt); draw();
+  }
+
+  // ═══════ 입력 ═══════
+  const GUARD = 280;   // 문제가 바뀐 직후·해설이 뜬 직후의 누름은 넘긴다 (앞 문제를 두드리던 손가락)
+  function pick(i) { if (state !== 'play' || phase !== 'ask' || performance.now() - askAt < GUARD) return; resolve(i); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
+  function advance() { if (state !== 'play' || phase !== 'show' || performance.now() - showAt < GUARD) return; sfx('tap'); next(); }
+  game.addEventListener('click', e => {
+    if (state !== 'play' || KG.rulesOpen) return;
+    if (phase === 'show') { advance(); return; }
+    const b = e.target.closest && e.target.closest('.opt'); if (b) pick(+b.dataset.i);
+  });
+  $('btnHint').addEventListener('click', e => { e.stopPropagation(); hint(); e.currentTarget.blur(); });
+  $('btnSkip').addEventListener('click', e => { e.stopPropagation(); if (performance.now() - askAt < GUARD) return; skip(); e.currentTarget.blur(); });
+  const overGuard = () => performance.now() - endAt < 450;   // 결과 카드가 뜬 직후의 누름은 넘긴다
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) start(); });
+  $('btnAgain').addEventListener('click', () => { if (overGuard()) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (overGuard() && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', resume);
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  document.addEventListener('keydown', e => {
+    if (KG.rulesOpen) return;
+    const k = e.key;
+    if (k === 'Escape' || k === 'p' || k === 'P' || k === 'ㅔ') { if (state === 'play') pause(); else if (state === 'pause') resume(); return; }
+    if (state === 'play') {
+      if (k === ' ' || k === 'Enter') {
+        // 초점이 놓인 단추·링크는 제 할 일을 하게 둔다 (문제를 푸는 동안은 모든 단추, 해설이 떠 있을 때는 위 줄 단추만 — 나머지는 해설 넘기기)
+        const on = e.target && e.target.closest && e.target.closest(phase === 'ask' ? 'button, a' : '.kg-top button, .kg-top a');
+        if (on && !on.disabled) return;
+        e.preventDefault(); if (!e.repeat && phase === 'show') advance(); return;
+      }
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || phase !== 'ask' || !cur) return;
+      if (cur.q.type === 'ox') {
+        if (k === 'o' || k === 'O' || k === 'ㅐ' || k === 'ArrowLeft' || k === '1') { e.preventDefault(); pick(0); return; }
+        if (k === 'x' || k === 'X' || k === 'ㅌ' || k === 'ArrowRight' || k === '2') { e.preventDefault(); pick(1); return; }
+      } else if (k >= '1' && k <= '4') { const i = +k - 1; if (i < cur.opts.length) { e.preventDefault(); pick(i); } return; }
+      if (k === 'h' || k === 'H' || k === 'ㅗ') hint(); else if (k === 'n' || k === 'N' || k === 'ㅜ') { if (performance.now() - askAt >= GUARD) skip(); }
+      return;
+    }
+    if (k === ' ' || k === 'Enter') {
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault();
+      if (state === 'ready') start(); else if (state === 'result') { if (!overGuard()) start(); } else if (state === 'pause') resume();
+    }
+  });
+
+  // ═══════ 시작 ═══════
+  // 난이도 고르기: 시작 카드·결과 카드에만 (고르면 그 난이도의 수치와 최고 기록을 보여 준다)
+  function paintBest() {
+    const d = DIFF[KG.diff()] || DIFF.normal;
+    $('stTime').textContent = d.time + '초'; $('stHearts').textContent = d.hearts + '개';
+    $('stLife').textContent = '힌트 ' + d.hint + '번 · 넘기기 ' + (d.skip > 0 ? d.skip + '번' : '없음');
+    if (state === 'ready') { D = d; hearts = d.hearts; hints = d.hint; skips = d.skip; paintHearts(); paintHud(); }   // 시작 전: 뒤에 비치는 하트·찬스 수도 고른 난이도에 맞춘다
+    const b = recOf(modeSel, KG.diff());   // 고른 종류·난이도의 기록
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점'; $('stNote').hidden = modeSel === 'all';
+    // 결과 카드는 방금 끝난 판(diffId)의 기록으로 고정 — 다음 판 난이도를 바꿔도 그 판 점수·'새 기록' 딱지와 어긋나지 않게. 다른 난이도를 골라 두었으면 어느 난이도 기록인지 밝힌다
+    const e = recOf(modeId, diffId);
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (modeSel === modeId ? '' : MODES.find(m => m.id === modeId).short + ' ') + (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + (modeSel !== modeId && KG.diff() !== diffId ? '최고' : '최고 기록');   // 둘 다 붙으면 길어서 「최고」로 줄인다
+    $('edNote').hidden = modeId === 'all';   // 방금 끝난 판이 상식·넌센스만이었으면: 그 기록은 가족 순위에 올라가지 않는다
+  }
+  // 문제 종류 고르기도 같은 자리에 (난이도 바로 위). 판 도중에는 고를 곳이 없다 — 시작할 때 읽은 종류로 고정
+  const stDiff = KG.diffPicker(null, paintBest); $('stRec').parentNode.insertBefore(stDiff, $('stRec')); stDiff.before(modePicker());
+  const edDiff = KG.diffPicker(null); $('cardEnd').querySelector('.row').before(edDiff); edDiff.before(modePicker());
+  D = DIFF[KG.diff()] || DIFF.normal; hearts = D.hearts; hints = D.hint; skips = D.skip;
+  paintBest(); paintHearts(); paintHud(); layout();
+  $('qText').textContent = J(name, '이/가') + ' 문제를 준비했어요';
+  // 규칙 안내: 앱을 켠 뒤 처음 열 때 시작 카드보다 먼저 한 번 (공통이 sessionStorage 로 기억), 시작 카드의 「규칙 보기」 로 다시
+  const RULES = { key: 'quiz', title: J(name, '의') + ' 퀴즈 퀴즈', lead: '사회자 ' + J(name, '이/가') + ' 문제를 내요. 많이 맞혀 높은 점수를 얻어요.', items: [
+    ['❓', '문제를 읽고 보기 단추를 눌러 답을 골라요. 상식 퀴즈·넌센스 퀴즈 가운데 문제 종류를 고를 수 있어요.'],
+    ['⏳', '시간 막대가 다 줄기 전에 답해요. 빨리, 잇달아 맞힐수록 점수가 커져요.'],
+    ['💗', '틀리거나 시간이 다 되면 하트가 줄고, 하트가 다 없어지면 끝나요.'],
+    ['💡', '어려우면 찬스를 써요. 「힌트」는 틀린 보기를 지우고 「넘기기」는 다음 문제로 가요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(focusStart);
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // 시험·디버그용
+  window.GAME = {
+    get state() { return state; }, get phase() { return phase; }, get score() { return score; }, get hearts() { return hearts; }, get streak() { return streak; }, get maxStreak() { return maxStreak; },
+    get correct() { return correct; }, get asked() { return asked; }, get hints() { return hints; }, get skips() { return skips; }, get diff() { return diffId; }, get D() { return D; }, DIFF,
+    start, pause, resume, end: () => { if (state === 'pause') resume(); if (state === 'play') { hearts = 0; paintHearts(); finish(); } },
+    step: dt => { tAnim += dt; moodT += dt; update(dt); },   // 시험용: 화면 없이 빨리 돌리기
+    cur: () => cur ? { id: cur.q.id, type: cur.q.type, cat: cur.q.cat, lv: cur.q.lv, q: cur.q.q, big: cur.q.big || '', exp: cur.q.exp, opts: cur.opts.map(o => o.t), gone: cur.opts.map(o => !!o.gone), answer: cur.ans, t: cur.t, limit: cur.limit, phase } : null,
+    answer: i => resolve(i), next, hint, skip,
+    bank: () => BANK.map(q => Object.assign({}, q, { opts: q.opts.slice() })), check, chosung,
+    seen: () => seen.slice(),
+    MODES, get mode() { return modeId; }, get modeSel() { return modeSel; }, setMode, rec: (m, d) => recOf(m || modeSel, d || KG.diff()), pool: () => BANK.filter(inMode).length
+  };
+})();
+</script>
+</body>
+</html>
