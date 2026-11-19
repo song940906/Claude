@@ -85,7 +85,9 @@
   document.title = name + '별 게임';
   function paintRecs() {   // 고른 난이도의 최고 기록 (없으면 비워 둔다)
     for (const el of document.querySelectorAll('[data-rec]')) {
-      const v = best(dkey(el.dataset.rec)); el.innerHTML = v > 0 ? '최고<strong>' + Math.round(v).toLocaleString() + el.dataset.unit + '</strong>' : '';
+      let v = best(dkey(el.dataset.rec));
+      if (el.dataset.rec === 'quiz') for (const m of ['gen', 'ns']) v = Math.max(v, best('quiz.' + m + '.' + KG.diff()));   // 퀴즈는 문제 종류(모두 섞기·상식·넌센스) 가운데 가장 높은 점수
+      el.innerHTML = v > 0 ? '최고<strong>' + Math.round(v).toLocaleString() + el.dataset.unit + '</strong>' : '';
     }
   }
   // 가족 순위 카드: 연결돼 있으면 마지막으로 받아 둔 순위(저장본)로 내 종합 등수를 한 줄 보여 준다

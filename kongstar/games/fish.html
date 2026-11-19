@@ -518,6 +518,7 @@ body .kg-top { z-index: 26; }
   // ═══════ 상태 ═══════
   let state = 'ready';            // ready · play · pause · over · result
   let phase = 'aim';              // aim 던지기 전 · charge 힘 모으기 · fly 날아가는 중 · wait 기다리기 · bite 진짜 입질 · reel 끌어올리기 · got 잡았다 · miss 놓쳤다
+  let recNew = false;   // 이 판에서 새 기록을 세웠는지
   let score = 0, bait = 0, caught = 0, biggest = null, casts = 0, cleanCnt = 0, tAnim = 0, overT = 0, resultAt = 0;
   let phT = 0, power = 0, castD = 0, bobX = 0, bobY = 0, flyFrom = null;
   let waitT = 0, nib = 0, fakes = 0, quiet = 0, biteT = 0, dip = 0;
@@ -610,6 +611,7 @@ body .kg-top { z-index: 26; }
     const c = cur, fish = c.sp.kind === 'fish', clean = fish && !redEver;
     let pts = c.pts; if (clean) { pts = Math.round(pts * 1.2 / 5) * 5; cleanCnt++; }
     score += pts; gotNew = false;
+    if (score > 0 && setBest(KG.dkey('fish', diffId), score)) recNew = true;   // 잡을 때마다 바로 저장 — 미끼를 다 쓰기 전에 나가도 기록이 남게
     if (fish) { caught++; gotNew = dexAdd(c.sp, c.cm); if (!biggest || c.cm > biggest.cm) biggest = { name: c.sp.name, cm: c.cm }; }
     else if (c.sp.kind === 'chest') caught++;
     log.push({ d: castD, res: 'got', id: c.sp.id, cm: c.cm, pts, clean });
@@ -851,7 +853,7 @@ body .kg-top { z-index: 26; }
   // ═══════ 흐름 ═══════
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
-    score = 0; bait = D.bait; caught = 0; biggest = null; casts = 0; cleanCnt = 0; overT = 0; shake = 0; kongJoy = 0; log.length = 0;
+    score = 0; recNew = false; bait = D.bait; caught = 0; biggest = null; casts = 0; cleanCnt = 0; overT = 0; shake = 0; kongJoy = 0; log.length = 0;
     parts.length = rings.length = floats.length = 0; shown = { s: -1, b: -1, c: -1 }; paintHud();
     state = 'play'; phase = 'aim'; phT = 0; hold = false; cur = null; power = 0; hintTxt = '\u0000'; setHint('화면을 꾹 눌러 힘을 모아요');
     $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = $('got').hidden = true; btnPause.hidden = false; paintTitle(); $('hud').style.visibility = '';
@@ -873,7 +875,7 @@ body .kg-top { z-index: 26; }
   function showResult() {
     if (state !== 'over') return;
     state = 'result'; resultAt = performance.now();
-    const isNew = score > 0 && setBest(KG.dkey('fish', diffId), score);
+    const isNew = (score > 0 && setBest(KG.dkey('fish', diffId), score)) || recNew;
     $('edScore').textContent = fmt(score); $('edNew').hidden = !isNew;
     $('edText').textContent = caught > 0 ? '미끼 ' + casts + '개로 ' + caught + '번 잡았어요.' : '오늘은 물고기가 잘 숨었네요. 다음엔 꼭 잡아요.';
     $('edBigBox').hidden = !biggest; if (biggest) $('edBig').textContent = biggest.name + ' ' + biggest.cm + 'cm';

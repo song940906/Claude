@@ -735,7 +735,7 @@ body .kg-top { z-index: 26; }
   let score = 0, hearts = 3, streak = 0, maxStreak = 0, correct = 0, asked = 0, hints = 0, skips = 0;
   let cur = null, showT = 0, showLen = 1, tAnim = 0, mood = 'idle', moodT = 0, askAt = 0, showAt = 0, endAt = -1e9, lastTick = 0;
   let recNew = null;   // 이 판의 기록을 저장했는지(null: 아직) — 마지막 하트를 잃는 순간 바로 저장해, 해설을 보다 나가도 기록이 남게 한다
-  const saveRec = () => { if (recNew === null) recNew = score > 0 && putRec(modeId, diffId, score); return recNew; };
+  const saveRec = () => { if (score > 0 && putRec(modeId, diffId, score)) recNew = true; return !!recNew; };   // 맞힐 때마다 바로 저장 — 하트가 남은 채 나가도 기록이 남게
   const used = new Set(); let runType = '', runN = 0, lastId = -1;
   const SEEN_KEY = 'kongstar.game.quiz.seen', SEEN_MAX = 120;
   let seen = [];
@@ -836,7 +836,7 @@ body .kg-top { z-index: 26; }
     cur.picked = i;
     if (ok) {
       gain = Math.round((BASE + TIME_BONUS * clamp(cur.t / cur.limit, 0, 1) + STREAK_BONUS * Math.min(streak, STREAK_CAP)) * D.mult);
-      score += gain; streak++; correct++; maxStreak = Math.max(maxStreak, streak);
+      score += gain; streak++; correct++; maxStreak = Math.max(maxStreak, streak); saveRec();
       mood = 'happy'; moodT = 0;
       if (streak % 5 === 0) { sfx('power'); voice('bark', 0.15); } else { sfx('coin'); if (Math.random() < 0.16) voice('bark', 0.1); }
     } else { hearts = Math.max(0, hearts - 1); streak = 0; mood = 'sad'; moodT = 0; sfx('wrong'); if (hearts <= 0) saveRec(); }
