@@ -101,6 +101,8 @@ body .kg-top { z-index: 26; }
   body .kg-card .big { font-size: 28px; margin: 0; }
   body .kg-card .new { margin-top: 0; }
 }
+/* 가로 낮은 화면에서 순위 카드가 옆에 붙어 결과 카드가 좁아지면(약 300px) 이 게임만 있는 별·기록 칩 두 줄 때문에 「다음 단계」 단추가 카드 아래로 밀려난다 → 기록 칩을 한 줄로 */
+@media (orientation: landscape) and (max-height: 430px) { body .kg-rbwrap > .kg-card .rec { flex-wrap: nowrap; gap: 6px; } body .kg-rbwrap > .kg-card .rec span { padding: 6px 9px; font-size: 12px; white-space: nowrap; } }
 @media (prefers-reduced-motion: reduce) { #ctl #btnGo.ready, .kg-card .stars svg.on { animation: none; } }
 </style>
 </head>
@@ -667,7 +669,7 @@ body .kg-top { z-index: 26; }
     const star = '<svg viewBox="0 0 24 24"><path d="M12 2.6l2.75 5.9 6.45.8-4.75 4.45 1.25 6.4L12 17l-5.7 3.15 1.25-6.4L2.8 9.3l6.45-.8z"/></svg>';
     $('edStars').innerHTML = star + star + star; [...$('edStars').children].forEach((s, i) => s.classList.toggle('on', i < lastStars)); $('edStars').setAttribute('aria-label', '별 ' + lastStars + '개');
     $('edSteps').textContent = lastSteps; $('edOpt').textContent = lastOpt + '걸음'; $('edNew').hidden = !lastNew;
-    paintCards(); $('cardEnd').hidden = false; $('ctl').hidden = true;
+    paintCards(); $('cardEnd').hidden = false; $('ctl').hidden = true; rb.show(diffId); $('cardEnd').scrollTop = 0;   // 방금 깬 난이도의 가족 순위 (겉상자는 지난번 스크롤 자리를 기억하므로 맨 위로) (기록은 finishRun 에서 이미 저장)
     try { $('btnNext').focus({ preventScroll: true }); } catch (e) {}
   }
   function update(dt) {
@@ -789,7 +791,7 @@ body .kg-top { z-index: 26; }
   function begin(n) {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     state = 'play'; loadStage(n == null ? savedStage(diffId) : n); hintsLeft = savedHints(diffId, stageNo, D.hints); setMood('idle');
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; $('ctl').hidden = false;
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; rb.hide(); btnPause.hidden = false; $('ctl').hidden = false;
     KG.unlockAudio(); paintHud();
     tone(659, 0.12, 'triangle', 0.05); tone(880, 0.2, 'triangle', 0.05, 0.1);
     say(S.tip || stageNo + '단계! 집 ' + S.H + '곳에 배달해요', S.tip ? 6000 : 2400);
@@ -799,7 +801,7 @@ body .kg-top { z-index: 26; }
   function quit() {   // 그만하기 → 시작 카드로 (단계는 저장돼 있다)
     if (state === 'ready') return;
     state = 'ready'; say(''); setMood('idle'); drag = false;
-    $('cardEnd').hidden = $('cardPause').hidden = true; $('cardStart').hidden = false; btnPause.hidden = true; $('ctl').hidden = true;
+    $('cardEnd').hidden = $('cardPause').hidden = true; rb.hide(); $('cardStart').hidden = false; btnPause.hidden = true; $('ctl').hidden = true;
     preview(); try { $('btnStart').focus({ preventScroll: true }); } catch (e) {}
   }
   function pause() { if (state !== 'play' && state !== 'run') return; resumeTo = state; state = 'pause'; drag = false; $('cardPause').hidden = false; if (document.activeElement === btnPause) btnPause.blur(); try { $('btnResume').focus({ preventScroll: true }); } catch (e) {} paintHud(); }
@@ -864,6 +866,7 @@ body .kg-top { z-index: 26; }
   // ═══════ 시작 ═══════
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, () => { if (state === 'ready') preview(); else paintCards(); }), $('stInfo'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'deliver');   // 단계 완료 카드 바로 아래(가로 화면은 오른쪽)에 붙는 별도의 가족 순위 카드
   preview();
   const RULES = { key: 'deliver', title: TITLE, lead: '로켓 가방을 멘 ' + J(name, '이/가') + ' 동네 집집마다 간식을 배달해요.', items: [
     ['👆', name + '에서부터 손가락으로 옆 칸으로 길을 그어요. 왔던 칸으로 되돌아가면 길이 지워져요.'],

@@ -503,13 +503,13 @@ body .kg-top { z-index: 26; }
     state = 'result'; cardT = performance.now();
     $('edTitle').textContent = lastClear + '단계 완료!'; $('edText').textContent = J(name, '이/가') + ' 사료를 맛있게 먹었어요.';
     $('edMoves').textContent = lastMoves; $('edStage').textContent = lastClear + '단계'; $('edNew').hidden = !lastNew;
-    paintCards(); $('cardEnd').hidden = false; $('ctl').hidden = true;
+    paintCards(); $('cardEnd').hidden = false; $('ctl').hidden = true; rb.show(diffId); $('cardEnd').scrollTop = 0;   // 방금 깬 난이도의 가족 순위 (겉상자는 지난번 스크롤 자리를 기억하므로 맨 위로) (기록은 stageClear 에서 이미 저장)
     try { $('btnNext').focus({ preventScroll: true }); } catch (e) {}
   }
   function begin(n) {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     state = 'play'; loadStage(n == null ? savedStage(diffId) : n); kx = KX0; setMood('idle'); say('');
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; $('ctl').hidden = false;
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; rb.hide(); btnPause.hidden = false; $('ctl').hidden = false;
     KG.unlockAudio(); paintHud();
     tone(659, 0.12, 'triangle', 0.05); tone(880, 0.2, 'triangle', 0.05, 0.1);
     say(stageNo + '단계! 색깔별로 모아 주세요', 2200);
@@ -520,7 +520,7 @@ body .kg-top { z-index: 26; }
   function quit() {   // 그만하기 → 시작 카드로 (단계는 저장돼 있다)
     if (state === 'ready') return;
     state = 'ready'; sel = -1; stuck = ''; say(''); parts.length = 0; clearT = 0; bowlFill = 0; kx = KX0; setMood('idle');
-    $('cardEnd').hidden = $('cardPause').hidden = true; $('cardStart').hidden = false; btnPause.hidden = true; $('ctl').hidden = true;
+    $('cardEnd').hidden = $('cardPause').hidden = true; rb.hide(); $('cardStart').hidden = false; btnPause.hidden = true; $('ctl').hidden = true;
     preview(); try { $('btnStart').focus({ preventScroll: true }); } catch (e) {}
   }
   function pause() { if (state !== 'play') return; state = 'pause'; $('cardPause').hidden = false; if (document.activeElement === btnPause) btnPause.blur(); try { $('btnResume').focus({ preventScroll: true }); } catch (e) {} paintHud(); }
@@ -636,6 +636,7 @@ body .kg-top { z-index: 26; }
   layout();
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, () => { if (state === 'ready') preview(); else paintCards(); }), $('stInfo'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'bowl');   // 단계 완료 카드 바로 아래(가로 화면은 오른쪽)에 붙는 별도의 가족 순위 카드
   preview();
   const RULES = { key: 'bowl', title: TITLE, lead: '뒤섞인 사료를 색깔별로 모아 ' + J(name, '에게') + ' 주세요.', items: [
     ['🥣', '통을 누른 다음 다른 통을 누르면, 맨 위 사료가 그 통으로 옮겨져요.'],

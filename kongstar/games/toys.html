@@ -131,6 +131,7 @@ body .kg-top { z-index: 26; }
   const $ = id => document.getElementById(id);
   const fmt = n => Math.round(n).toLocaleString('ko-KR');
   const KEY = 'toys', TITLE = J(name, '의') + ' 장난감잡기';
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);   // 결과 카드 바로 아래(가로 화면은 오른쪽) 별도 카드로 붙는 가족 순위표
 
   // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
   //   up   올라와 있는 시간(초): [처음, 끝]  — 45초 동안 처음 값에서 끝 값으로 줄어든다
@@ -440,7 +441,7 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 흐름 ═══════
   function clearCells() { for (const c of cells) { if (c.it) release(c); c.cool = 0; } board.querySelectorAll('.fl').forEach(f => f.remove()); }
-  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     clearCells(); score = 0; combo = 0; elapsed = 0; spawnT = 0.7; overT = 0; spawned = 0; lastKong = -9; kongOwed = false; lastTick = 99; mood = 'idle'; moodT = 0;
@@ -465,7 +466,7 @@ body .kg-top { z-index: 26; }
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = stats.caught >= 1 ? '장난감을 잘 잡았어요' : '시간이 다 됐어요';
     $('edText').textContent = stats.bonk === 0 && stats.spared > 0 ? J(name, '을/를') + ' 한 번도 안 눌렀어요. 최고예요!' : stats.bonk > 0 ? J(name, '을/를') + ' ' + stats.bonk + '번 눌렀어요. 다음엔 살살!' : J(name, '이랑/랑') + ' 잘 놀았어요.';
-    endAt = performance.now(); showCard('cardEnd', 'btnAgain');
+    endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win'); if (score > 0) { lastVoice = tAnim; voice('bark', 0.2, 1.0); }
   }
   const RULES = { key: KEY, title: TITLE, lead: '이불 속에서 올라오는 장난감을 잡는 놀이예요.', items: [

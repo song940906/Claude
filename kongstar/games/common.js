@@ -1,6 +1,6 @@
 // 콩이별 미니게임 공통 — make.js 가 콩이 그림·리그·목소리를 넣어 app/games/common.js 로 만든다 (직접 고칠 파일은 이 common.src.js)
 // 게임 파일(run.html·puzzle.html·shoot.html)과 고르는 화면(index.html)이 <script src="common.js"> 로 함께 쓴다.
-//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
+//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), rankBox(결과 카드 순위표), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
 // 콩이 리그 구동기 — CONTRACT.md 규약을 지킨 SVG 의 부위를 움직인다.
 //   앱(kongstar.html)과 그림 미리보기(preview.js)가 같은 코드를 쓴다 (make.js 가 앱에 합친다).
 //   사용: const rig = new KongRig(svg); rig.setPose('sit'); rig.render({ t, tilt: 8, eyes: 'happy', … })
@@ -389,6 +389,42 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
 .kg-diff.dark { background:rgba(255,255,255,.12); }
 .kg-diff.dark button { color:#C9D1F2; }
 .kg-diff.dark button.on { background:#fff; color:var(--pri); }
+/* 결과 카드 아래 가족 순위 카드 (KG.rankBox) — 결과 카드 바로 다음 형제로 붙고, 둘을 담은 겉상자(scrim)를 세로로 쌓는다 (가로 화면은 나란히) */
+.kg-rbwrap { flex-direction:column !important; align-items:center !important; justify-content:flex-start !important; flex-wrap:nowrap !important; gap:12px; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
+.kg-rbwrap > .kg-card { flex:none; max-height:none; max-width:100%; }
+@media (max-width:460px) { .kg-rbwrap > .kg-card { box-sizing:border-box; } }
+/* 세로 화면: 두 카드가 겉상자를 넘쳐 위로 붙을 때 위 줄(게임·소리 단추) 밑에서 시작하게 */
+@media (orientation:portrait) { .kg-rbwrap { padding-top:calc(var(--sat) + 64px); } }
+.kg-rbwrap.kg-rbmid > .kg-card { margin-top:auto; }
+.kg-rbwrap.kg-rbmid > .kg-rbox { margin-bottom:auto; }
+.kg-rbox { box-sizing:border-box; flex:none; width:min(100%,400px); background:var(--card); color:var(--ink); border-radius:24px; padding:18px 16px 14px; box-shadow:0 12px 40px rgba(0,0,0,.3); text-align:left; }
+.kg-rbox .hd { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0 6px 8px; }
+.kg-rbox .hd b { font-size:19px; font-weight:800; letter-spacing:-.3px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kg-rbox .hd span { flex:none; font-size:13px; color:var(--sub); white-space:nowrap; }
+.kg-rbox ol { list-style:none; margin:0; padding:0; }
+.kg-rbox li { display:flex; align-items:center; gap:10px; padding:8px 8px; border-radius:12px; }
+.kg-rbox li + li { margin-top:2px; }
+.kg-rbox li.me { background:#EEF0FB; }
+.kg-rbox .rk { flex:none; width:30px; text-align:center; font-size:15px; font-weight:700; color:var(--sub); font-variant-numeric:tabular-nums; }
+.kg-rbox .rk.medal { font-size:21px; }
+.kg-rbox .who { flex:1; min-width:0; display:flex; align-items:center; gap:6px; }
+.kg-rbox .nm { flex:0 1 auto; min-width:0; font-size:15.5px; font-weight:600; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kg-rbox .who i { flex:none; padding:1px 7px; border-radius:999px; background:var(--pri); color:#fff; font-size:11px; font-style:normal; font-weight:700; white-space:nowrap; }
+.kg-rbox .val { flex:none; text-align:right; font-size:15.5px; font-weight:700; color:var(--pri); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.kg-rbox .val small { display:block; font-size:11.5px; font-weight:500; color:var(--sub); }
+.kg-rbox li.gap { padding:0; height:14px; justify-content:center; color:var(--sub); font-size:12px; }
+.kg-rbox li.empty { justify-content:center; padding:14px 8px; color:var(--sub); font-size:14px; }
+.kg-rbox .ft, .kg-rbox .note { margin:8px 6px 0; font-size:12px; line-height:1.45; color:var(--sub); text-align:center; }
+.kg-rbox .ft.err { color:#D9480F; }
+.kg-rbox .off { margin:2px 6px 0; font-size:14px; line-height:1.5; color:var(--sub); text-align:center; }
+.kg-rbox .off a { display:inline-flex; align-items:center; justify-content:center; height:40px; margin-top:10px; padding:0 16px; border-radius:12px; background:var(--soft); color:var(--pri); font-weight:700; text-decoration:none; }
+@media (orientation:landscape) and (max-height:520px) {
+  .kg-rbwrap { flex-direction:row !important; align-items:flex-start !important; justify-content:center !important; }
+  .kg-rbwrap > .kg-card, .kg-rbwrap > .kg-rbox { max-height:100%; overflow-y:auto; margin-top:auto !important; margin-bottom:auto !important; }
+  .kg-rbwrap > .kg-card { flex:0 1 auto; min-width:0; }
+  .kg-rbwrap > .kg-rbox { width:min(42%,340px); padding:12px 12px 10px; margin-top:44px !important; max-height:calc(100% - 44px); }
+  .kg-rbox .hd b { font-size:16px; } .kg-rbox li { padding:5px 6px; } .kg-rbox .val small { display:none; }
+}
 @media (max-width:340px) { .kg-diff button { font-size:12px; letter-spacing:-.5px; } }
 .kg-rules { z-index:40; background:rgba(8,10,28,.62); }
 .kg-rules .tag { display:inline-block; margin-bottom:8px; padding:4px 10px; border-radius:999px; background:var(--soft); color:var(--pri); font-size:12px; font-weight:700; }
@@ -522,9 +558,10 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   function clearCfg() { lsDel(RK.cfg); lsDel(RK.cache); lsDel(RK.last); lsDel(RK.dirty); rankStatus.state = 'off'; rankStatus.msg = ''; }
   function setName(n) { n = cleanName(n); if (!n) return false; const m = rankMe() || { id: newId() }; m.name = n; m.key = meKey() || newId(); ls.set(RK.me, JSON.stringify(m)); ls.set(RK.dirty, '1'); if (syncing) syncAgain = true; return true; }   // 올리는 도중에 바꿨으면 끝난 뒤 한 번 더 보낸다
   // 이 폰의 최고 기록 모으기 (기록이 있는 칸만)
-  function myRecs() { const r = {}; for (const g of GAMES) for (const d of DIFFS) { const k = recKey(g, d.id), v = best(k); if (v > 0) r[k] = v; } return r; }
+  function myRecs() { const r = {}; for (const g of GAMES) for (const d of DIFFS) { const k = recKey(g, d.id), v = Math.round(best(k)); if (v > 0) r[k] = v; } return r; }   // 저장소는 정수만 받는다
   const rankKeys = () => { const m = new Map(); for (const g of GAMES) for (const d of DIFFS) m.set(recKey(g, d.id), g.lower); return m; };
   const rankMsg = r => r.ok ? '' : r.status === 401 ? '가족 코드가 맞지 않아요' : r.status === 503 ? '저장소에 가족 코드가 아직 설정되지 않았어요' : r.status === 409 ? '가족 순위가 가득 찼어요 (20명까지)' : r.status === 403 ? (r.data && r.data.error === 'owner' ? '다른 폰에서 만든 기록이라 이 폰에서는 바꿀 수 없어요' : '이 앱 주소에서는 쓸 수 없는 저장소예요')
+    : r.status === 400 && r.data && r.data.error === 'key' ? '저장소가 새 게임을 아직 몰라요. Cloudflare 의 저장소 코드를 새 rank-worker.js 로 바꿔 주세요'
     : r.status === 0 ? '저장소에 닿지 못했어요. 인터넷 연결이나 주소를 확인해 주세요' : '저장소가 올바르게 답하지 않았어요 (' + r.status + ')';
   // 저장소 부르기: 화면을 막지 않게 비동기, 6초 안에 답이 없으면 그만둔다. 항상 { ok, status, data } 로 풀린다 (던지지 않는다)
   function rankCall(method, path, body, c, pk) {
@@ -638,11 +675,94 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     const m = /^#?join=([A-Za-z0-9_-]{8,1200})$/.exec(hash || ''); if (!m) return null;
     try { const o = JSON.parse(unb64u(m[1])), url = cleanUrl(o && o.u), code = o && typeof o.c === 'string' ? o.c.trim() : ''; return url && code && code.length <= 100 ? { url, code } : null; } catch (e) { return null; }
   }
-  const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName };
+
+  // ── 결과 카드의 가족 순위표: KG.rankBox(카드, 게임 열쇠) → { el, show(난이도, { note }), hide() }
+  //   결과 카드 바로 아래에 별도의 흰 카드로 붙는다 (가로 화면에서는 오른쪽에 나란히). host 가 null 이면 rb.el 을 카드 안에 넣어 두기만 하면 show 때 카드 다음으로 옮긴다. show() 는 판이 끝나 결과를 보여 줄 때 — setBest 로 기록을 저장한 뒤에 — 부른다.
+  //   연결 전이거나 이름이 없으면 「가족 순위」 화면으로 가는 한 줄 안내만. 연결돼 있으면
+  //   받아 둔 순위를 바로 그리고 → 방금 기록을 올린 뒤 → 새로 받아 다시 그린다. 카드가 보이는 동안 20초마다 다시 받는다(10분까지).
+  //   순위는 위에서 5명, 내가 그 아래면 「⋯」 뒤에 내 줄을 덧붙인다. 아직 못 올린 내 새 기록도 내 줄에는 보인다(withMe)
+  function rankFlush() {
+    if (!rankCfg()) return Promise.resolve(null);
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; lastPush = Date.now(); }
+    if (ls.get(RK.dirty) !== '1') return syncing || Promise.resolve(null);
+    if (syncing) { syncAgain = true; return syncing; }
+    return rankSync(true);
+  }
+  const RB_TOP = 5, RB_EVERY = 20000, RB_FOR = 600000;
+  const hhmm = t => { try { return new Date(t || Date.now()).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+  function rankBox(host, gameKey) {
+    const g = GAMES.find(x => x.key === gameKey) || { key: gameKey, title: '', unit: '', lower: false };
+    const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const el = mk('section', 'kg-rbox'); el.hidden = true; el.setAttribute('aria-live', 'polite'); el.setAttribute('aria-label', '가족 순위');
+    let diff = diffId, note = '', gen = 0, timer = 0, since = 0;
+    const seen = () => el.isConnected && !el.hidden && !document.hidden && el.getClientRects().length > 0;
+    const when = t => { if (!t) return ''; const d = new Date(t), n = new Date(), day = x => Math.floor((x.getTime() - x.getTimezoneOffset() * 60000) / 86400000), df = day(n) - day(d); return df <= 0 ? '오늘' : df === 1 ? '어제' : df < 7 ? df + '일 전' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일'; };
+    // 자리 잡기: 결과 카드(host, 또는 지금 el 이 들어 있는 카드) 바로 다음 형제로 옮기고, 겉상자를 세로로 쌓는 상자로 만든다.
+    //   겉상자가 원래 카드를 가운데 두던 곳이면(kg-rbmid) 두 카드를 함께 가운데로, 위에 붙이던 곳이면 카드 자리를 그대로 두고 아래에 이어 붙인다
+    function place() {
+      const card = host || (el.parentElement && el.parentElement.closest('.kg-card'));
+      if (!card || !card.parentElement) return;
+      const box = card.parentElement;
+      if (!box.classList.contains('kg-rbwrap')) { const cs = getComputedStyle(box); const mid = cs.display.indexOf('flex') >= 0 ? cs.alignItems === 'center' || cs.alignItems === 'normal' && cs.flexDirection.indexOf('column') >= 0 : true; box.classList.add('kg-rbwrap'); box.classList.toggle('kg-rbmid', mid); }
+      if (card.nextSibling !== el) card.after(el);
+    }
+    function line(r, mine) {
+      const li = mk('li', mine ? 'me' : '');
+      const rk = mk('span', 'rk' + (r.rank <= 3 ? ' medal' : ''), r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : String(r.rank)); rk.setAttribute('aria-label', r.rank + '등'); li.appendChild(rk);
+      const who = mk('span', 'who'); who.appendChild(mk('span', 'nm', r.name)); if (mine) who.appendChild(mk('i', '', '나')); li.appendChild(who);
+      const v = mk('span', 'val', Math.round(r.v).toLocaleString() + g.unit); const w = when(r.at); if (w) v.appendChild(mk('small', '', w)); li.appendChild(v);
+      return li;
+    }
+    function paint(players, foot, err) {
+      el.textContent = '';
+      const hd = mk('div', 'hd'); hd.appendChild(mk('b', '', g.title || '가족 순위')); hd.appendChild(mk('span', '', diffLabel(diff) + (g.lower ? ' · 적을수록 좋아요' : ''))); el.appendChild(hd);
+      const me = rankMe();
+      if (!rankCfg() || !me || !me.name) {
+        const p = mk('div', 'off', rankCfg() ? '이름을 정하면 가족과 등수를 겨룰 수 있어요' : '가족 순위에 연결하면 여기서 가족과 등수를 겨룰 수 있어요');
+        p.appendChild(document.createElement('br')); const a = mk('a', '', '가족 순위 열기'); a.href = 'rank.html'; p.appendChild(a); el.appendChild(p); return;
+      }
+      const rows = board(withMe(players || []), recKey(g, diff), g.lower), ol = mk('ol');
+      if (!rows.length) ol.appendChild(mk('li', 'empty', '아직 이 칸에 기록이 없어요'));
+      else {
+        const mi = rows.findIndex(r => r.id === me.id);
+        for (const r of rows.slice(0, RB_TOP)) ol.appendChild(line(r, r.id === me.id));
+        if (mi >= RB_TOP) { if (mi > RB_TOP) ol.appendChild(mk('li', 'gap', '⋯')); ol.appendChild(line(rows[mi], true)); }
+      }
+      el.appendChild(ol);
+      if (foot) el.appendChild(mk('div', 'ft' + (err ? ' err' : ''), foot));
+      if (note) el.appendChild(mk('div', 'note', note));
+    }
+    function refresh(my, push) {
+      let upErr = '';
+      (push ? rankFlush().then(() => { if (ls.get(RK.dirty) === '1' && rankStatus.state === 'fail') upErr = rankStatus.msg || '저장소가 올바르게 답하지 않았어요'; }) : Promise.resolve())
+        .then(() => fetchAll())
+        .then(players => {
+          if (my !== gen || el.hidden) return;
+          if (players) { paint(players, upErr ? '내 기록을 올리지 못했어요 · ' + upErr : '실시간 순위 · ' + hhmm() + ' 받음', !!upErr); return; }
+          const c = rankCache();
+          paint(c ? c.players : [], (upErr ? '내 기록을 올리지 못했어요 · ' + upErr : (rankStatus.msg || '순위를 받지 못했어요')) + (c && c.at ? ' · ' + hhmm(c.at) + ' 순위를 보여 줘요' : ''), true);
+        });
+    }
+    function show(d, o) {
+      diff = DIFFS.some(x => x.id === d) ? d : diffId; note = (o && o.note) || ''; place(); el.hidden = false;
+      const my = ++gen; since = Date.now(); clearInterval(timer); timer = 0;
+      const c = rankCache(); paint(c ? c.players : [], rankCfg() && (rankMe() || {}).name ? '순위를 받는 중…' : '');
+      if (!rankCfg() || !(rankMe() || {}).name) return;
+      refresh(my, true);
+      timer = setInterval(() => {
+        if (my !== gen || Date.now() - since > RB_FOR) { clearInterval(timer); timer = 0; return; }
+        if (seen()) refresh(my, ls.get(RK.dirty) === '1');
+      }, RB_EVERY);
+    }
+    function hide() { gen++; el.hidden = true; clearInterval(timer); timer = 0; const box = el.parentElement; if (box) box.classList.remove('kg-rbwrap', 'kg-rbmid'); }
+    if (host && host.parentElement) host.after(el);
+    return { el, show, hide };
+  }
+  const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName, flush: rankFlush };
   // 밀린 기록: 화면을 열었을 때·앱이 다시 보일 때 (60초에 한 번). 화면을 떠날 때 보내려던 것이 남았으면 바로 보낸다 (keepalive)
   if (rankCfg()) setTimeout(() => { if (ls.get(RK.dirty) === '1') rankSync(false); }, 1500);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) rankSync(false); });
   addEventListener('pagehide', () => { if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; if (syncing) syncAgain = true; else rankSync(true); } });
 
-  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank };
+  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox };
 })();

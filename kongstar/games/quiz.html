@@ -868,7 +868,7 @@ body .kg-top { z-index: 26; }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal; modeId = modeSel;
     reset(); state = 'play';
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; rbox.hide(); btnPause.hidden = false;
     game.classList.remove('idle', 'veil'); fitTitle();
     KG.unlockAudio(); ask();
   }
@@ -881,7 +881,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edCorrect').textContent = fmt(correct) + '문제'; $('edStreak').textContent = fmt(maxStreak) + '번'; paintBest();
     $('edNew').hidden = !isNew;
     $('edText').textContent = correct > 0 ? J(name, '이/가') + ' 낸 문제 ' + fmt(asked) + '개 가운데 ' + fmt(correct) + '개를 맞혔어요.' : J(name, '이랑/랑') + ' 다시 한번 풀어 봐요.';
-    $('cardEnd').hidden = false; mood = correct > 0 ? 'happy' : 'idle'; moodT = 0;
+    $('cardEnd').hidden = false; rbox.show(diffId, modeId === 'all' ? null : { note: '가족 순위는 「모두 섞기」 기록으로 겨뤄요' }); mood = correct > 0 ? 'happy' : 'idle'; moodT = 0;
     if (isNew) sfx('win'); else sfx('lose');
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
@@ -984,6 +984,7 @@ body .kg-top { z-index: 26; }
   // 문제 종류 고르기도 같은 자리에 (난이도 바로 위). 판 도중에는 고를 곳이 없다 — 시작할 때 읽은 종류로 고정
   const stDiff = KG.diffPicker(null, paintBest); $('stRec').parentNode.insertBefore(stDiff, $('stRec')); stDiff.before(modePicker());
   const edDiff = KG.diffPicker(null); $('cardEnd').querySelector('.row').before(edDiff); edDiff.before(modePicker());
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'quiz');   // 결과 카드 아래(가로 화면은 오른쪽) 가족 순위 카드 — 가족 순위는 「모두 섞기」(quiz) 기록만이라 상식·넌센스 판에도 그 표를 안내와 함께 보여 준다
   D = DIFF[KG.diff()] || DIFF.normal; hearts = D.hearts; hints = D.hint; skips = D.skip;
   paintBest(); paintHearts(); paintHud(); layout();
   $('qText').textContent = J(name, '이/가') + ' 문제를 준비했어요';

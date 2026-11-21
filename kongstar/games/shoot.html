@@ -756,7 +756,7 @@ body .kg-top { z-index: 26; }
   }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
-    reset(); state = 'play';
+    reset(); state = 'play'; rb.hide();
     $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
     KG.unlockAudio(); beginWave(1);
   }
@@ -775,7 +775,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edWave').textContent = wave + '단계'; paintBest();
     $('edNew').hidden = !isNew;
     $('edText').textContent = kills > 0 ? '무서운 것들을 ' + fmt(kills) + '번 쫓아냈어요.' : J(name, '이랑/랑') + ' 잘 놀았어요.';
-    $('cardEnd').hidden = false; if (isNew) sfx('win');
+    $('cardEnd').hidden = false; rb.show(diffId); if (isNew) sfx('win');
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) start(); });
   $('btnAgain').addEventListener('click', start);
@@ -829,6 +829,8 @@ body .kg-top { z-index: 26; }
   }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  // 결과 카드 바로 아래(가로 화면은 오른쪽)에 방금 판 난이도의 가족 순위 카드 (새 판·처음 화면에서 숨김)
+  const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'shoot');
   paintBest();
   // 규칙 안내: 앱을 켠 뒤 처음 열 때 시작 카드보다 먼저 한 번 (공통이 sessionStorage 로 기억), 시작 카드의 「규칙 보기」 로 다시
   const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;

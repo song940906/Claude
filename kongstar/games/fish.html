@@ -856,7 +856,7 @@ body .kg-top { z-index: 26; }
     score = 0; recNew = false; bait = D.bait; caught = 0; biggest = null; casts = 0; cleanCnt = 0; overT = 0; shake = 0; kongJoy = 0; log.length = 0;
     parts.length = rings.length = floats.length = 0; shown = { s: -1, b: -1, c: -1 }; paintHud();
     state = 'play'; phase = 'aim'; phT = 0; hold = false; cur = null; power = 0; hintTxt = '\u0000'; setHint('화면을 꾹 눌러 힘을 모아요');
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = $('got').hidden = true; btnPause.hidden = false; paintTitle(); $('hud').style.visibility = '';
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = $('got').hidden = true; rbox.hide(); btnPause.hidden = false; paintTitle(); $('hud').style.visibility = '';
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     KG.unlockAudio(); tone(659, 0.12, 'triangle', 0.05); tone(880, 0.2, 'triangle', 0.05, 0.1);
   }
@@ -879,7 +879,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edNew').hidden = !isNew;
     $('edText').textContent = caught > 0 ? '미끼 ' + casts + '개로 ' + caught + '번 잡았어요.' : '오늘은 물고기가 잘 숨었네요. 다음엔 꼭 잡아요.';
     $('edBigBox').hidden = !biggest; if (biggest) $('edBig').textContent = biggest.name + ' ' + biggest.cm + 'cm';
-    paintBest(); $('cardEnd').hidden = false; if (isNew) sfx('win');
+    paintBest(); $('cardEnd').hidden = false; rbox.show(diffId); if (isNew) sfx('win');
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   const guardOk = () => performance.now() - resultAt > 450;   // 결과 카드가 뜬 직후의 누름은 넘긴다 (두드리던 손가락)
@@ -931,6 +931,7 @@ body .kg-top { z-index: 26; }
   }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'fish');   // 결과 카드 아래(가로 화면은 오른쪽) 가족 순위 카드
   paintBest();
   const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const RULES = { key: 'fish', title: TITLE, lead: J(name, '이/가') + ' 바다에서 물고기를 낚아요.', items: [

@@ -142,7 +142,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     hard:   { v0: 2.3, dv: 2.1, tau: 200, cap: 4.5, react: 0.54, lv: [35, 100, 200],  lmax: 3, gadd: 0,    gmul: 0.7, rest: 0.11, rhythm: 0.22, hearts: 3, h0: 170, hgap: [240, 330], mul: 1.25 },
     vhard:  { v0: 2.8, dv: 2.2, tau: 150, cap: 5.1, react: 0.48, lv: [15, 50, 110],   lmax: 3, gadd: 0,    gmul: 0.5, rest: 0.07, rhythm: 0.28, hearts: 2, h0: 200, hgap: [300, 400], mul: 1.5 }
   };
-  let D = DIFF[KG.diff()] || DIFF.normal, runKey = KG.dkey('run');   // 판을 시작할 때 한 번 정해 그 판 동안 그대로
+  let D = DIFF[KG.diff()] || DIFF.normal, runKey = KG.dkey('run'), runDiff = KG.diff();   // 판을 시작할 때 한 번 정해 그 판 동안 그대로
 
   // ── 놀이 단위: 1 = 콩이 그림 한 변(400). 화면 px = 단위 × SZ. 달린 거리 1 단위 = 1m
   const G = 9, G_CUT = 16;            // 내려오는 힘 · 오르는 중에 손을 떼면 더 빨리 꺾인다(짧게 누르면 낮게)
@@ -150,6 +150,9 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   const APEX1 = V1 * V1 / (2 * G);    // 길게 누른 첫 점프 높이 ≈ 0.68
   const APEX2 = APEX1 + V2 * V2 / (2 * G);
   const DOG_L = -0.13, DOG_R = 0.15, DW = DOG_R - DOG_L;   // 부딪힘 상자(몸통 가운데만 — 너그럽게)
+  // 머리 위 장애물은 몸통 대신 머리로 판정: 공중 그림의 머리 위 끝 ≈ 발 높이 + 0.69~0.75, 앞쪽 0.05~0.38 (그림 실측) — 조금 너그럽게.
+  //   아래 끝 높이(top) 1.26 이면 발 높이 0.58 넘게 떠야 닿는다: 그냥 달리기 0 · 짧게 톡 꼭대기 0.47 은 지나가고, 길게 누른 한 번 점프 0.68 · 2단 1.21 은 머리 쿵
+  const HEAD_H = 0.68, HEAD_L = 0.02, HEAD_R = 0.32;
   const POWER_SEC = 5.5;
 
   // 넘을 것: w·h 보이는 크기, hw(반 너비)·hh 부딪힘 상자
@@ -159,7 +162,12 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     ball:      { w: 0.20, h: 0.20, hw: 0.065, hh: 0.15 },
     log:       { w: 0.52, h: 0.17, hw: 0.21,  hh: 0.13 },
     puddle:    { w: 0.62, h: 0,    hw: 0.21,  hh: 0.03 },
-    bigpuddle: { w: 1.00, h: 0,    hw: 0.40,  hh: 0.03 }
+    bigpuddle: { w: 1.00, h: 0,    hw: 0.40,  hh: 0.03 },
+    // Very Hard 전용 — 높은 울타리: 부딪힘 높이 0.80 (한 번 점프 꼭대기 APEX1≈0.68 보다 0.12 높고 2단 APEX2≈1.21 보다 0.41 낮다 → 2단 점프로만)
+    //   머리 위 나뭇가지·깃발 줄: hang — 화면 위에서 내려와 아래 끝이 top 높이 (머리 상자로 판정)
+    fence:     { w: 0.30, h: 0.88, hw: 0.07,  hh: 0.80 },
+    branch:    { w: 0.86, h: 0,    hw: 0.36,  hh: 0, top: 1.26, hang: true },
+    flags:     { w: 1.70, h: 0,    hw: 0.85,  hh: 0, top: 1.26, hang: true }
   };
   const PATTERNS = [
     [['cone'], ['ball'], ['pot'], ['puddle']],
@@ -182,7 +190,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   // ── 화면
   const stage = $('stage'), bg = $('bg'), fx = $('fx');
   const c = bg.getContext('2d', { alpha: false }), f = fx.getContext('2d');
-  let W = 0, H = 0, DPR = 1, SZ = 110, GY = 500, KX = 90, VCAP = 3.9, AHEAD = 3, FONT = 'sans-serif';
+  let W = 0, H = 0, DPR = 1, SZ = 110, GY = 500, KX = 90, VCAP = 3.9, AHEAD = 3, FONT = 'sans-serif', SR = 0;
   let geo = null, layers = [], glow = null, starPts = [];
   const bar = topbar({ title: name + '런', back: 'index.html' });
   document.title = name + '런';
@@ -304,7 +312,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   }
 
   function layout() {
-    DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; const sf = safe();
+    DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; const sf = safe(); SR = sf.r;
     for (const cv of [bg, fx]) { cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
     c.setTransform(DPR, 0, 0, DPR, 0, 0); f.setTransform(DPR, 0, 0, DPR, 0, 0);
     SZ = Math.round(clamp(Math.min(W * 0.34, H * 0.27), 92, 190));
@@ -338,6 +346,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   function spawnChunk() {
     const d = S.nextX - S.x0, v = baseSpeed(d), L = Math.min(D.lmax, d < D.lv[0] ? 0 : d < D.lv[1] ? 1 : d < D.lv[2] ? 2 : 3);
     const inRhythm = S.rhythm > 0;
+    if (D === DIFF.vhard && !inRhythm && spawnSpecial(d, v, L)) return;   // Very Hard 만: 새 장애물 묶음 (다른 난이도는 난수를 하나도 더 부르지 않는다)
+    S.lastFloat = false; if (S.spCool > 0) S.spCool--;
     const p = inRhythm ? (() => { const types = [pick(['cone', 'ball', 'pot'])]; return { types, m: measure(types), wide: false }; })() : choosePattern(L, v);
     const x = S.nextX - p.m.l, cl = { l: x + p.m.l, r: x + p.m.r, h: p.m.h, wide: p.wide };
     p.types.forEach((t, i) => S.obs.push(Object.assign({ type: t, x: x + p.m.at[i], seed: Math.floor(rand(0, 1000)) }, OB[t])));
@@ -354,15 +364,55 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     else if (L >= 1 && Math.random() < D.rhythm) { S.rhythm = Math.floor(rand(2, 3 + Math.min(2, L))); extra = 0.12; }
     // 떠 있는 간식은 먹으러 뛴 사람이 내려와서 다음 묶음을 다시 넘을 수 있게, 앞(내려설 자리)·뒤(내려와 다시 뛸 자리)를 넉넉히 띄운다
     let gap = gmin + extra; const dd = cl.r + gap / 2 - S.x0, post = 0.8 * v + 0.6, yPost = 0.95 * v + 0.94;
-    const float = (type, h) => { gap = Math.max(gap, gmin + 0.2 + post); S.items.push({ type, x: cl.r + gap - post, h, seed: 0 }); };
+    const float = (type, h) => { gap = Math.max(gap, gmin + 0.2 + post); S.items.push({ type, x: cl.r + gap - post, h, seed: 0 }); S.lastFloat = true; };
     if (dd > S.nextStar) { float('star', 0.95); S.nextStar = dd + rand(240, 340); }
     else if (S.hearts < 3 && dd > S.nextHeart) { float('heart', 0.92); S.nextHeart = dd + rand(D.hgap[0], D.hgap[1]); }
     else if (!inRhythm && S.rhythm === 0 && d > 25 && Math.random() < 0.14) {   // 높은 고구마 — 2단 점프로
       gap = Math.max(gap, gmin + 0.3 * v + 0.34 + yPost); const mx = cl.r + gap - yPost;
       for (let i = -1; i <= 1; i++) S.items.push({ type: 'yam', x: mx + i * 0.34, h: 1.62 - Math.abs(i) * 0.1, seed: i });
+      S.lastFloat = true;
     }
     else if (gap > 1.9 && Math.random() < 0.5) { const mid = cl.r + gap / 2, n = Math.min(5, Math.floor((gap - 1.1) / 0.3)); for (let i = 0; i < n; i++) S.items.push({ type: 'bone', x: mid + (i - (n - 1) / 2) * 0.3, h: 0.3, seed: i }); }
     S.nextX = cl.r + gap;
+  }
+  // Very Hard 전용 새 장애물 묶음 — 높은 울타리(2단 점프로만) · 머리 위 나뭇가지(그냥 달려 밑으로) · 깃발 줄 + 낮은 것(짧게 톡만 정답). 나오면 true
+  //   처음 45m 뒤, 넓은 묶음·떠 있는 간식(별·하트·고구마)·연달아 뛰기 바로 뒤가 아니고, 앞 새 장애물에서 두 묶음 넘게 지났을 때만.
+  //   보고 뛸 틈: 오른쪽 끝 알림 표지(화면에 들어오기 SP_WARN 초 전)부터 늦어도 떠야 하는 곳까지 D.react + 0.2 초 넘게 남을 때만 (그때 빠르기 — cap 포함)
+  //   앞에는 pre 만큼 더 띄워 앞 묶음에서 내려와 다시 뛸 틈을, 뒤에는 보통 묶음 사이 틈(울타리는 넓은 묶음 틈)을 둔다
+  const SP_WARN = 0.6, SP_FIRST = 1.6;   // 알림 표지는 화면에 들어오기 SP_WARN 초 전, 판에서 처음 나오는 종류의 안내 글은 SP_FIRST 초 전(그 전에 만들어져 있을 때)
+  const SP_NOTE = { fence: '높은 울타리! 2단 점프로 넘어요', branch: '나뭇가지! 높이 뛰면 머리 쿵', flags: '깃발 줄! 짧게 톡 뛰어 지나가요' };
+  function spawnSpecial(d, v, L) {
+    if (d < 45 || S.spCool > 0 || S.lastWide || S.lastFloat || S.rhythm > 0) return false;
+    const r = Math.random(), kind = r < 0.11 ? 'fence' : r < 0.22 ? 'hang' : ''; if (!kind) return false;
+    const ok = lead => (AHEAD + SP_WARN * v - lead) / v >= D.react + 0.2, pre = 0.5 * v + 0.3;
+    let cl, gmin = 0.82 * v + 0.5;
+    if (kind === 'fence') {
+      if (!ok(0.22 + 0.36 * v)) return false;   // 울타리 가운데 0.22 + 0.36v 앞에서는 떠야 (0.3초쯤 2단) 넘는다
+      const o = OB.fence, x = S.nextX + pre + o.hw;
+      S.obs.push(Object.assign({ type: 'fence', x, seed: Math.floor(rand(0, 1000)) }, o));
+      cl = { l: x - o.hw, r: x + o.hw, h: o.hh, wide: true, kind: 'fence', vl: x - o.w / 2 };
+      // 2단 점프 길: 가운데 0.5v 앞에서 떠 0.3초에 한 번 더 누른 길을 따라 (보통 넓은 묶음 1.34 보다 높다)
+      [0.62, 1.0, 1.38, 1.48, 1.2].forEach((h, i) => S.items.push({ type: 'bone', x: x + (i - 2) * 0.2 * v, h, seed: i }));
+      gmin = 1.15 * v + 0.6;
+    } else if (Math.random() < 0.5) {
+      // 깃발 줄 + 낮은 것: 줄은 낮은 것 앞 0.6 부터 뒤 1.1 까지 — 길게 누른 점프는 언제 떠도 꼭대기 근처에서 머리가 닿고, 짧게 톡은 꼭대기 0.47 이라 지나간다
+      const t = pick(['ball', 'cone']), o = OB[t];
+      if (2 * o.hw + DW > 0.72 * tTap(o.hh) * v || !ok(0.3)) return false;
+      const bx = S.nextX + pre + 0.6 + o.hw, fx = bx + 0.25;
+      S.obs.push(Object.assign({ type: 'flags', x: fx, seed: Math.floor(rand(0, 1000)) }, OB.flags));
+      S.obs.push(Object.assign({ type: t, x: bx, seed: Math.floor(rand(0, 1000)) }, o));
+      cl = { l: bx - o.hw, r: bx + o.hw, h: o.hh, wide: false, kind: 'flags', tap: true, vl: fx - OB.flags.w / 2, end: fx + OB.flags.hw };
+      [0.32, 0.48, 0.54, 0.48, 0.32].forEach((h, i) => S.items.push({ type: 'bone', x: bx + (i - 2) * 0.1 * v, h, seed: i }));   // 낮은 뼈다귀 길 = 짧게
+    } else {
+      const o = OB.branch, x = S.nextX + pre + o.hw;
+      S.obs.push(Object.assign({ type: 'branch', x, seed: Math.floor(rand(0, 1000)) }, o));
+      cl = { l: x - o.hw, r: x + o.hw, h: 0, wide: false, kind: 'branch', under: true, vl: x - o.w / 2 };
+      for (let i = 0; i < 4; i++) S.items.push({ type: 'bone', x: x + (i - 1.5) * 0.3, h: 0.26, seed: i });   // 밑으로 지나가는 낮은 뼈다귀 줄
+    }
+    S.clusters.push(cl); S.lastWide = cl.wide; S.lastFloat = false; S.spCool = 2; S.spN[cl.kind]++;
+    let extra = rand(0, 1.5 - 0.3 * L) * D.gmul; if (Math.random() < D.rest) extra += rand(1, 2.2);
+    S.nextX = Math.max(cl.r, cl.end || 0) + gmin + D.gadd + extra;
+    return true;
   }
 
   // ── 조각 효과 (효과 캔버스, 화면 px)
@@ -392,7 +442,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     S.hits++; ob.done = true; if (S.simulating) (S.hitLog = S.hitLog || []).push({ type: ob.type, dx: +(ob.x - S.x).toFixed(2), y: +S.y.toFixed(2), vy: +S.vy.toFixed(2), v: +S.v.toFixed(2), base: +baseSpeed(S.dist).toFixed(2), jumps: S.jumps, d: Math.floor(S.dist), cl: S.clusters.slice(0, 2).map(q => [+(q.l - S.x).toFixed(2), +(q.r - S.x).toFixed(2), q.h, q.wide]) }); S.inv = 1.9; S.dip = 0.6; S.wob = 1; S.shake = reduceMotion ? 0 : 0.28;
     if (!S.god) S.hearts--;
     paintHearts();
-    if (ob.hh < 0.05) { say('첨벙!', '#DFF3FF'); noise(0.22, 0.12, 1800, 500); for (let i = 0; i < 9; i++) emit({ kind: 'dot', x: dogX() + rand(-1, 1) * SZ * 0.16, y: GY, vx: rand(-90, 60), vy: -rand(70, 190), g: 520, r: rand(2, 4), col: 'rgba(170,220,255,.9)', max: 0.55 }); }
+    if (ob.hang) { say('머리 쿵!', '#FFF1D6'); sfx('hit'); tone(300, 0.2, 'sine', 0.07, 0.04, 160); for (let i = 0; i < 6; i++) emit({ kind: 'dot', x: dogX() + SZ * rand(0.05, 0.3), y: feetY() - SZ * 0.72, vx: rand(-60, 60), vy: rand(10, 80), g: 300, r: rand(2, 3.5), col: ob.type === 'branch' ? '#6CC070' : '#FFD25E', max: 0.6 }); }
+    else if (ob.hh < 0.05) { say('첨벙!', '#DFF3FF'); noise(0.22, 0.12, 1800, 500); for (let i = 0; i < 9; i++) emit({ kind: 'dot', x: dogX() + rand(-1, 1) * SZ * 0.16, y: GY, vx: rand(-90, 60), vy: -rand(70, 190), g: 520, r: rand(2, 4), col: 'rgba(170,220,255,.9)', max: 0.55 }); }
     else { say('아이쿠!', '#FFF1D6'); sfx('hit'); tone(330, 0.22, 'sine', 0.07, 0.05, 180); }
     if (S.hearts <= 0) endRun();
   }
@@ -429,6 +480,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     if (m === 'play') {
       if (S.bot) botPlay();
       while (S.nextX < S.x + AHEAD + 2.5) spawnChunk();
+      for (const q of S.clusters) if (q.kind && !q.told && q.vl - S.x < AHEAD + (S.told[q.kind] ? SP_WARN : SP_FIRST) * S.v) { q.told = true; if (!S.told[q.kind]) { S.told[q.kind] = 1; note(SP_NOTE[q.kind]); } }   // 새 장애물은 판에서 처음 나올 때 한 번 안내 — 글을 읽을 틈이 있게 알림 표지보다 일찍(만들어지는 즉시 또는 SP_FIRST 초 전)
       if (S.power > 0) {
         S.power -= dt;
         if (S.power <= 0) { S.power = 0; S.inv = Math.max(S.inv, 1.3); $('pow').hidden = true; }
@@ -436,6 +488,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       }
       for (const ob of S.obs) {
         if (ob.done || ob.fly) continue; const dx = ob.x - S.x;
+        if (ob.hang) { if (S.power <= 0 && S.inv <= 0 && dx - ob.hw < HEAD_R && dx + ob.hw > HEAD_L && S.y + HEAD_H > ob.top) { hit(ob); if (S.mode !== 'play') break; } continue; }   // 머리 위: 머리 상자로 (신나는 질주 중엔 그냥 지나간다)
         if (dx - ob.hw < DOG_R && dx + ob.hw > DOG_L && S.y < ob.hh) {
           if (S.power > 0) { if (ob.hh < 0.05) { ob.done = true; continue; } ob.fly = { vx: rand(1.5, 3), vy: rand(2.6, 3.8), y: 0, rot: 0, vr: rand(4, 9) }; S.pts += 5; sfx('pop'); sparkle(KX + dx * SZ, GY - ob.hh * SZ, 5, '#FFFFFF'); }
           else if (S.inv <= 0) { hit(ob); if (S.mode !== 'play') break; }
@@ -461,12 +514,13 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     if (S.say > 0) S.say -= dt;
   }
   // 시험용 자동 달리기: 묶음 앞에서 제때 길게 뛰고, 넓은 묶음은 꼭대기에서 한 번 더
+  //   Very Hard 새 장애물: 높은 울타리는 가운데 0.5v 앞에서 떠 0.3초에 2단 · 나뭇가지는 안 뛰고 · 깃발 줄 밑 낮은 것은 짧게 톡(0.06초만 누름)
   function botPlay() {
-    S.hold = true;
-    const cl = S.clusters.find(q => q.r > S.x + DOG_L); if (!cl) return;
+    S.hold = !(S.botCl && S.botCl.tap && S.air && S.t - S.botT >= 0.06);
+    const cl = S.clusters.find(q => q.r > S.x + DOG_L && !q.under); if (!cl) return;
     const d = cl.l - (S.x + DOG_R);
-    if (!S.air) { const hh = cl.h + 0.08, tr = (V1 - Math.sqrt(V1 * V1 - 2 * G * hh)) / G; if (d <= S.v * (tr + 0.04)) { doJump(); S.botCl = cl; } }
-    else if (cl.wide && cl === S.botCl && S.jumps === 1 && S.vy <= 0.2) doJump();
+    if (!S.air) { const hh = cl.h + 0.08, tr = (V1 - Math.sqrt(V1 * V1 - 2 * G * hh)) / G; if (cl.kind === 'fence' ? d <= 0.5 * S.v : d <= S.v * (tr + 0.04)) { doJump(); S.botCl = cl; S.botT = S.t; } }
+    else if (cl.wide && cl === S.botCl && S.jumps === 1 && (cl.kind === 'fence' ? S.t - S.botT >= 0.3 : S.vy <= 0.2)) doJump();
   }
 
   // ── 그리기: 넘을 것 · 간식 (원점 = 발밑 가운데, 단위 좌표, 위쪽 = -y)
@@ -516,6 +570,39 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       g.fillStyle = '#8ECDF5'; g.beginPath(); g.ellipse(0, 0.03, w, 0.05, 0, 0, TAU); g.fill();
       g.fillStyle = '#B9E3FB'; g.beginPath(); g.ellipse(-w * 0.12, 0.024, w * 0.72, 0.028, 0, 0, TAU); g.fill();
       g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.ellipse(-w * 0.4, 0.016, w * 0.2, 0.008, 0, 0, TAU); g.ellipse(w * 0.25, 0.04, w * 0.12, 0.006, 0, 0, TAU); g.fill();
+    },
+    fence(g) {   // 높은 울타리 (Very Hard) — 뾰족한 흰 말뚝 셋 + 가로대, 꼭대기에 빨강·흰 띠
+      shadow(g, 0.18); const T = 0.88;
+      g.fillStyle = '#A8754A'; rr(g, -0.16, -T * 0.74, 0.32, 0.05, 0.016); g.fill(); rr(g, -0.16, -T * 0.3, 0.32, 0.05, 0.016); g.fill();
+      g.lineJoin = 'round'; g.lineWidth = 0.012; g.strokeStyle = '#8C6A48';
+      for (const px of [-0.1, 0, 0.1]) {
+        g.fillStyle = '#FBF6EC'; g.beginPath(); g.moveTo(px - 0.042, 0); g.lineTo(px - 0.042, -T + 0.065); g.lineTo(px, -T); g.lineTo(px + 0.042, -T + 0.065); g.lineTo(px + 0.042, 0); g.closePath(); g.fill(); g.stroke();
+        g.fillStyle = '#F0524F'; g.beginPath(); g.moveTo(px - 0.042, -T + 0.2); g.lineTo(px + 0.042, -T + 0.2); g.lineTo(px + 0.042, -T + 0.13); g.lineTo(px - 0.042, -T + 0.13); g.closePath(); g.fill();
+      }
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(-0.128, -T + 0.09, 0.012, T - 0.12);
+    },
+    branch(g, ob) {   // 낮게 드리운 나뭇가지 (Very Hard) — 화면 위 오른쪽에서 내려와 잎 끝이 머리 높이 바로 위
+      const top = -GY / SZ - 0.1, b = -ob.top;
+      g.lineCap = 'round'; g.strokeStyle = '#7A5638'; g.lineWidth = 0.075;
+      g.beginPath(); g.moveTo(0.95, top); g.quadraticCurveTo(0.62, b - 0.42, 0.18, b - 0.2); g.quadraticCurveTo(-0.15, b - 0.12, -0.44, b - 0.17); g.stroke();
+      g.lineWidth = 0.035; g.beginPath(); g.moveTo(0.42, b - 0.33); g.quadraticCurveTo(0.5, b - 0.55, 0.4, b - 0.75); g.moveTo(-0.1, b - 0.14); g.quadraticCurveTo(-0.2, b - 0.32, -0.32, b - 0.4); g.stroke();
+      const leaf = (x, y, r, a, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, r * 0.62, r, a, 0, TAU); g.fill(); };
+      for (let i = 0; i < 7; i++) { const x = -0.36 + i * 0.12, y = b - 0.16 + Math.abs(x) * 0.04; leaf(x, y + 0.07, 0.09, (i % 2 ? 0.35 : -0.35), i % 2 ? '#4E9A4C' : '#62B35D'); }
+      for (let i = 0; i < 6; i++) { const x = -0.3 + i * 0.12; leaf(x, b - 0.24, 0.08, (i % 2 ? -0.5 : 0.5), '#74C26C'); }
+      leaf(0.42, b - 0.78, 0.07, 0.4, '#62B35D'); leaf(-0.33, b - 0.44, 0.07, -0.4, '#4E9A4C');
+      g.fillStyle = 'rgba(255,255,255,.22)'; for (let i = 0; i < 4; i++) { g.beginPath(); g.ellipse(-0.3 + i * 0.2, b - 0.12, 0.02, 0.035, 0.3, 0, TAU); g.fill(); }
+    },
+    flags(g, ob) {   // 깃발 줄 (Very Hard) — 화면 위에서 내려온 두 줄에 매달린 세모 깃발, 깃발 끝이 머리 높이 바로 위
+      const top = -GY / SZ - 0.1, b = -ob.top, hw = ob.w / 2 - 0.03, sy = b - 0.24, sag = 0.08;
+      g.lineCap = 'round'; g.strokeStyle = 'rgba(90,80,70,.85)'; g.lineWidth = 0.014;
+      g.beginPath(); g.moveTo(-hw, top); g.lineTo(-hw, sy); g.moveTo(hw, top); g.lineTo(hw, sy); g.moveTo(-hw, sy); g.quadraticCurveTo(0, sy + sag * 2, hw, sy); g.stroke();
+      const n = 9, cols = ['#FF6B81', '#FFD25E', '#5BB8F5', '#7AD08A', '#B79CF5'];
+      for (let i = 0; i < n; i++) {
+        const x0 = -hw + (i + 0.12) * (2 * hw) / n, x1 = -hw + (i + 0.88) * (2 * hw) / n, xm = (x0 + x1) / 2;
+        const yAt = x => { const u = (x + hw) / (2 * hw); return sy + sag * 2 * 2 * u * (1 - u); };   // 줄 위 높이(가운데가 처진다)
+        g.fillStyle = cols[(i + ob.seed) % cols.length]; g.beginPath(); g.moveTo(x0, yAt(x0)); g.lineTo(x1, yAt(x1)); g.lineTo(xm, b); g.closePath(); g.fill();
+      }
+      g.fillStyle = '#8C6A48'; for (const x of [-hw, hw]) { g.beginPath(); g.arc(x, sy, 0.02, 0, TAU); g.fill(); }
     }
   };
   DRAW.bigpuddle = DRAW.puddle;
@@ -608,6 +695,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       else { f.globalAlpha = Math.min(1, a * 2.2); f.font = '700 ' + p.size + 'px ' + FONT; f.textAlign = 'center'; f.textBaseline = 'middle'; f.lineJoin = 'round'; f.lineWidth = 4; f.strokeStyle = 'rgba(30,36,70,.55)'; f.strokeText(p.text, p.x, p.y); f.fillStyle = p.col; f.fillText(p.text, p.x, p.y); }
     }
     f.globalAlpha = 1;
+    // Very Hard 새 장애물 알림 표지: 화면에 들어오기 SP_WARN 초 전부터 들어올 때까지 오른쪽 끝에 (울타리 = 위로 2단, 머리 위 = 아래로 낮게)
+    if (S.mode === 'play') for (const q of S.clusters) { if (!q.kind) continue; const dx = q.vl - S.x; if (dx <= AHEAD + SP_WARN * S.v && dx > AHEAD - 0.1) warnSign(q.kind === 'fence'); }
     if (S.wob > 0.25 && !S.sat) {   // 어질어질 별
       const hx = KX + SZ * 0.2, hy = feetY() - SZ * 0.82;
       for (let i = 0; i < 3; i++) { const a = t * 6 + i * TAU / 3, x = hx + Math.cos(a) * SZ * 0.2, y = hy + Math.sin(a) * SZ * 0.05; f.globalAlpha = Math.min(1, S.wob * 1.6) * (0.6 + 0.4 * Math.sin(a)); f.fillStyle = '#FFE27A'; f.beginPath(); for (let q = 0; q < 10; q++) { const b = q / 10 * TAU, r = (q % 2 ? 0.02 : 0.045) * SZ; f.lineTo(x + Math.cos(b) * r, y + Math.sin(b) * r); } f.closePath(); f.fill(); }
@@ -624,6 +713,15 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     }
   }
   const hudCache = { s: -1, d: -1 };
+  function warnSign(up) {
+    const r = clamp(SZ * 0.15, 15, 22), x = W - SR - r - 8, y = GY - SZ * (up ? 0.62 : 1.38);
+    f.save(); f.globalAlpha = reduceMotion ? 1 : 0.8 + 0.2 * Math.sin(S.t * 12);
+    f.fillStyle = 'rgba(0,0,0,.16)'; f.beginPath(); f.arc(x, y + 2, r, 0, TAU); f.fill();
+    f.fillStyle = up ? '#FF7A2E' : '#3E9B4F'; f.beginPath(); f.arc(x, y, r, 0, TAU); f.fill();
+    f.strokeStyle = '#fff'; f.lineWidth = Math.max(2.5, r * 0.17); f.lineCap = 'round'; f.lineJoin = 'round'; f.beginPath();
+    const s = up ? -1 : 1; for (const k2 of [-1, 1]) { const cy = y + k2 * r * 0.24; f.moveTo(x - r * 0.42, cy - s * r * 0.2); f.lineTo(x, cy + s * r * 0.2); f.lineTo(x + r * 0.42, cy - s * r * 0.2); }
+    f.stroke(); f.restore();
+  }
   function bubble(text, x, y, a) {
     f.save(); f.globalAlpha = clamp(a, 0, 1); const fs = clamp(SZ * 0.16, 16, 24); f.font = '700 ' + fs + 'px ' + FONT;
     const tw = f.measureText(text).width, bw = tw + fs * 1.5, bh = fs * 2.1; x = clamp(x, bw / 2 + 8, W - bw / 2 - 8);
@@ -635,9 +733,10 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
 
   // ── 흐름
   function start() {
-    D = DIFF[KG.diff()] || DIFF.normal; runKey = KG.dkey('run'); setCap(); $('hDiff').textContent = KG.diffLabel();
+    D = DIFF[KG.diff()] || DIFF.normal; runKey = KG.dkey('run'); runDiff = KG.diff(); setCap(); rb.hide(); $('hDiff').textContent = KG.diffLabel();
     Object.assign(S, { mode: 'play', x0: S.x, dist: 0, y: 0, vy: 0, air: false, jumps: 0, hold: false, buffer: 0, landT: 0, hearts: D.hearts, inv: 0, dip: 0, wob: 0, shake: 0, power: 0, pts: 0, treats: 0, hits: 0, score: 0,
-      obs: [], items: [], clusters: [], nextX: S.x + Math.max(4.5, AHEAD + 1.2), lastWide: false, rhythm: 0, nextStar: rand(110, 170), nextHeart: D.h0, endT: 0, sat: false, say: 0, freeze: 0, skyIdx: 0, parts: [] });
+      obs: [], items: [], clusters: [], nextX: S.x + Math.max(4.5, AHEAD + 1.2), lastWide: false, rhythm: 0, nextStar: rand(110, 170), nextHeart: D.h0, endT: 0, sat: false, say: 0, freeze: 0, skyIdx: 0, parts: [],
+      lastFloat: false, spCool: 0, told: {}, spN: { fence: 0, branch: 0, flags: 0 } });
     S.v = Math.max(S.v, 1.2);
     k.setPose('stand'); paintHearts(); hudCache.s = hudCache.d = -1;
     $('cardStart').hidden = true; $('cardOver').hidden = true; $('cardPause').hidden = true; $('hud').hidden = false; $('pow').hidden = true; btnPause.hidden = false;
@@ -656,6 +755,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     $('ovSub').textContent = J(name, '이/가') + ' 신나게 달리고 헥헥 쉬고 있어요';
     $('ovScore').textContent = S.score.toLocaleString(); $('ovDist').textContent = Math.floor(S.dist).toLocaleString() + 'm'; $('ovTreat').textContent = S.treats.toLocaleString() + '개'; paintBest();
     $('cardOver').hidden = false;
+    rb.show(runDiff);   // 결과 카드 아래 가족 순위 (기록을 저장한 뒤, 방금 달린 난이도로)
   }
   // 난이도 고르기: 시작 · 결과 카드에만 (달리는 중에는 못 바꾼다). 고르면 그 난이도의 최고 기록을 보여 준다
   function paintBest() {
@@ -666,6 +766,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     $('ovBadge').hidden = !(ovNew && same);
   }
   for (const id of ['cardStart', 'cardOver']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
+  const rb = KG.rankBox($('cardOver').querySelector('.kg-card'), 'run');   // 결과 카드 바로 아래(가로 화면은 오른쪽)에 붙는 가족 순위 카드
   paintBest();
   function pause() {
     if (S.mode !== 'play') return; S.mode = 'pause'; S.hold = false;
@@ -722,7 +823,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     ['👆', '화면을 누르면 폴짝! 공중에서 또 누르면 2단 점프, 길게 누르면 더 높이'],
     ['🦴', '멀리 달리고 간식을 먹을수록 점수가 올라요. 별을 먹으면 신나는 질주!'],
     ['💗', '장애물·물웅덩이에 걸리면 하트가 줄고, 다 없어지면 끝나요'],
-    ['⭐', '난이도는 시작 카드에서 골라요. 어려울수록 점수가 커요']
+    ['⭐', '난이도는 시작 카드에서 골라요. 어려울수록 점수가 커요'],
+    ['🌿', 'Very Hard 에서는 높은 울타리는 2단 점프로 넘고, 나뭇가지 밑은 그냥 달리고, 깃발 줄 밑은 짧게 톡 뛰어요']
   ] };
   // 안내를 닫은 키(Enter·스페이스)를 아직 누르고 있는 동안에는 그 키가 방금 초점을 받은 「시작」 단추를 누르지 못하게 한다 (길게 누른 Enter 의 되풀이, 스페이스를 뗄 때)
   let closeKey = false;

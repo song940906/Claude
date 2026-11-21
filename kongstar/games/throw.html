@@ -605,7 +605,7 @@ body .kg-top { z-index: 26; }
     lv = makeLevel(1, D); nextLv = null; phase = 'aim'; ballSt = 'tee'; scored = false; kx = HOME; kface = 1; kmove = false; cheer = sad = 0;
     aim.ang = 48; aim.pw = 0.6; aim.show = aim.drag = aim.kb = false; aim.id = null; quit = false;
     trail = []; lastTrail = []; floats.length = parts.length = 0;
-    state = 'play'; $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
+    state = 'play'; $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; rbox.hide();
     KG.unlockAudio(); paintHud();
   }
   function pause() {
@@ -629,7 +629,7 @@ body .kg-top { z-index: 26; }
     $('edTitle').textContent = made >= 8 ? '정말 잘 던졌어요!' : quit ? '여기까지 던졌어요' : made > 0 ? '공을 다 던졌어요' : '다음엔 꼭 넣어요!';
     $('edText').textContent = made > 0 ? '공 ' + thrown + '개를 던져 바구니에 ' + made + '번 넣었어요.' : quit ? '다음에 또 던져요.' : J(name, '이/가') + ' 공을 다 물어 왔어요.';
     $('edScore').textContent = fmt(score); $('edStage').textContent = bestStage + '단계'; paintBest();
-    $('cardEnd').hidden = false; if (isNew) { sfx('win'); voice('bark', 0.3, 1.1); }
+    $('cardEnd').hidden = false; rbox.show(diffId); if (isNew) { sfx('win'); voice('bark', 0.3, 1.1); }
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
@@ -712,6 +712,7 @@ body .kg-top { z-index: 26; }
   }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);   // 결과 카드 버튼 줄 아래 가족 순위표 (방금 판 난이도)
   paintBest();
   const RULES = { key: KEY, title: TITLE, lead: '공을 던지면 ' + J(name, '이/가') + ' 신나게 물어 와요.', items: [
     ['👆', '화면을 누른 채 뒤로 당겼다 놓으면 공이 날아가요. 길게 당길수록 세요' + (KEYS_OK ? ' (방향키·스페이스도 돼요).' : '.')],

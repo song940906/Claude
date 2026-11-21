@@ -177,6 +177,9 @@ body.land .hero .kspot { right: auto; left: 50%; bottom: auto; top: 136px; }
 @media (max-height: 340px) { .kg-scrim .kg-card { padding: 16px 18px 12px; } .kg-scrim .kg-card h2 { margin-bottom: 4px; } .kg-scrim .kg-card .row { margin-top: 8px; } .kg-card .kg-diff { margin-top: 6px; } .kg-card .link { margin-top: 4px; } .kg-card .tip { margin-top: 4px; } .kg-card .tip small { display: none; } .stages { margin-top: 6px; padding-bottom: 2px; } }
 /* 좁은 화면(320): 카드 안 난이도 단추 가운데 글자가 긴 'Very Hard' 칸만 조금 넓혀 넘치지 않게 */
 @media (max-width: 340px) { .kg-card .kg-diff [data-d=vhard] { flex: 1.25 1 0; } }
+/* 결과 카드 + 가족 순위 카드: 세로로 쌓이면 줄어들지 않으므로(flex:none) 여백까지 폭에 넣어야 겉상자 여백 안에 들어온다 */
+.kg-rbwrap > .kg-card, .kg-rbwrap > .kg-rbox { box-sizing: border-box; }
+@media (max-height: 420px) { .kg-scrim.kg-rbwrap > .kg-card { padding-top: 12px; padding-bottom: 10px; } }   /* 가로 낮은 화면: 결과 카드가 몇 px 넘쳐 카드 안 스크롤바가 생기던 것을 위아래 여백으로 줄인다 */
 @media (prefers-reduced-motion: reduce) { .tile.hint .in, .pcard.yay .flip, .pcard.nope .flip, .pcard { animation: none; } }
 </style>
 </head>
@@ -698,14 +701,19 @@ var M3E = (function () {
   // ── 카드(시작·결과·멈춤)
   //   cardKind: 'pause'(멈춤·그만할까요) 일 때만 Esc·계속하기로 닫힌다. 'end'(결과)는 뜨고 450ms 동안의 누름을 넘긴다 (판을 두던 손이 단추를 잘못 누르지 않게)
   let cardAct = null, cardKind = '', cardAt = 0;
+  //   결과 카드의 가족 순위표: 게임마다 하나씩 만들어 두고, 결과 카드를 새로 그릴 때마다 카드 끝에 다시 넣는다 (rbShow). 다른 카드·카드 닫기에서는 숨긴다
+  const rbs = { match3: KG.rankBox(null, 'match3'), pairs: KG.rankBox(null, 'pairs') };
+  function rbHide() { rbs.match3.hide(); rbs.pairs.hide(); scrim.classList.remove('kg-rbwrap', 'kg-rbmid'); }   // 같은 #scrim 을 다른 카드에도 쓰므로 쌓기 클래스도 떼야 멈춤·단계 카드가 가운데에 온다
+  function rbShow(k, d, note) { const c = scrim.querySelector('.kg-card'); if (!c) return; c.appendChild(rbs[k].el); rbs[k].show(d, note ? { note } : undefined); }
   function showCard(html, onAct, kind) {
+    rbHide();
     scrim.innerHTML = '<div class="kg-card" role="dialog" aria-modal="true">' + html + '</div>'; scrim.hidden = false; cardAct = onAct; cardKind = kind || ''; cardDiff = null; cardAt = performance.now();
     const ts = document.querySelector('.kg-toast'); if (ts) ts.classList.remove('show');   // 카드 위에 알림이 겹치지 않게
     const sl = scrim.querySelector('.dslot'); if (sl) sl.appendChild(cardPick);
     const f = scrim.querySelector('.pri') || scrim.querySelector('.row .kg-btn, .link'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
     const on = scrim.querySelector('.stg.on'); if (on) on.parentNode.scrollLeft = on.offsetLeft - on.parentNode.clientWidth / 2 + on.offsetWidth / 2;   // 고른 단계가 가운데 오게
   }
-  function hideCard() { scrim.hidden = true; scrim.innerHTML = ''; cardAct = null; cardKind = ''; cardDiff = null; }
+  function hideCard() { rbHide(); scrim.hidden = true; scrim.innerHTML = ''; cardAct = null; cardKind = ''; cardDiff = null; }
   scrim.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b || !cardAct) return;
     if (cardKind === 'end' && performance.now() - cardAt < 450 * SPD) { e.preventDefault(); return; }
@@ -1047,6 +1055,7 @@ var M3E = (function () {
       sfx('lose'); kongWrong();
       showCard('<h2>아쉬워요, 조금만 더!</h2><p>이동을 다 썼어요. 남은 목표</p><div class="goalrow">' + goalHtml(B) + '</div><div class="big">' + fmt(B.score) + '<small>점</small></div><p>' + recLine + '</p><p class="tip">다시 하면 ' + nameGaH + ' 응원해서 이동을 ' + Math.min(6, fail.n * 2) + '번 더 줘요.</p>' + failRow, act, 'end');
     }
+    if (B.score > 0) rbShow('match3', M.diff);   // 기록(setBest)이 남는 결과에서만
     cardDiff = () => openM3();
   }
   // 입력: 밀기 또는 차례로 누르기
@@ -1198,6 +1207,7 @@ var M3E = (function () {
       sfx('lose'); kongWrong();
       showCard('<h2>아쉬워요, 조금만 더!</h2><p>뒤집기 ' + P.st.limit + '번을 다 썼어요.</p><div class="big">' + P.found + '<small>/' + P.sets + (P.set === 3 ? '묶음' : '쌍') + '</small></div><p>' + KG.diffLabel(P.diff) + ' · ' + P.n + '단계</p>' + failRow, act, 'end');
     }
+    if (P.win) rbShow('pairs', P.diff, P.n === 1 ? '' : '가족 순위는 1단계 기록으로 겨뤄요');   // 순위는 기록이 남는 1단계 뒤집은 횟수로
     cardDiff = () => openPairs();
   }
   function openPairs(n) {

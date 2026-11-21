@@ -559,13 +559,13 @@ body .kg-top { z-index: 26; }
     $('edNew').hidden = !isNew;
     $('edTitle').textContent = sitesDone > 0 ? '발굴을 잘 마쳤어요' : '발굴을 마쳤어요';
     $('edText').textContent = sitesDone > 0 ? '유적 ' + sitesDone + '곳에서 뼈와 보물 ' + found + '개를 찾았어요.' : found > 0 ? '뼈와 보물 ' + found + '개를 찾았어요.' : J(name, '이랑/랑') + ' 잘 놀았어요.';
-    $('cardEnd').hidden = false; endAt = performance.now(); dirty = true; if (isNew) sfx('win');
+    $('cardEnd').hidden = false; rbox.show(diffId); endAt = performance.now(); dirty = true; if (isNew) sfx('win');
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     score = 0; shownScore = -1; hearts = D.hearts; site = 1; sitesDone = 0; found = 0; parts.length = floats.length = 0; kbd = false; setMood('idle');
-    state = 'play'; $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; $('banner').classList.remove('show');
+    state = 'play'; $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; rbox.hide(); btnPause.hidden = false; $('banner').classList.remove('show');
     KG.unlockAudio(); newSite(); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     say('아무 칸이나 삽으로 파 보세요');
   }
@@ -689,6 +689,7 @@ body .kg-top { z-index: 26; }
   }
   $('stInfo').before(KG.diffPicker(null, () => { if (state === 'ready') preview(); paintBest(); }));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'dig');   // 결과 카드 아래(가로 화면은 오른쪽) 가족 순위 카드
   diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal; hearts = D.hearts; newSite(); paintStart(); paintBest();
   // 규칙 안내: 앱을 켠 뒤 처음 열 때 시작 카드보다 먼저 한 번 (공통이 sessionStorage 로 기억), 시작 카드의 「규칙 보기」 로 다시
   const RULES = { key: 'dig', title: TITLE, lead: J(name, '이/가') + ' 마당에서 옛 뼈와 보물을 찾아요.', items: [

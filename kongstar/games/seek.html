@@ -157,6 +157,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
   'use strict';
   const { name, J, kong, sfx, tone, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
   const $ = id => document.getElementById(id);
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'seek');   // 결과 카드 바로 아래(가로 화면은 오른쪽) 별도 카드로 붙는 가족 순위표
   const fmt = n => Math.round(n).toLocaleString('ko-KR');
 
   // ═══════ 난이도 표 (수치는 모두 여기) ═══════
@@ -678,7 +679,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
     score = 0; debt = 0; shownScore = -1; shownTime = -1; foundN = totalN = roomsDone = wrongN = hintN = 0; parts.length = floats.length = 0; cursor.on = false;
     order = shuffle(SCENES.map((s, i) => i)).slice(0, D.rooms);
     state = 'play'; document.body.classList.remove('paused');
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; paintTitle();
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; rbox.hide(); paintTitle();
     KG.unlockAudio(); enterRoom(0);
   }
   function pause() { if (state !== 'play') return; state = 'pause'; document.body.classList.add('paused'); $('cardPause').hidden = false; keys.l = keys.r = keys.u = keys.d = 0; try { $('btnResume').focus({ preventScroll: true }); } catch (e) {} }
@@ -692,7 +693,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
     $('edText').textContent = all ? '방 ' + D.rooms + '개에서 숨은 것을 모두 찾았어요.' : (roomsDone > 0 ? '방 ' + roomsDone + '개를 다 찾았어요. ' : '') + '다음엔 더 잘 찾을 수 있어요.';
     $('edScore').textContent = fmt(score); $('edFound').textContent = foundN + '/' + totalN + '개'; paintBest();
     showMood = all ? 'happy' : 'sad'; kMode = 'show'; if (cur && cur.kong.found && cur.kong.el) cur.kong.el.classList.add('found', 'away'); stage.classList.add('out');
-    $('cardEnd').hidden = false; if (all) { sfx('win'); barkVoice(true); }
+    $('cardEnd').hidden = false; rbox.show(diffId); if (all) { sfx('win'); barkVoice(true); }
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   function update(dt) {
@@ -747,7 +748,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
     } else {   // show: 시작·결과 카드 뒤에서 기다리는 콩이
       let size = clamp(Math.min(W, H) * 0.34, 96, 170); const x = wide ? Math.max(SAF.l + size * 0.5, W * 0.12) : W / 2, y = H - ($('tray').offsetHeight || 64) - 8;
       // 세로 화면에서 카드가 길어 콩이 머리를 덮으면 남은 자리에 맞게 줄이고, 자리가 너무 좁으면 숨긴다
-      if (!wide) { const cd = document.querySelector('.kg-scrim:not([hidden]):not(.kg-rules) .kg-card'), room = cd ? y - cd.getBoundingClientRect().bottom - 6 : 999; if (room < size * 0.92) size = room / 0.92; }
+      if (!wide) { const sc = document.querySelector('.kg-scrim:not([hidden]):not(.kg-rules)'), cd = sc && (sc.querySelector('.kg-rbox:not([hidden])') || sc.querySelector('.kg-card')), room = cd ? y - cd.getBoundingClientRect().bottom - 6 : 999; if (room < size * 0.92) size = room / 0.92; }
       K.el.style.visibility = size < 56 ? 'hidden' : '';
       const pose = showMood === 'wave' && K.has('wave') ? 'wave' : showMood === 'sad' && K.has('lie') ? 'lie' : 'sit'; if (K.rig.pose !== pose) K.setPose(pose);
       K.setSize(size);

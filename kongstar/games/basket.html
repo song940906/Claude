@@ -539,7 +539,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     const mid = (KMIN + KMAX) / 2;
     Object.assign(S, { mode: 'play', pt: 0, kx: mid, target: mid, vx: 0, keyDir: keyDir(), hearts: HEARTS, score: 0, combo: 0, maxCombo: 0, caught: 0, ate: 0, missed: 0,
       items: [], fly: [], pile: [], parts: [], spawnT: 0.9, lastX: mid, nextHeart: D.hgap * 0.6, badSeen: false, goldSeen: false, inv: 0, munch: 0, hurt: 0, cheer: 0, shake: 0, freeze: 0, endT: 0, say: 0, sayText: '' });
-    ovNew = false; paintHearts(); cHud.s = cHud.c = -1; paintCombo();
+    ovNew = false; rb.hide(); paintHearts(); cHud.s = cHud.c = -1; paintCombo();
     $('cardStart').hidden = true; $('cardOver').hidden = true; $('cardPause').hidden = true; $('hud').hidden = false; btnPause.hidden = false;
     note(KEYS_OK ? '좌우로 끌거나 ← → 키로 움직여요' : '화면을 좌우로 끌어 움직여요'); last = 0;
   }
@@ -556,7 +556,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     $('ovSub').textContent = '바구니에 간식 ' + S.caught.toLocaleString() + '개를 담았어요';
     $('ovScore').textContent = S.score.toLocaleString(); $('ovTreat').textContent = S.caught.toLocaleString() + '개'; $('ovCombo').textContent = S.maxCombo.toLocaleString();
     paintBest(); $('combo').hidden = true;
-    $('cardOver').hidden = false;
+    $('cardOver').hidden = false; rb.show(runDiff);
     if (ovNew) { sfx('win'); voice('bark', 0.3, 1.1); S.cheer = 2; S.hurt = 0; }
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
@@ -572,6 +572,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   }
   $('cardStart').querySelector('.kg-card').insertBefore(KG.diffPicker(null, paintBest), $('btnRules'));
   $('cardOver').querySelector('.row').before(KG.diffPicker(null));
+  // 결과 카드 바로 아래(가로 화면은 오른쪽)에 방금 판 난이도의 가족 순위 카드 (새 판·처음 화면에서 숨김)
+  const rb = KG.rankBox($('cardOver').querySelector('.kg-card'), KEY);
   paintBest();
   function pause() {
     if (S.mode !== 'play') return; S.mode = 'pause'; S.keyDir = 0; held.clear(); dragId = null;

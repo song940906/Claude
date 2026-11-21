@@ -501,7 +501,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     extend(3);
     $('hearts').innerHTML = HEART.repeat(D.hearts);
     k.setPose('stand'); paintHearts(); hudCache.c = hudCache.p = -1;
-    $('cardStart').hidden = true; $('cardOver').hidden = true; $('cardPause').hidden = true; $('hud').hidden = false; btnPause.hidden = false;
+    $('cardStart').hidden = true; $('cardOver').hidden = true; $('cardPause').hidden = true; $('hud').hidden = false; btnPause.hidden = false; rbox.hide();
     note('줄이 발밑에 오기 조금 전에 눌러요', 2400);
   }
   function endGame() {
@@ -517,7 +517,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     $('ovSub').textContent = S.count > 0 ? J(name, '이/가') + ' 폴짝폴짝 ' + S.count.toLocaleString() + '번 넘었어요' : '줄이 발밑에 오기 조금 전에 눌러 보세요';
     $('ovCount').textContent = S.count.toLocaleString(); $('ovPerf').textContent = S.perfect.toLocaleString() + '번'; $('ovCombo').textContent = S.maxCombo.toLocaleString() + '번';
     paintBest();
-    $('cardOver').hidden = false;
+    $('cardOver').hidden = false; rbox.show(roundDiff);
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   // 난이도 고르기: 시작 · 결과 카드에만. 결과 카드의 숫자는 늘 「방금 한 판」의 난이도 것 — 다른 난이도를 골라 두면 라벨에 방금 판의 난이도 이름을 붙인다
@@ -529,6 +529,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     $('ovBadge').hidden = !ovNew;
   }
   for (const id of ['cardStart', 'cardOver']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
+  const rbox = KG.rankBox($('cardOver').querySelector('.kg-card'), 'rope');   // 결과 카드 버튼 줄 아래 가족 순위표 (방금 판 난이도)
   paintBest();
   function pause() {
     if (S.mode !== 'play') return; S.mode = 'pause';

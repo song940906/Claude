@@ -1,5 +1,5 @@
 // node make.js 가 생성 — 직접 고치지 말 것
-const CACHE = 'kongstar-043d58f8df';
+const CACHE = 'kongstar-b9bce565a6';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './games/common.js', './games/basket.html', './games/bowl.html', './games/deliver.html', './games/dig.html', './games/fish.html', './games/index.html', './games/jump.html', './games/puzzle.html', './games/quiz.html', './games/race.html', './games/rank.html', './games/rope.html', './games/run.html', './games/seek.html', './games/shoot.html', './games/shop.html', './games/stack.html', './games/throw.html', './games/toys.html'];
 
 self.addEventListener('install', e => {

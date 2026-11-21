@@ -627,7 +627,7 @@ body .kg-top { z-index: 26; }
     parts.length = floats.length = 0; cust = null; tray = [];
     kindsNow = D.kinds0; paintShelf(-1); paintHearts(); paintHud();
     state = 'play'; document.body.classList.remove('paused');
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; paintTitle();
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; rbox.hide(); paintTitle();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     KG.unlockAudio(); say('어서 오세요!', 1.8); nextCustomer();
   }
@@ -645,7 +645,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edServed').textContent = fmt(served) + '번'; $('edStreak').textContent = fmt(maxStreak) + '번'; paintBest();
     $('edNew').hidden = !isNew;
     $('edText').textContent = served > 0 ? '강아지 손님 ' + fmt(served) + '마리가 맛있게 먹고 갔어요.' : J(name, '이랑/랑') + ' 가게를 열어 봤어요.';
-    $('cardEnd').hidden = false; focusBtn('btnAgain'); if (isNew) sfx('win');
+    $('cardEnd').hidden = false; rbox.show(diffId); focusBtn('btnAgain'); if (isNew) sfx('win');
   }
   const guard = () => performance.now() - endAt < 450;   // 결과 카드가 뜬 직후에는 누름을 넘긴다 (간식을 두드리던 손가락)
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen && state === 'ready') start(); });
@@ -692,6 +692,7 @@ body .kg-top { z-index: 26; }
   }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'shop');   // 결과 카드 버튼 줄 아래 가족 순위표 (방금 판 난이도)
   paintBest();
   const RULES = { key: 'shop', title: TITLE, lead: '강아지 손님의 주문을 맞춰 주세요.', items: [
     ['💬', '손님의 말풍선 주문을 잘 보고 순서를 기억해요. 담기 시작하면 주문이 가려져요.'],

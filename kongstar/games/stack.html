@@ -117,6 +117,7 @@ body .kg-top { z-index: 26; }
   'use strict';
   const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
   const $ = id => document.getElementById(id);
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'stack');   // 결과 카드 바로 아래(가로 화면은 오른쪽) 별도 카드로 붙는 가족 순위표
   const fmt = n => Math.round(n).toLocaleString('ko-KR');
   const TITLE = J(name, '의') + ' 간식쌓기';
 
@@ -574,7 +575,7 @@ body .kg-top { z-index: 26; }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     reset(); state = 'play';
-    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false;
+    $('cardStart').hidden = $('cardEnd').hidden = $('cardPause').hidden = true; btnPause.hidden = false; rbox.hide();
     KG.unlockAudio(); tone(659, 0.12, 'triangle', 0.05); tone(880, 0.2, 'triangle', 0.05, 0.1);
     banner('화면을 눌러 간식을 떨어뜨려요', 1900);
   }
@@ -588,7 +589,7 @@ body .kg-top { z-index: 26; }
     $('edNew').hidden = !isNew;
     $('edTitle').textContent = layers >= 30 ? '우와, 정말 높이 쌓았어요!' : '간식 탑이 와르르!';
     $('edText').textContent = layers > 0 ? J(name, '이/가') + ' 떨어진 간식을 맛있게 먹었어요.' : '괜찮아요, ' + J(name, '이랑/랑') + ' 다시 쌓아 봐요.';
-    $('cardEnd').hidden = false; endAt = performance.now(); focusBtn('btnAgain');
+    $('cardEnd').hidden = false; endAt = performance.now(); focusBtn('btnAgain'); rbox.show(diffId);
     if (isNew) { sfx('win'); bark(true); }
   }
   function focusBtn(id) { try { $(id).focus({ preventScroll: true }); } catch (e) {} }
