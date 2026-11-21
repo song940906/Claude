@@ -65,6 +65,20 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   body .kg-card .kg-diff { margin-top: 8px; }
   .kg-card .kg-diff button { height: 34px; }
 }
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면(높이 360px 이하): 결과 카드가 좁아져 설명이 두 줄이 되고, 이 게임 카드는 border-box 가 아니라 패딩만큼 화면 밖으로 넘쳐 「다시 하기」가 잘린다 — 이 게임 결과 카드만 촘촘하게 */
+@media (orientation: landscape) and (max-height: 360px) {
+  body .kg-rbwrap > .kg-card { box-sizing: border-box; padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card #ovSub { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0; }
+  body .kg-rbwrap > .kg-card .badge { margin-bottom: 2px; padding: 2px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 28px; }
+  body .kg-rbwrap > .kg-card .stats { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .stats div { padding: 5px 2px 4px; }
+  body .kg-rbwrap > .kg-card .stats b { font-size: 15px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .row .kg-btn { height: 40px; }
+}
 @media (max-width: 340px) {
   .kg-card .kg-diff button { font-size: 12px; letter-spacing: -.5px; }
   .kg-card .stats { gap: 6px; }
@@ -529,7 +543,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     $('ovBadge').hidden = !ovNew;
   }
   for (const id of ['cardStart', 'cardOver']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
-  const rbox = KG.rankBox($('cardOver').querySelector('.kg-card'), 'rope');   // 결과 카드 버튼 줄 아래 가족 순위표 (방금 판 난이도)
+  const rbox = KG.rankBox($('cardOver').querySelector('.kg-card'), 'rope');   // 결과 카드 바로 아래(가로 낮은 화면은 오른쪽) 가족 순위 카드 — 방금 판 난이도
+  KG.startRank($('cardStart'), 'rope');   // 시작 카드 아래에 고른 난이도의 가족 순위
   paintBest();
   function pause() {
     if (S.mode !== 'play') return; S.mode = 'pause';

@@ -118,6 +118,7 @@ body .kg-top { z-index: 26; }
   const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
   const $ = id => document.getElementById(id);
   const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'stack');   // 결과 카드 바로 아래(가로 화면은 오른쪽) 별도 카드로 붙는 가족 순위표
+  KG.startRank($('cardStart'), 'stack');   // 시작 카드 아래에 고른 난이도의 가족 순위
   const fmt = n => Math.round(n).toLocaleString('ko-KR');
   const TITLE = J(name, '의') + ' 간식쌓기';
 

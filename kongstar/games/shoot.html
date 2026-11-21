@@ -831,6 +831,7 @@ body .kg-top { z-index: 26; }
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
   // 결과 카드 바로 아래(가로 화면은 오른쪽)에 방금 판 난이도의 가족 순위 카드 (새 판·처음 화면에서 숨김)
   const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'shoot');
+  KG.startRank($('cardStart'), 'shoot');   // 시작 카드 아래에 고른 난이도의 가족 순위
   paintBest();
   // 규칙 안내: 앱을 켠 뒤 처음 열 때 시작 카드보다 먼저 한 번 (공통이 sessionStorage 로 기억), 시작 카드의 「규칙 보기」 로 다시
   const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;

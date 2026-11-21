@@ -95,7 +95,7 @@
     const R = KG.rank, me = R.me(), sub = document.getElementById('rkSub'); if (!R.cfg()) return;
     // 등수는 저장소가 내 기록을 받아 준 것이 확인됐고(받아 둔 목록에 내가 있음) 기록이 하나라도 있을 때만 말한다
     const c = R.cache(), up = !!(c && me && c.players.some(p => p.id === me.id)), rows = up ? R.standings(R.withMe(c.players)) : [], mine = up && rows.find(r => r.id === me.id);
-    sub.textContent = mine && mine.rank ? '지금 종합 ' + mine.rank + '등 · 가족 ' + rows.length + '명' : mine ? '아직 기록이 없어요 · 가족 ' + rows.length + '명' : me && me.name ? '가족과 기록을 겨루고 있어요' : '이름을 정하면 순위에 올라가요';
+    sub.textContent = mine && mine.rank ? 'Very Hard 종합 ' + mine.rank + '등 · 가족 ' + rows.length + '명' : mine ? '아직 Very Hard 기록이 없어요 · 가족 ' + rows.length + '명' : me && me.name ? '가족과 기록을 겨루고 있어요' : '이름을 정하면 순위에 올라가요';
   })();
   diffPicker(document.getElementById('diffSpot'), paintRecs).classList.add('dark'); paintRecs();
   // 콩이: 앉아서 꼬리를 흔들며 기다린다

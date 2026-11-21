@@ -574,6 +574,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   for (const id of ['cardStart', 'cardOver']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
   // 결과 카드 바로 아래(가로 화면은 오른쪽)에 방금 판 난이도의 가족 순위 카드 (새 판·처음 화면에서 숨김)
   const rb = KG.rankBox($('cardOver').querySelector('.kg-card'), KEY);
+  KG.startRank($('cardStart'), KEY);   // 시작 카드 아래에 고른 난이도의 가족 순위
   function pause() {
     if (S.mode !== 'play') return; S.mode = 'pause'; unhold();
     $('paSub').textContent = '지금까지 ' + Math.floor(S.high).toLocaleString() + 'm · ' + S.score.toLocaleString() + '점이에요';

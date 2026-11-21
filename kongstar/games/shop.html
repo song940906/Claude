@@ -115,6 +115,19 @@ body .kg-top { z-index: 26; }
   body .kg-card .kg-btn { height: 44px; }
   body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
 }
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면(높이 360px 이하): 결과 카드가 300px 안팎으로 좁아져 기록 칸이 두 줄이 되고 「다시 하기」가 카드 밖으로 잘린다 — 공통 배치로는 안 되는 이 게임 결과 카드의 높이만 줄인다 */
+@media (orientation: landscape) and (max-height: 360px) {
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card #edText { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 0; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+}
 @media (prefers-reduced-motion: reduce) { #bubble, #tray .slot.on, #tray.bad, #shelf button.new { animation: none; } }
 </style>
 </head>
@@ -692,7 +705,8 @@ body .kg-top { z-index: 26; }
   }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
-  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'shop');   // 결과 카드 버튼 줄 아래 가족 순위표 (방금 판 난이도)
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'shop');   // 결과 카드 바로 아래(가로 낮은 화면은 오른쪽) 가족 순위 카드 — 방금 판 난이도
+  KG.startRank($('cardStart'), 'shop');   // 시작 카드 아래에 고른 난이도의 가족 순위
   paintBest();
   const RULES = { key: 'shop', title: TITLE, lead: '강아지 손님의 주문을 맞춰 주세요.', items: [
     ['💬', '손님의 말풍선 주문을 잘 보고 순서를 기억해요. 담기 시작하면 주문이 가려져요.'],

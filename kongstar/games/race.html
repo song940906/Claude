@@ -497,6 +497,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   for (const id of ['cardStart', 'cardOver']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
   // 대회 결과 카드 바로 아래(가로 화면은 오른쪽)에 붙는 별도의 가족 순위 카드. 경기 사이 결과 카드(cardRace)에는 붙이지 않는다 — 그 카드는 이번 경기 순위를 보여 주고 시상대 자리를 재기 때문
   const rb = KG.rankBox($('cardOver').querySelector('.kg-card'), 'race');
+  KG.startRank($('cardStart'), 'race');   // 시작 카드 아래에 고른 난이도의 가족 순위
   paintBest();
   function pause() {
     if (!['intro', 'set', 'run'].includes(S.mode)) return; S.prev = S.mode; S.mode = 'pause';

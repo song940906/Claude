@@ -867,6 +867,7 @@ body .kg-top { z-index: 26; }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, () => { if (state === 'ready') preview(); else paintCards(); }), $('stInfo'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
   const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'deliver');   // 단계 완료 카드 바로 아래(가로 화면은 오른쪽)에 붙는 별도의 가족 순위 카드
+  KG.startRank($('cardStart'), 'deliver');   // 시작 카드 아래에 고른 난이도의 가족 순위
   preview();
   const RULES = { key: 'deliver', title: TITLE, lead: '로켓 가방을 멘 ' + J(name, '이/가') + ' 동네 집집마다 간식을 배달해요.', items: [
     ['👆', name + '에서부터 손가락으로 옆 칸으로 길을 그어요. 왔던 칸으로 되돌아가면 길이 지워져요.'],

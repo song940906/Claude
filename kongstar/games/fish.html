@@ -91,6 +91,14 @@ body .kg-top { z-index: 26; }
   #got { width: 180px; padding: 10px 12px 12px; }
   #got canvas { width: 126px; height: 84px; }
 }
+/* 가로 낮은 화면(나란히): 이 게임은 원래 결과 겉상자에 위 줄 여백이 없어(quiz 는 있음) 결과 카드가 왼쪽으로 밀리면 「게임」 단추가 카드 머리를 덮는다 — 위 줄 아래부터 놓는다 */
+/*   그만큼 낮아진 데다 순위 카드 몫으로 폭도 좁아져 글이 두 줄이 되므로, 「다시 하기」가 첫 화면에 들어오게 카드 위아래 여백을 줄이고 「새 기록」 딱지를 점수 옆에 붙인다 (quiz 의 낮은 화면 처리와 같은 방식) */
+@media (orientation: landscape) and (max-height: 520px) {
+  #cardEnd.kg-rbwrap { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 8px); }
+  #cardEnd.kg-rbwrap > .kg-card { padding-top: 8px; padding-bottom: 8px; }
+  #cardEnd.kg-rbwrap #edText { display: none; }   /* 좁아진 카드에서 두 줄이 되는 안내글은 뺀다 (dig 가 낮은 화면에서 #edText 를 감추는 것과 같게) — 잡은 물고기 칩이 두 줄이 돼도 「다시 하기」가 보이게 */
+  #cardEnd.kg-rbwrap .big { display: inline-block; vertical-align: middle; } #cardEnd.kg-rbwrap .new { vertical-align: middle; margin: 0 0 0 8px; }
+}
 </style>
 </head>
 <body>
@@ -932,6 +940,7 @@ body .kg-top { z-index: 26; }
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, paintBest), $('stRec'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
   const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'fish');   // 결과 카드 아래(가로 화면은 오른쪽) 가족 순위 카드
+  KG.startRank($('cardStart'), 'fish');   // 시작 카드 아래에 고른 난이도의 가족 순위
   paintBest();
   const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const RULES = { key: 'fish', title: TITLE, lead: J(name, '이/가') + ' 바다에서 물고기를 낚아요.', items: [

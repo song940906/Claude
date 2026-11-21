@@ -65,6 +65,7 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
 .ptitle { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .ptitle h2 { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ptitle span { flex: none; font-size: 12px; color: var(--sub); }
+#totalCard .ptitle { flex-wrap: wrap; row-gap: 2px; }
 .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #FFF1D6; color: #9A6200; font-size: 11.5px; font-weight: 700; }
 .foot { margin-top: 14px; }
 .foot .stamp { margin: 0 4px 10px; font-size: 12.5px; color: #AEB8E6; text-align: center; min-height: 18px; }
@@ -109,7 +110,7 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
   <div class="note" id="note" hidden></div>
 
   <section class="panel" id="totalCard" hidden>
-    <div class="ptitle"><h2>종합 순위</h2><span>1등 3점 · 2등 2점 · 3등 1점</span></div>
+    <div class="ptitle"><h2>종합 순위</h2><span>Very Hard 기록만 · 1등 3점 · 2등 2점 · 3등 1점</span></div>
     <ul class="rows" id="totalRows"></ul>
   </section>
 
@@ -191,7 +192,7 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
     const me = rank.me(), ul = $('totalRows'); ul.textContent = '';
     const rows = rank.standings(rank.withMe(players || []));
     if (!rows.length) { ul.appendChild(el('li', 'empty', '아직 아무도 없어요. 이름을 정하고 게임을 하면 여기에 보여요.')); return; }
-    for (const r of rows) { const v = r.rank ? valCell(r.pts + '점', '1등 ' + r.firsts + '칸') : el('span', 'val none', '기록 없음'); ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id), v], !!me && r.id === me.id)); }
+    for (const r of rows) { const v = r.rank ? valCell(r.pts + '점', '1등 ' + r.firsts + '게임') : el('span', 'val none', '기록 없음'); ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id), v], !!me && r.id === me.id)); }
   }
   function paint() {
     const me = rank.me(), on = !!rank.cfg(), named = !!(me && me.name);

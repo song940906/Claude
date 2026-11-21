@@ -240,7 +240,8 @@
   }
   const best = k => { const v = parseFloat(ls.get('kongstar.game.' + k)); return isFinite(v) ? v : 0; };
   // 더 좋은 기록이면 저장하고 true (lower: 작을수록 좋은 기록 — 걸린 시간·횟수)
-  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { ls.set('kongstar.game.' + k, String(v)); rankPush(); return true; } return false; }
+  let recFlag = false;   // 이번 판에 새 기록이 났다 → 결과 순위 카드를 띄울 때 추억 사진 한 장
+  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { ls.set('kongstar.game.' + k, String(v)); rankPush(); recFlag = true; return true; } return false; }
 
   // ── 난이도: 게임 세 개가 함께 쓴다 (한 번 고르면 다른 게임에서도 그대로)
   //   KG.DIFFS[i] = { id, label } · KG.diff() → 'easy'|'normal'|'hard'|'vhard' · KG.diffIdx() → 0~3 · KG.setDiff(id)
@@ -248,11 +249,11 @@
   //   KG.diffPicker(부모, 바뀔때(id)) → 네 칸짜리 고르기 단추 (여러 개 만들어도 서로 맞춰진다)
   const DIFFS = [{ id: 'easy', label: 'Easy' }, { id: 'normal', label: 'Normal' }, { id: 'hard', label: 'Hard' }, { id: 'vhard', label: 'Very Hard' }];
   let diffId = ls.get('kongstar.game.diff'); if (!DIFFS.some(d => d.id === diffId)) diffId = 'normal';
-  const diffPickers = [];
+  const diffPickers = [], diffWatch = [];
   const diff = () => diffId, diffIdx = () => DIFFS.findIndex(d => d.id === diffId), diffLabel = id => (DIFFS.find(d => d.id === (id || diffId)) || DIFFS[1]).label;
   const dkey = (k, id) => { id = id || diffId; return id === 'normal' ? k : k + '.' + id; };
   const paintDiff = () => { for (const p of diffPickers) for (const b of p.el.children) { const on = b.dataset.d === diffId; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); } };
-  function setDiff(id) { if (!DIFFS.some(d => d.id === id) || id === diffId) return; diffId = id; ls.set('kongstar.game.diff', id); paintDiff(); for (const p of diffPickers) if (p.cb) p.cb(id); }
+  function setDiff(id) { if (!DIFFS.some(d => d.id === id) || id === diffId) return; diffId = id; ls.set('kongstar.game.diff', id); paintDiff(); for (const p of diffPickers) if (p.cb) p.cb(id); for (const w of diffWatch) w(id); }
   function diffPicker(parent, cb) {
     const el = document.createElement('div'); el.className = 'kg-diff'; el.setAttribute('role', 'radiogroup'); el.setAttribute('aria-label', '난이도');
     for (const d of DIFFS) { const b = document.createElement('button'); b.type = 'button'; b.dataset.d = d.id; b.textContent = d.label; b.setAttribute('role', 'radio'); b.addEventListener('click', () => { sfx('tap'); setDiff(d.id); }); el.appendChild(b); }
@@ -394,13 +395,13 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
 .kg-rbwrap > .kg-card { flex:none; max-height:none; max-width:100%; }
 @media (max-width:460px) { .kg-rbwrap > .kg-card { box-sizing:border-box; } }
 /* 세로 화면: 두 카드가 겉상자를 넘쳐 위로 붙을 때 위 줄(게임·소리 단추) 밑에서 시작하게 */
-@media (orientation:portrait) { .kg-rbwrap { padding-top:calc(var(--sat) + 64px); } }
+@media (orientation:portrait), (min-height:521px) { .kg-rbwrap { padding-top:calc(var(--sat) + 64px); } }
 .kg-rbwrap.kg-rbmid > .kg-card { margin-top:auto; }
 .kg-rbwrap.kg-rbmid > .kg-rbox { margin-bottom:auto; }
 .kg-rbox { box-sizing:border-box; flex:none; width:min(100%,400px); background:var(--card); color:var(--ink); border-radius:24px; padding:18px 16px 14px; box-shadow:0 12px 40px rgba(0,0,0,.3); text-align:left; }
 .kg-rbox .hd { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0 6px 8px; }
-.kg-rbox .hd b { font-size:19px; font-weight:800; letter-spacing:-.3px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.kg-rbox .hd span { flex:none; font-size:13px; color:var(--sub); white-space:nowrap; }
+.kg-rbox .hd b { flex:0 0 auto; max-width:70%; font-size:19px; font-weight:800; letter-spacing:-.3px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kg-rbox .hd span { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:13px; color:var(--sub); white-space:nowrap; }
 .kg-rbox ol { list-style:none; margin:0; padding:0; }
 .kg-rbox li { display:flex; align-items:center; gap:10px; padding:8px 8px; border-radius:12px; }
 .kg-rbox li + li { margin-top:2px; }
@@ -421,12 +422,22 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
 @media (orientation:landscape) and (max-height:520px) {
   .kg-rbwrap { flex-direction:row !important; align-items:flex-start !important; justify-content:center !important; }
   .kg-rbwrap > .kg-card, .kg-rbwrap > .kg-rbox { max-height:100%; overflow-y:auto; margin-top:auto !important; margin-bottom:auto !important; }
-  .kg-rbwrap > .kg-card { flex:0 1 auto; min-width:0; }
+  .kg-rbwrap > .kg-card { flex:0 1 auto; min-width:0; box-sizing:border-box; }
   .kg-rbwrap > .kg-rbox { width:min(42%,340px); padding:12px 12px 10px; margin-top:44px !important; max-height:calc(100% - 44px); }
   .kg-rbox .hd b { font-size:16px; } .kg-rbox li { padding:5px 6px; } .kg-rbox .val small { display:none; }
 }
 @media (max-width:340px) { .kg-diff button { font-size:12px; letter-spacing:-.5px; } }
 .kg-rules { z-index:40; background:rgba(8,10,28,.62); }
+/* 신기록 추억 사진 (폴라로이드) — 아무 곳이나 누르면 닫힌다 */
+.kg-photo { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:calc(var(--sat) + 24px) calc(var(--sar) + 24px) calc(var(--sab) + 24px) calc(var(--sal) + 24px); background:rgba(8,10,28,.6); opacity:0; transition:opacity .25s; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.kg-photo.on { opacity:1; }
+.kg-photo figure { margin:0; box-sizing:border-box; max-width:min(80vw,340px); max-height:100%; display:flex; flex-direction:column; background:#fff; padding:12px 12px 14px; border-radius:6px; box-shadow:0 18px 50px rgba(0,0,0,.4); transform:rotate(-3deg) scale(.86); transition:transform .45s cubic-bezier(.2,1.4,.4,1); }
+.kg-photo.on figure { transform:rotate(-3deg) scale(1); }
+.kg-photo img { display:block; min-height:0; max-width:100%; max-height:calc(100vh - 170px); object-fit:contain; border-radius:3px; background:#EEF0F4; }
+.kg-photo figcaption { margin-top:10px; text-align:center; color:#2B3A67; }
+.kg-photo figcaption b { display:block; font-size:21px; font-weight:800; letter-spacing:-.3px; }
+.kg-photo figcaption span { display:block; margin-top:2px; font-size:14px; color:#6B7684; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media (prefers-reduced-motion: reduce) { .kg-photo, .kg-photo figure { transition:none; } }
 .kg-rules .tag { display:inline-block; margin-bottom:8px; padding:4px 10px; border-radius:999px; background:var(--soft); color:var(--pri); font-size:12px; font-weight:700; }
 .kg-rules ul { list-style:none; margin:12px 0 0; padding:0; text-align:left; }
 .kg-rules li { display:flex; align-items:flex-start; gap:10px; padding:9px 12px; margin-top:6px; background:var(--soft); border-radius:14px; font-size:14.5px; line-height:1.45; color:#3A4552; }
@@ -658,10 +669,11 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     for (const r of rows) r.rank = 1 + rows.filter(o => lower ? o.v < r.v : o.v > r.v).length;
     return rows;
   }
-  // 종합: 칸마다 1등 3점 · 2등 2점 · 3등 1점을 더한다. 동점이면 1등 한 칸 수가 많은 쪽이 위
+  // 종합: Very Hard 칸만(가족 요청 11-22) 게임마다 1등 3점 · 2등 2점 · 3등 1점을 더한다. 동점이면 1등 한 칸 수가 많은 쪽이 위
+  const TOTAL_DIFF = 'vhard';
   function standings(players) {
     const tot = new Map((players || []).map(p => [p.id, { id: p.id, name: p.name, pts: 0, firsts: 0, played: 0, rank: 0 }]));
-    for (const g of GAMES) for (const d of DIFFS) for (const r of board(players, recKey(g, d.id), g.lower)) { const t = tot.get(r.id); if (!t) continue; t.played++; if (r.rank <= 3) t.pts += 4 - r.rank; if (r.rank === 1) t.firsts++; }
+    for (const g of GAMES) for (const d of DIFFS.filter(x => x.id === TOTAL_DIFF)) for (const r of board(players, recKey(g, d.id), g.lower)) { const t = tot.get(r.id); if (!t) continue; t.played++; if (r.rank <= 3) t.pts += 4 - r.rank; if (r.rank === 1) t.firsts++; }
     // 기록이 하나도 없는 사람은 등수 없이(rank 0) 맨 아래에 둔다
     const rows = [...tot.values()]; rows.sort((a, b) => (b.played > 0) - (a.played > 0) || b.pts - a.pts || b.firsts - a.firsts || a.name.localeCompare(b.name, 'ko'));
     for (const r of rows) if (r.played > 0) r.rank = 1 + rows.filter(o => o.played > 0 && (o.pts > r.pts || (o.pts === r.pts && o.firsts > r.firsts))).length;
@@ -688,9 +700,52 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     if (syncing) { syncAgain = true; return syncing; }
     return rankSync(true);
   }
+  // ── 신기록 추억 사진: 일상 앱(같은 주소의 IndexedDB 'kongstar' · 'photos')에 사진이 있으면 한 장을 골라 띄운다.
+  //   읽기만 한다 — 저장소가 아직 없으면(일상 앱을 안 열어 본 폰) 열기를 취소해 빈 저장소가 생기지 않게 한다 (위 「저장」 설명 참고). 바로 앞에 본 사진은 되도록 피한다
+  function memPhoto() {
+    return new Promise(res => {
+      let r, fin = false; const end = v => { if (!fin) { fin = true; res(v); } };
+      try { if (!('indexedDB' in window)) return end(null); r = indexedDB.open('kongstar'); } catch (e) { return end(null); }
+      const tm = setTimeout(() => end(null), 3000);
+      r.onupgradeneeded = () => { try { r.transaction.abort(); } catch (e) {} };
+      r.onerror = ev => { if (ev && ev.preventDefault) ev.preventDefault(); clearTimeout(tm); end(null); };
+      r.onblocked = () => { clearTimeout(tm); end(null); };
+      r.onsuccess = () => {
+        const d = r.result, done = v => { clearTimeout(tm); try { d.close(); } catch (e) {} end(v); };
+        try {
+          if (!d.objectStoreNames.contains('photos')) return done(null);
+          const st = d.transaction('photos', 'readonly').objectStore('photos'), q = st.getAllKeys();
+          q.onerror = () => done(null);
+          q.onsuccess = () => {
+            let ks = q.result || []; if (!ks.length) return done(null);
+            let last = ''; try { last = sessionStorage.getItem('kongstar.game.lastPhoto') || ''; } catch (e) {}
+            if (ks.length > 1) ks = ks.filter(k => String(k) !== last);
+            const k = ks[Math.floor(Math.random() * ks.length)]; try { sessionStorage.setItem('kongstar.game.lastPhoto', String(k)); } catch (e) {}
+            const g = st.get(k); g.onsuccess = () => done(g.result || null); g.onerror = () => done(null);
+          };
+        } catch (e) { done(null); }
+      };
+    });
+  }
+  let photoEl = null;
+  function closePhoto() { const w = photoEl; if (!w) return; photoEl = null; clearTimeout(w._t); w.classList.remove('on'); setTimeout(() => { w.remove(); URL.revokeObjectURL(w._u); }, 260); }
+  function showPhoto(p) {
+    const b = p && (p.blob instanceof Blob ? p.blob : p.thumb instanceof Blob ? p.thumb : null); if (!b) return;
+    closePhoto();
+    const w = document.createElement('div'); w.className = 'kg-photo'; w.setAttribute('role', 'dialog'); w.setAttribute('aria-label', '신기록 축하 사진 · 누르면 닫혀요');
+    const fg = document.createElement('figure'), im = document.createElement('img'), cap = document.createElement('figcaption'), t1 = document.createElement('b'), t2 = document.createElement('span');
+    w._u = URL.createObjectURL(b); im.src = w._u; im.alt = J(name, '의') + ' 사진';
+    t1.textContent = '신기록! 🎉'; t2.textContent = (typeof p.caption === 'string' && p.caption.trim()) || J(name, '이/가') + ' 축하해요';
+    cap.appendChild(t1); cap.appendChild(t2); fg.appendChild(im); fg.appendChild(cap); w.appendChild(fg);
+    w.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); closePhoto(); });
+    im.onerror = () => { if (photoEl === w) closePhoto(); };
+    document.body.appendChild(w); photoEl = w; requestAnimationFrame(() => requestAnimationFrame(() => w.classList.add('on')));
+    w._t = setTimeout(() => { if (photoEl === w) closePhoto(); }, 6500);
+  }
+  function recPhoto() { if (!recFlag) return; recFlag = false; setTimeout(() => memPhoto().then(p => { if (p) showPhoto(p); }), 500); }
   const RB_TOP = 5, RB_EVERY = 20000, RB_FOR = 600000;
   const hhmm = t => { try { return new Date(t || Date.now()).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
-  function rankBox(host, gameKey) {
+  function rankBox(host, gameKey, atStart) {
     const g = GAMES.find(x => x.key === gameKey) || { key: gameKey, title: '', unit: '', lower: false };
     const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
     const el = mk('section', 'kg-rbox'); el.hidden = true; el.setAttribute('aria-live', 'polite'); el.setAttribute('aria-label', '가족 순위');
@@ -744,7 +799,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
         });
     }
     function show(d, o) {
-      diff = DIFFS.some(x => x.id === d) ? d : diffId; note = (o && o.note) || ''; place(); el.hidden = false;
+      diff = DIFFS.some(x => x.id === d) ? d : diffId; note = (o && o.note) || ''; place(); el.hidden = false; if (!atStart) recPhoto();
       const my = ++gen; since = Date.now(); clearInterval(timer); timer = 0;
       const c = rankCache(); paint(c ? c.players : [], rankCfg() && (rankMe() || {}).name ? '순위를 받는 중…' : '');
       if (!rankCfg() || !(rankMe() || {}).name) return;
@@ -758,11 +813,23 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     if (host && host.parentElement) host.after(el);
     return { el, show, hide };
   }
+  // ── 시작 카드의 가족 순위: KG.startRank(시작 겉상자, 게임 열쇠, { note }) — 시작 카드가 보이는 동안 그 아래에 고른 난이도의 순위를 보여 준다.
+  //   게임마다 시작 카드를 숨기는 방법이 달라(hidden·클래스) 0.3초마다 보이는지만 살핀다. 난이도를 바꾸면 그 난이도로 다시 그린다
+  function startRank(scrim, gameKey, o) {
+    const card = scrim && scrim.querySelector('.kg-card'); if (!card) return null;
+    const rb = rankBox(card, gameKey, true), opt = () => (o && o.note ? { note: typeof o.note === 'function' ? o.note() : o.note } : undefined);
+    let on = false;
+    const vis = () => !scrim.hidden && card.getClientRects().length > 0;
+    function tick() { const v = vis(); if (v && !on) { on = true; recFlag = false; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
+    diffWatch.push(id => { if (on) rb.show(id, opt()); });
+    setInterval(tick, 300); requestAnimationFrame(tick);
+    return { rb, refresh() { if (on) rb.show(diffId, opt()); } };
+  }
   const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName, flush: rankFlush };
   // 밀린 기록: 화면을 열었을 때·앱이 다시 보일 때 (60초에 한 번). 화면을 떠날 때 보내려던 것이 남았으면 바로 보낸다 (keepalive)
   if (rankCfg()) setTimeout(() => { if (ls.get(RK.dirty) === '1') rankSync(false); }, 1500);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) rankSync(false); });
   addEventListener('pagehide', () => { if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; if (syncing) syncAgain = true; else rankSync(true); } });
 
-  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox };
+  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, markNew() { recFlag = true; } };
 })();

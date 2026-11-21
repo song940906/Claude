@@ -177,9 +177,18 @@ body.land .hero .kspot { right: auto; left: 50%; bottom: auto; top: 136px; }
 @media (max-height: 340px) { .kg-scrim .kg-card { padding: 16px 18px 12px; } .kg-scrim .kg-card h2 { margin-bottom: 4px; } .kg-scrim .kg-card .row { margin-top: 8px; } .kg-card .kg-diff { margin-top: 6px; } .kg-card .link { margin-top: 4px; } .kg-card .tip { margin-top: 4px; } .kg-card .tip small { display: none; } .stages { margin-top: 6px; padding-bottom: 2px; } }
 /* 좁은 화면(320): 카드 안 난이도 단추 가운데 글자가 긴 'Very Hard' 칸만 조금 넓혀 넘치지 않게 */
 @media (max-width: 340px) { .kg-card .kg-diff [data-d=vhard] { flex: 1.25 1 0; } }
-/* 결과 카드 + 가족 순위 카드: 세로로 쌓이면 줄어들지 않으므로(flex:none) 여백까지 폭에 넣어야 겉상자 여백 안에 들어온다 */
-.kg-rbwrap > .kg-card, .kg-rbwrap > .kg-rbox { box-sizing: border-box; }
+/* 가로 낮은 화면에서 가족 순위 카드와 나란히 설 때: 공통 CSS 의 max-height:100% 는 안쪽 여백을 빼고 재므로 결과 카드가 여백만큼 화면 밖으로 넘친다 → 이 경우만 border-box (넓은 화면 카드 폭은 원본 그대로) */
+@media (orientation: landscape) and (max-height: 520px) { .kg-scrim.kg-rbwrap > .kg-card { box-sizing: border-box; } }
 @media (max-height: 420px) { .kg-scrim.kg-rbwrap > .kg-card { padding-top: 12px; padding-bottom: 10px; } }   /* 가로 낮은 화면: 결과 카드가 몇 px 넘쳐 카드 안 스크롤바가 생기던 것을 위아래 여백으로 줄인다 */
+/* 아주 낮은 가로 화면(568×320)에서 순위 카드와 나란히 서면 결과 카드가 약 300px 로 좁아져, 목표 줄·안내 글이 있는 단계 실패 카드는 「다시 하기」가 카드 아래 끝에 잘린다 → 글자와 사이를 조금 줄여 주 단추가 처음 화면에 들어오게 (이 게임 카드 내용 때문이라 여기서만) */
+@media (orientation: landscape) and (max-height: 340px) {
+  .kg-scrim.kg-rbwrap > .kg-card h2 { font-size: 19px; margin-bottom: 2px; }
+  .kg-scrim.kg-rbwrap > .kg-card p { font-size: 13.5px; line-height: 1.4; margin-bottom: 2px; }
+  .kg-scrim.kg-rbwrap > .kg-card .big { font-size: 30px; margin: 0; }
+  .kg-scrim.kg-rbwrap > .kg-card .goalrow { margin: 2px 0 0; }
+  .kg-scrim.kg-rbwrap > .kg-card .tip { font-size: 12.5px; line-height: 1.4; padding: 5px 10px; }
+  .kg-scrim.kg-rbwrap > .kg-card .row { margin-top: 8px; }
+}
 @media (prefers-reduced-motion: reduce) { .tile.hint .in, .pcard.yay .flip, .pcard.nope .flip, .pcard { animation: none; } }
 </style>
 </head>
