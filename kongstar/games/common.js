@@ -543,7 +543,13 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { key: 'fish', title: '어부체험', ico: '🎣', unit: '점', lower: false, href: 'fish.html' },
     { key: 'deliver', title: '로켓배송', ico: '🚀', unit: '단계', lower: false, href: 'deliver.html' },
     { key: 'dig', title: '도굴단', ico: '🦴', unit: '점', lower: false, href: 'dig.html' },
-    { key: 'race', title: '달리기왕', ico: '🏅', unit: '점', lower: false, href: 'race.html' }
+    { key: 'race', title: '달리기왕', ico: '🏅', unit: '점', lower: false, href: 'race.html' },
+    { key: 'spot', title: '틀린그림찾기', ico: '🔎', unit: '점', lower: false, href: 'spot.html' },
+    { key: 'flower', title: '무궁화꽃', ico: '🌸', unit: '점', lower: false, href: 'flower.html' },
+    { key: 'cups', title: '야바위', ico: '🥤', unit: '번', lower: false, href: 'cups.html' },
+    { key: 'tug', title: '줄다리기', ico: '💪', unit: '점', lower: false, href: 'tug.html' },
+    { key: 'stairs', title: '계단 유산소', ico: '🪜', unit: '층', lower: false, href: 'stairs.html' },
+    { key: 'curl', title: '간식컬링', ico: '🥌', unit: '점', lower: false, href: 'curl.html' }
   ];
   const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };
   const RK = { me: 'kongstar.rank.me', cfg: 'kongstar.rank.cfg', dirty: 'kongstar.rank.dirty', last: 'kongstar.rank.last', cache: 'kongstar.rank.cache', seen: 'kongstar.rank.seen' };

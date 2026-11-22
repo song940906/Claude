@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 계단 유산소</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 계단 유산소: 지그재그 계단(캔버스) 위에 콩이(SVG) — 마당 → 지붕 → 구름 → 별 */
+#stage { position: fixed; inset: 0; overflow: hidden; touch-action: none; background: #8FD3FF; cursor: pointer; }
+#bg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#dog { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+#fg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; pointer-events: none; }   /* 콩이 뒤로 숨는 앞 계단의 윗면·윤곽을 콩이 위에 한 번 더 */
+body .kg-top .kg-title { text-shadow: 0 1px 3px rgba(0,0,0,.55), 0 0 10px rgba(20,24,60,.4); }
+/* 점수판: 층 · 시간 막대 · 간식 */
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+.hp { flex: none; height: 34px; box-sizing: border-box; border-radius: 17px; padding: 0 12px; display: inline-flex; align-items: center; gap: 4px; background: rgba(18,22,52,.5); border: 1px solid rgba(255,255,255,.16); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.2px; white-space: nowrap; }
+.hp .num { font-size: 17px; font-weight: 800; }
+.hp .unit { font-size: 12px; font-weight: 500; opacity: .85; }
+.hp svg { width: 18px; height: 18px; display: block; }
+.hp.bump { animation: hpBump .28s; }
+@keyframes hpBump { 0% { transform: scale(1); } 45% { transform: scale(1.16); } 100% { transform: scale(1); } }
+#tbar { flex: 1; min-width: 60px; height: 14px; border-radius: 7px; background: rgba(18,22,52,.45); border: 1px solid rgba(255,255,255,.22); overflow: hidden; box-sizing: border-box; }
+#tbar i { display: block; height: 100%; width: 100%; border-radius: 7px; background: linear-gradient(90deg, #7BE0A6, #4CC88A); transform-origin: 0 50%; }
+#tbar.mid i { background: linear-gradient(90deg, #FFD36E, #FFB95C); }
+#tbar.low i { background: linear-gradient(90deg, #FF9AA2, #FF6B7A); }
+#tbar.low { animation: tbBlink .6s infinite alternate; }
+@keyframes tbBlink { from { border-color: rgba(255,255,255,.22); } to { border-color: rgba(255,120,130,.95); } }
+#note { position: fixed; z-index: 11; left: 50%; transform: translate(-50%, -6px); padding: 8px 16px; border-radius: 18px; background: rgba(255,255,255,.93); color: #191F28; font-size: 14px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+#note.show { opacity: 1; transform: translate(-50%, 0); }
+/* 왼쪽 · 오른쪽 단추 (화면 왼쪽 반·오른쪽 반을 눌러도 된다) */
+.ctl { position: fixed; z-index: 12; bottom: calc(var(--sab) + 16px); width: 86px; height: 86px; border-radius: 50%; padding: 0; border: 1.5px solid rgba(255,255,255,.55); background: rgba(255,255,255,.28); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: #fff; display: flex; align-items: center; justify-content: center; touch-action: none; box-shadow: 0 6px 18px rgba(20,30,80,.22); transition: transform .08s, background .08s; }
+.ctl::before { content: ""; position: absolute; inset: -14px; border-radius: 50%; }
+.ctl svg { width: 40px; height: 40px; display: block; filter: drop-shadow(0 1px 3px rgba(20,30,80,.4)); pointer-events: none; }
+.ctl.on { background: rgba(255,255,255,.66); color: #2C3577; transform: scale(.92); }
+.ctl.hint { animation: ctlHint 1s infinite; }
+@keyframes ctlHint { 0%,100% { box-shadow: 0 6px 18px rgba(20,30,80,.22), 0 0 0 0 rgba(255,255,255,.6); } 50% { box-shadow: 0 6px 18px rgba(20,30,80,.22), 0 0 0 10px rgba(255,255,255,0); } }
+#btnL { left: calc(var(--sal) + 16px); }
+#btnR { right: calc(var(--sar) + 16px); }
+@media (max-height: 430px) { .ctl { width: 74px; height: 74px; bottom: calc(var(--sab) + 14px); } #btnL { left: calc(var(--sal) + 20px); } #btnR { right: calc(var(--sar) + 20px); } }
+/* 카드 안 */
+.kg-card .tip { margin: 12px 0 0; padding: 12px 14px; background: var(--soft); border-radius: 14px; font-size: 14px; line-height: 1.55; color: #3A4552; text-align: left; }
+.kg-card .tip b { color: var(--pri); font-weight: 700; }
+.kg-card .key { margin-top: 8px; font-size: 12.5px; color: #8A94A0; }
+.kg-card .stats { display: flex; gap: 8px; margin-top: 12px; }
+.kg-card .stats div { flex: 1; min-width: 0; background: var(--soft); border-radius: 14px; padding: 10px 4px 9px; }
+.kg-card .stats b { display: block; font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kg-card .stats small { display: block; margin-top: 1px; font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+.badge { display: inline-block; margin-bottom: 6px; padding: 5px 11px; border-radius: 12px; background: #FFF1D6; color: #B36B00; font-size: 13px; font-weight: 700; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+body .kg-top { z-index: 26; }
+@media (orientation: portrait) and (min-height: 620px) { body .kg-scrim:not(.kg-rules):not(.kg-rbwrap) { align-items: flex-start; padding-top: calc(var(--sat) + 74px); } }
+@media (max-height: 430px) {
+  body .kg-scrim:not(.kg-rules) .kg-card { box-sizing: border-box; padding: 14px 18px 12px; width: min(100%, 440px); }
+  body .kg-scrim:not(.kg-rules) { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 8px); }   /* 카드가 위 줄(게임·소리 단추) 밑에서 시작하게 */
+  #cardStart .tip { display: none; }   /* 낮은 가로 화면: 설명은 「규칙 보기」로 — 카드가 위 줄 단추에 걸리지 않게 */
+  #cardEnd .badge { vertical-align: middle; margin: 0 6px 2px 0; }   /* 새 기록 딱지는 제목 옆에 */
+  body #cardEnd .kg-card h2 { display: inline-block; vertical-align: middle; }
+  #edSub { display: none; }
+  .kg-card .key { display: none; }
+  body .kg-card .big { font-size: 30px; margin: 0; }
+  body .kg-scrim:not(.kg-rules) .kg-card .row { margin-top: 10px; }
+  body .kg-scrim:not(.kg-rules) .kg-card .row .kg-btn { height: 44px; }
+  .kg-card .stats { margin-top: 6px; }
+  .kg-card .stats div { padding: 6px 4px 5px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  .kg-card .kg-diff button { height: 34px; }
+  .badge { margin-bottom: 2px; padding: 3px 10px; }
+  body .kg-scrim:not(.kg-rules) .kg-card h2 { font-size: 18px; margin-bottom: 2px; }
+}
+@media (max-width: 340px) {
+  .kg-card .kg-diff button { font-size: 12px; letter-spacing: -.5px; }
+  .kg-card .stats { gap: 6px; }
+  .kg-card .stats small { font-size: 11px; letter-spacing: -.5px; }
+  .ctl { width: 76px; height: 76px; }
+}
+@media (prefers-reduced-motion: reduce) { .ctl.hint, #tbar.low, .hp.bump { animation: none; } }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="계단 놀이판 — 화면 왼쪽 반은 왼쪽 계단, 오른쪽 반은 오른쪽 계단">
+  <canvas id="bg"></canvas>
+  <div id="dog"></div>
+  <canvas id="fg"></canvas>
+</div>
+
+<div id="hud" hidden aria-hidden="true">
+  <div class="hp" id="hFloor"><span class="num" id="hNum">0</span><span class="unit">층</span></div>
+  <div id="tbar"><i></i></div>
+  <div class="hp"><svg viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-35 12 12)" fill="#FFF6E0"><rect x="6" y="9.6" width="12" height="4.8" rx="2"/><circle cx="6" cy="9.4" r="3"/><circle cx="6" cy="14.6" r="3"/><circle cx="18" cy="9.4" r="3"/><circle cx="18" cy="14.6" r="3"/></g></svg><span id="hSnack">0</span></div>
+</div>
+<div id="note" role="status" aria-live="polite"></div>
+
+<button class="ctl" id="btnL" type="button" aria-label="왼쪽 계단으로" hidden><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.6 4.6c.9-.6 2.1 0 2.1 1.1v12.6c0 1.1-1.2 1.7-2.1 1.1l-9.2-6.3a1.3 1.3 0 0 1 0-2.2z"/></svg></button>
+<button class="ctl" id="btnR" type="button" aria-label="오른쪽 계단으로" hidden><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.4 4.6c-.9-.6-2.1 0-2.1 1.1v12.6c0 1.1 1.2 1.7 2.1 1.1l9.2-6.3a1.3 1.3 0 0 0 0-2.2z"/></svg></button>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="stTitle">
+    <h2 id="stTitle">콩이의 계단 유산소</h2>
+    <p id="stSub"></p>
+    <div class="tip">다음 계단이 <b>왼쪽</b>이면 왼쪽, <b>오른쪽</b>이면 오른쪽을 눌러요. 틀리면 헛디뎌요! 위쪽 <b>시간 막대</b>가 다 줄기 전에 부지런히 올라가요.</div>
+    <div class="key" id="stKey"></div>
+    <div class="row"><button class="kg-btn" id="btnRules">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="paTitle">
+    <h2 id="paTitle">잠깐 쉬는 중이에요</h2>
+    <p id="paSub"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card" role="dialog" aria-labelledby="edTitle">
+    <div class="badge" id="edNew" hidden>새 기록이에요!</div>
+    <h2 id="edTitle">헥헥, 힘들어요</h2>
+    <p id="edSub"></p>
+    <div class="big"><span id="edScore">0</span><small>층</small></div>
+    <div class="stats">
+      <div><b id="edSnack">0개</b><small>먹은 간식</small></div>
+      <div><b id="edTime">0초</b><small>오른 시간</small></div>
+      <div><b id="edBest">0층</b><small id="edBestL">최고 기록</small></div>
+    </div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const KEY = 'stairs', TITLE = J(name, '의') + ' 계단 유산소';
+
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   d0→d1  시간 막대가 1초에 줄어드는 몫: 처음 → ramp 층에 이르렀을 때 · 그 뒤로는 100층마다 slope 씩 계속 빨라진다(언젠가는 누구나 지친다)
+  //   gain   한 칸 오를 때 차는 몫 · bonus 간식을 먹으면 차는 몫 · snack 간식이 놓이는 간격(칸, ±3)
+  //   vis    콩이 앞으로 보이는 계단 수 (그 위는 구름에 가려진다) · run 같은 쪽으로 이어지는 칸 수 [최소, 최대]
+  //   버티려면 1초에 d/gain 칸을 올라야 한다: Easy 1.3→3.5 · Normal 2→5 · Hard 3→6.5 · Very Hard 4.3→7.8 (간식 덤을 치면 조금 덜)
+  //   헤드리스 모의(일정한 빠르기로 틀림 없이): Easy 초당 3칸 ≈ 400층 · Normal 4칸 ≈ 400층 · Hard 5칸 ≈ 250층 · Very Hard 6칸 ≈ 180층, 7칸 ≈ 300층
+  const DIFF = {
+    easy:   { d0: 0.078, d1: 0.21, ramp: 260, slope: 0.045, gain: 0.06, bonus: 0.24, snack: 14, vis: 10, run: [2, 6] },
+    normal: { d0: 0.12,  d1: 0.30, ramp: 220, slope: 0.035, gain: 0.06, bonus: 0.20, snack: 17, vis: 6,  run: [1, 5] },
+    hard:   { d0: 0.18,  d1: 0.39, ramp: 180, slope: 0.03, gain: 0.06, bonus: 0.18, snack: 20, vis: 4,  run: [1, 4] },
+    vhard:  { d0: 0.26,  d1: 0.47, ramp: 140, slope: 0.03, gain: 0.06, bonus: 0.15, snack: 24, vis: 2,  run: [1, 3] }
+  };
+  const XR = 4;                      // 계단이 가운데에서 옆으로 벗어나는 한도(칸)
+  const HOP = 0.1;                   // 한 칸 오르는 그림 시간(초)
+  const ZONES = [                    // 높이(층)에 따라 바뀌는 하늘·계단 빛깔
+    { at: 0,   name: '마당',  sky: ['#7FC8F8', '#D8F1FF'], top: '#F2B57A', body: '#C9824C', edge: '#A4643A' },
+    { at: 40,  name: '지붕',  sky: ['#F59A7A', '#FFE1BE'], top: '#F07C69', body: '#C9513F', edge: '#9E3B2E' },
+    { at: 100, name: '구름',  sky: ['#9E8CE6', '#F1E3FF'], top: '#FFFFFF', body: '#E1DAF7', edge: '#B9AEE3' },
+    { at: 170, name: '별',    sky: ['#0B1030', '#2B2F7E'], top: '#FFE7A0', body: '#6A62C8', edge: '#463F9A' }
+  ];
+  const ZMSG = ['', '지붕 위로 올라왔어요!', '구름 속으로 들어왔어요!', '콩이별이 보여요!'];
+  let diffId = KG.diff(), D = DIFF[diffId] || DIFF.normal;   // 판을 시작할 때 한 번 정해 그 판 동안 그대로
+
+  // ═══════ 화면 조각 ═══════
+  const stage = $('stage'), bg = $('bg'), dogBox = $('dog'), c = bg.getContext('2d', { alpha: false }), fgc = $('fg'), fc = fgc.getContext('2d');
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  const btnPause = document.createElement('button'); btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6v12M15 6v12"/></svg>';
+  bar.right(btnPause);
+  $('stSub').textContent = J(name, '이랑/랑') + ' 지그재그 계단을 올라가요';
+  $('paSub').textContent = J(name, '이/가') + ' 계단에서 숨을 고르고 있어요.';
+  const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);
+  KG.startRank($('cardStart'), KEY);
+
+  const k = kong(dogBox, 100); k.setPose('sit');
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';               // ready · play · pause · over · result
+  let steps = [], cur = 0, runLeft = 0, runDir = 1, going = false, tBar = 1, elapsed = 0, snacks = 0, reason = '', overT = 0, tAnim = 0, endAt = 0, lastTick = 0, zoneShown = 0, maxZone = 0;
+  let kyB = 0, runBest0 = 0;          // kyB: 폴짝 바운스를 뺀 높이(안개 경계용) · runBest0: 판을 시작할 때의 최고 기록
+  let kx = 0, ky = 0, hop = null, face = 1, landT = 0, happyT = 0, fall = null, camX = 0, camY = 0, floats = [], shake = 0;
+  let W = 0, H = 0, DPR = 1, SW = 60, SH = 36, KY = 500, KS = 100, WIDE = false, HB = 104, FONT = 'sans-serif';
+
+  // ── 계단 만들기: x 는 칸 단위 가로 자리. 같은 쪽으로 run 칸 이어지다 꺾인다
+  function addStep() {
+    const i = steps.length;
+    if (i === 0) { steps.push({ x: 0, snack: false, ate: false }); return; }
+    if (runLeft <= 0) { runDir = -runDir; runLeft = D.run[0] + Math.floor(Math.random() * (D.run[1] - D.run[0] + 1)); }
+    const px = steps[i - 1].x;
+    if (Math.abs(px + runDir) > XR) { runDir = -runDir; runLeft = D.run[0] + Math.floor(Math.random() * (D.run[1] - D.run[0] + 1)); }
+    runLeft--;
+    steps.push({ x: px + runDir, snack: false, ate: false });
+  }
+  let nextSnack = 0;
+  function grow() {
+    while (steps.length < cur + 40) {
+      addStep();
+      const i = steps.length - 1;
+      if (i === nextSnack) { steps[i].snack = true; nextSnack = i + D.snack + Math.round(rand(-3, 3)); }
+    }
+  }
+  const nextDir = () => steps[cur + 1].x - steps[cur].x;
+  const drainNow = () => lerp(D.d0, D.d1, clamp(cur / D.ramp, 0, 1)) + D.slope * Math.max(0, cur - D.ramp) / 100;
+
+  // ═══════ 화면 맞추기 ═══════
+  function layout() {
+    DPR = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; const sa = safe();
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    fgc.width = bg.width; fgc.height = bg.height; fc.setTransform(DPR, 0, 0, DPR, 0, 0);
+    WIDE = W > H * 1.2;
+    const hud = $('hud'), note = $('note');
+    let hudBottom;
+    if (WIDE && W >= 800 && H >= 560) {   // 넉넉한 가로 화면(태블릿·PC): 제목은 위 줄에 두고 점수판은 그 아래 둘째 줄 가운데
+      const wHud = Math.min(W - sa.l - sa.r - 28, 520);
+      hud.style.left = Math.round((W - wHud) / 2) + 'px'; hud.style.width = wHud + 'px'; hud.style.right = ''; hud.style.top = (sa.t + 64) + 'px';
+      hudBottom = sa.t + 104; bar.setTitle(TITLE);
+    } else if (WIDE) {   // 낮은 가로 화면: 점수판을 위 줄(게임·소리 단추 사이)에 넣어 세로 자리를 아낀다
+      const wHud = Math.min(W - sa.l - sa.r - 260, 420);
+      hud.style.left = Math.round((W - wHud) / 2) + 'px'; hud.style.width = wHud + 'px'; hud.style.right = ''; hud.style.top = (sa.t + 15) + 'px';
+      hudBottom = sa.t + 54; bar.setTitle('');
+    } else {
+      hud.style.left = (sa.l + 14) + 'px'; hud.style.right = (sa.r + 14) + 'px'; hud.style.width = ''; hud.style.top = (sa.t + 64) + 'px';
+      hudBottom = sa.t + 104; bar.setTitle(W < 350 ? '계단 유산소' : TITLE);
+    }
+    note.style.top = (hudBottom + 8) + 'px'; HB = hudBottom;
+    KY = Math.round(H * (WIDE ? 0.74 : 0.70));
+    const room = KY - hudBottom - 16;
+    // 가로 화면도 7칸 남짓 들어가게 — Easy(10칸)와 Normal(6칸)의 안개 경계 차이가 가로에서도 보이도록
+    SH = clamp(room / (WIDE ? 7.5 : 8.5), 22, 58); SW = SH * 1.62;
+    if (SW * 5.2 > W) { SW = W / 5.2; SH = SW / 1.62; }
+    KS = Math.round(SW * 1.3); k.setSize(KS);
+    FONT = getComputedStyle(document.body).fontFamily;
+    buildStars();
+    draw();
+  }
+  addEventListener('resize', layout);
+  addEventListener('orientationchange', () => setTimeout(layout, 250));
+
+  // 별·구름 자리 (화면 비율 0~1) — 매번 같은 자리
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  let STARS = [], CLOUDS = [], HOUSES = [];
+  function buildStars() {
+    const r = mulberry32(91); STARS = []; CLOUDS = []; HOUSES = [];
+    const n = Math.round(clamp(W * H / 2400, 70, 380));
+    for (let i = 0; i < n; i++) STARS.push({ x: r(), y: r(), r: r() < 0.08 ? 1.2 + r() * 0.8 : 0.4 + r() * 0.8, a: 0.35 + r() * 0.6, tw: r() * TAU, warm: r() < 0.3 });
+    for (let i = 0; i < 9; i++) CLOUDS.push({ x: r(), y: r(), s: 0.6 + r() * 0.8, v: 0.004 + r() * 0.01 });
+    let x = -0.05; while (x < 1.1) { const w = 0.12 + r() * 0.12; HOUSES.push({ x, w, h: 0.12 + r() * 0.14, col: r(), chim: r() < 0.5 }); x += w + 0.02 + r() * 0.04; }
+  }
+
+  // ═══════ 그리기 ═══════
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const mix = (a, b, t) => { const A = hex(a), B = hex(b); return 'rgb(' + A.map((v, i) => Math.round(lerp(v, B[i], t))).join(',') + ')'; };
+  const smooth = t => t * t * (3 - 2 * t);
+  // 높이 h(층) → 구역 번호(실수, 0~3): 경계 앞뒤 10층에 걸쳐 섞인다
+  const zoneF = h => { let z = 0; for (let i = 1; i < ZONES.length; i++) z += smooth(clamp((h - ZONES[i].at + 10) / 20, 0, 1)); return z; };
+  const zcol = (z, key, idx) => { const a = Math.floor(z), b = Math.min(ZONES.length - 1, a + 1), t = z - a; const A = idx == null ? ZONES[a][key] : ZONES[a][key][idx], B = idx == null ? ZONES[b][key] : ZONES[b][key][idx]; return mix(A, B, t); };
+  const sx = x => W / 2 + (x - camX) * SW;
+  const sy = i => KY - (i - camY) * SH;
+  function rr(x, y, w, h, r, g) { g = g || c; g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+  function puff(x, y, r, col) { c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, TAU); c.arc(x + r * 0.9, y + r * 0.25, r * 0.75, 0, TAU); c.arc(x - r * 0.9, y + r * 0.3, r * 0.7, 0, TAU); c.arc(x + r * 0.2, y - r * 0.45, r * 0.7, 0, TAU); c.fill(); }
+  function bone(x, y, s, rot, g) {
+    g = g || c;
+    g.save(); g.translate(x, y); g.rotate(rot || 0);
+    g.fillStyle = '#FFF4DC'; g.strokeStyle = '#D9A55B'; g.lineWidth = Math.max(1, s * 0.09);
+    g.beginPath(); rr(-s * 0.5, -s * 0.17, s, s * 0.34, s * 0.15, g);
+    for (const [px, py] of [[-0.5, -0.17], [-0.5, 0.17], [0.5, -0.17], [0.5, 0.17]]) { g.moveTo(px * s + s * 0.2, py * s); g.arc(px * s, py * s, s * 0.2, 0, TAU); }
+    g.fill(); g.stroke();
+    g.fillStyle = '#FFF4DC'; g.fillRect(-s * 0.45, -s * 0.13, s * 0.9, s * 0.26);
+    g.restore();
+  }
+  function heart(x, y, s, col) { c.fillStyle = col; c.beginPath(); c.moveTo(x, y + s * 0.35); c.bezierCurveTo(x - s * 0.9, y - s * 0.25, x - s * 0.35, y - s * 0.85, x, y - s * 0.35); c.bezierCurveTo(x + s * 0.35, y - s * 0.85, x + s * 0.9, y - s * 0.25, x, y + s * 0.35); c.fill(); }
+
+  // 콩이별: 분홍 행성 · 고리 · 하트 무늬 (별 구역) — 앞을 가리는 구름 위에 그린다
+  function drawPlanet(z) {
+    const pa = clamp(z - 2.4, 0, 1); if (pa <= 0) return;
+    const R = Math.min(W, H) * 0.085, px = W * 0.8, py = Math.max(H * 0.2, HB + (HB > 80 ? 26 : 16) + R);
+    c.globalAlpha = pa;
+    const gl = c.createRadialGradient(px, py, R * 0.6, px, py, R * 2.4); gl.addColorStop(0, 'rgba(255,170,210,.35)'); gl.addColorStop(1, 'rgba(255,170,210,0)'); c.fillStyle = gl; c.fillRect(px - R * 2.4, py - R * 2.4, R * 4.8, R * 4.8);
+    c.strokeStyle = 'rgba(255,230,170,.85)'; c.lineWidth = R * 0.12; c.beginPath(); c.ellipse(px, py, R * 1.7, R * 0.42, -0.35, Math.PI * 0.95, Math.PI * 2.05); c.stroke();
+    const pg = c.createRadialGradient(px - R * 0.4, py - R * 0.4, R * 0.1, px, py, R); pg.addColorStop(0, '#FFD3E6'); pg.addColorStop(1, '#E77FB0'); c.fillStyle = pg; c.beginPath(); c.arc(px, py, R, 0, TAU); c.fill();
+    heart(px + R * 0.2, py + R * 0.1, R * 0.45, 'rgba(255,255,255,.55)');
+    c.beginPath(); c.ellipse(px, py, R * 1.7, R * 0.42, -0.35, Math.PI * 0.05, Math.PI * 0.95); c.stroke();
+    c.globalAlpha = 1;
+  }
+  function drawSky(z) {
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, zcol(z, 'sky', 0)); g.addColorStop(1, zcol(z, 'sky', 1));
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    // 별: 구름 구역부터 조금씩, 별 구역에서 가득
+    const sa = clamp(z - 1.9, 0, 1);
+    if (sa > 0) {
+      const off = camY * SH * 0.04;
+      for (const s of STARS) {
+        const y = ((s.y * H + off) % H + H) % H, tw = reduceMotion ? 1 : 0.7 + 0.3 * Math.sin(tAnim * 2 + s.tw);
+        c.globalAlpha = sa * s.a * tw; c.fillStyle = s.warm ? '#FFE9C4' : '#EAF0FF'; c.beginPath(); c.arc(s.x * W, y, s.r, 0, TAU); c.fill();
+      }
+      c.globalAlpha = 1;
+    }
+    // 멀리 지붕들 (지붕 구역에서 아래로 흘러간다)
+    const ha = clamp(1 - Math.abs(z - 1) * 1.3, 0, 1);
+    if (ha > 0) {
+      const base = H * 0.66 + (camY - ZONES[1].at) * SH * 0.3;
+      if (base < H + 40) {
+        c.globalAlpha = ha * 0.85;
+        for (const hs of HOUSES) {
+          const x = hs.x * W, w = hs.w * W, h = hs.h * H, y = base - h;
+          c.fillStyle = mix('#C77C6A', '#8E5A86', hs.col); c.fillRect(x, y, w, H);
+          c.fillStyle = mix('#9E4A3C', '#5F3A6E', hs.col); c.beginPath(); c.moveTo(x - w * 0.08, y + 2); c.lineTo(x + w / 2, y - h * 0.45); c.lineTo(x + w * 1.08, y + 2); c.closePath(); c.fill();
+          if (hs.chim) { c.fillRect(x + w * 0.68, y - h * 0.4, w * 0.12, h * 0.3); }
+          c.fillStyle = 'rgba(255,226,150,.8)'; for (let wy = y + h * 0.2; wy < base - 8; wy += h * 0.32) for (const wx of [0.22, 0.6]) c.fillRect(x + w * wx, wy, w * 0.16, h * 0.14);
+        }
+        c.globalAlpha = 1;
+      }
+    }
+    // 뭉게구름 (마당·구름 구역)
+    const ca = clamp(z < 1 ? 0.55 : 1 - Math.abs(z - 2) * 0.9, 0, 1);
+    if (ca > 0) {
+      c.globalAlpha = ca * 0.85; const span = H * 1.4;
+      for (const cl of CLOUDS) {
+        const x = (((cl.x + tAnim * cl.v * (reduceMotion ? 0 : 1)) % 1.3) - 0.15) * W, y = (((cl.y * span + camY * SH * 0.25) % span) + span) % span - H * 0.2;
+        puff(x, y, Math.min(W, H) * 0.05 * cl.s, z > 2.5 ? 'rgba(200,190,255,.6)' : '#FFFFFF');
+      }
+      c.globalAlpha = 1;
+    }
+  }
+  // 바닥 마당: 0층 높이에 잔디 · 울타리 · 콩이 집 · 나무 (세상에 붙어 있어 오르면 아래로 사라진다)
+  function drawGarden() {
+    const gy = sy(0) + SH * 0.05; if (gy > H + 10) return;
+    // 뒤 언덕
+    c.fillStyle = '#9ED67E'; c.beginPath(); c.moveTo(0, gy); for (let x = 0; x <= W; x += 20) c.lineTo(x, gy - SH * 1.1 - Math.sin(x / W * 5 + 1) * SH * 0.5); c.lineTo(W, gy); c.closePath(); c.fill();
+    // 나무
+    const tx = sx(2.8), ty = gy;
+    c.fillStyle = '#8A5A3A'; c.fillRect(tx - SW * 0.1, ty - SH * 2.2, SW * 0.2, SH * 2.2);
+    for (const [dx, dy, r] of [[0, -2.8, 0.75], [-0.45, -2.3, 0.55], [0.45, -2.3, 0.55]]) { c.fillStyle = '#5DB36A'; c.beginPath(); c.arc(tx + dx * SW, ty + dy * SH, r * SW, 0, TAU); c.fill(); }
+    // 울타리
+    c.fillStyle = '#FFF6E8'; c.strokeStyle = '#D9C3A5'; c.lineWidth = 1;
+    for (let x = ((sx(0) % (SW * 0.45)) + SW * 0.45) % (SW * 0.45) - SW * 0.45; x < W + SW; x += SW * 0.45) { rr(x, gy - SH * 0.9, SW * 0.2, SH * 0.9, SW * 0.06); c.fill(); }
+    c.fillRect(0, gy - SH * 0.7, W, SH * 0.1); c.fillRect(0, gy - SH * 0.35, W, SH * 0.1);
+    // 콩이 집
+    const hx = sx(-2.6), hw = SW * 1.5, hh = SH * 1.5;
+    c.fillStyle = '#FFE1A8'; c.fillRect(hx - hw / 2, gy - hh, hw, hh);
+    c.fillStyle = '#E86F5E'; c.beginPath(); c.moveTo(hx - hw * 0.62, gy - hh + 2); c.lineTo(hx, gy - hh - SH * 0.95); c.lineTo(hx + hw * 0.62, gy - hh + 2); c.closePath(); c.fill();
+    c.fillStyle = '#5A3B2A'; c.beginPath(); c.moveTo(hx - hw * 0.22, gy); c.lineTo(hx - hw * 0.22, gy - hh * 0.45); c.arc(hx, gy - hh * 0.45, hw * 0.22, Math.PI, 0); c.lineTo(hx + hw * 0.22, gy); c.closePath(); c.fill();
+    heart(hx, gy - hh - SH * 0.32, SH * 0.32, '#FFFFFF');
+    // 잔디
+    c.fillStyle = '#7CC864'; c.fillRect(0, gy, W, H - gy + 4);
+    c.fillStyle = '#6DB956'; for (let x = 0; x < W; x += 14) { c.beginPath(); c.moveTo(x, gy); c.lineTo(x + 4, gy - 6); c.lineTo(x + 8, gy); c.fill(); }
+  }
+  function drawStep(i, alpha, z) {
+    const s = steps[i]; if (!s) return;
+    const x = sx(s.x), y = sy(i), w = SW * 0.94, th = SH * 0.66;
+    if (y < -th - SH * 2 || y > H + th) return;
+    c.globalAlpha = alpha;
+    if (i === 0) { c.fillStyle = zcol(z, 'body'); rr(x - w * 0.7, y, w * 1.4, th, th * 0.3); c.fill(); c.fillStyle = zcol(z, 'top'); rr(x - w * 0.7, y - 1, w * 1.4, th * 0.34, th * 0.17); c.fill(); c.globalAlpha = 1; return; }
+    const sz = zoneF(i);
+    c.fillStyle = 'rgba(20,20,60,.16)'; rr(x - w / 2 + 3, y + 4, w, th, th * 0.3); c.fill();
+    c.fillStyle = zcol(sz, 'body'); rr(x - w / 2, y, w, th, th * 0.3); c.fill();
+    c.fillStyle = zcol(sz, 'edge'); c.fillRect(x - w / 2 + th * 0.3, y + th - 3, w - th * 0.6, 3);
+    c.fillStyle = zcol(sz, 'top'); rr(x - w / 2, y - 1, w, th * 0.36, th * 0.18); c.fill();
+    // 층 표지: 열 칸마다 계단 앞면에 흰 이름표 · 그 사이 다섯 칸째에는 발자국 도장
+    if (i % 10 === 0) {
+      const fs = Math.max(9, Math.round(th * 0.5)), txt = i + '층'; c.font = '800 ' + fs + 'px ' + FONT;
+      const tw = Math.min(w - 6, c.measureText(txt).width + fs * 0.9), ph = fs * 1.25, py = y + th * 0.36 + (th * 0.64 - ph) / 2;
+      c.fillStyle = '#FFFFFF'; rr(x - tw / 2, py, tw, ph, ph * 0.4); c.fill();
+      c.fillStyle = '#2C3577'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, x, py + ph * 0.54, w - 8);
+    } else if (i % 5 === 0) {
+      c.fillStyle = 'rgba(255,255,255,.55)'; const px = x, py = y + th * 0.62, u = th * 0.12;
+      c.beginPath(); c.ellipse(px, py + u * 0.4, u * 1.3, u, 0, 0, TAU); c.fill();
+      for (const [dx, dy] of [[-1.3, -0.9], [-0.45, -1.6], [0.45, -1.6], [1.3, -0.9]]) { c.beginPath(); c.arc(px + dx * u, py + dy * u, u * 0.5, 0, TAU); c.fill(); }
+    }
+    c.globalAlpha = 1;
+  }
+  // 앞이 가려지는 구름: 콩이 앞 vis 칸 위로는 짙은 구름
+  //   fy 위로는 꽉 막힌 구름(가려진 계단은 조금도 비치지 않게), 아래로 SH×0.4 만큼 옅어진다. 보이는 마지막 계단(vis 칸째)의 윗면은 거의 그대로 보인다
+  const FOG = ['#B9DDF6', '#F8CDB8', '#DCCFFA', '#57519E'];
+  function drawFog(z) {
+    const fy = sy(Math.min(kyB, cur) + D.vis + 0.3), edge = SH * 0.4;   // 바운스를 뺀 높이를 써서 오를 때 안개 띠가 출렁이지 않게
+    if (fy < -SH) return;
+    const a = Math.floor(z), b = Math.min(FOG.length - 1, a + 1), A = hex(FOG[a]), B = hex(FOG[b]);
+    const col = A.map((v, i) => Math.round(lerp(v, B[i], z - a)));
+    const rgba = al => 'rgba(' + col.join(',') + ',' + al + ')';
+    c.fillStyle = rgba(1); c.fillRect(0, 0, W, Math.max(0, fy));
+    const g = c.createLinearGradient(0, fy, 0, fy + edge); g.addColorStop(0, rgba(1)); g.addColorStop(1, rgba(0)); c.fillStyle = g; c.fillRect(0, fy, W, edge);
+    const r = SH * 0.5, gap = r * 2.1, drift = reduceMotion ? 0 : (tAnim * 12) % gap;
+    for (let x = -gap + drift; x < W + gap; x += gap) puff(x, fy - r * 0.45, r, rgba(1));
+  }
+  function drawFloats(dt) {
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    for (let i = floats.length - 1; i >= 0; i--) {
+      const f = floats[i]; f.t += dt; if (f.t > 0.9) { floats.splice(i, 1); continue; }
+      const a = f.t < 0.12 ? f.t / 0.12 : 1 - Math.max(0, f.t - 0.55) / 0.35, x = sx(f.x), y = sy(f.y) - SH * 1.6 - f.t * SH * 1.1;
+      c.globalAlpha = clamp(a, 0, 1); c.font = '800 ' + Math.max(13, Math.round(SH * 0.42)) + 'px ' + FONT;
+      c.lineWidth = 4; c.strokeStyle = 'rgba(30,26,80,.55)'; c.strokeText(f.text, x, y); c.fillStyle = f.col || '#FFFFFF'; c.fillText(f.text, x, y);
+    }
+    c.globalAlpha = 1;
+  }
+  function draw(dt) {
+    dt = dt || 0;
+    const z = zoneF(camY + 3);
+    c.save();
+    const shx = shake > 0 && !reduceMotion ? rand(-1, 1) * shake * 6 : 0, shy = shake > 0 && !reduceMotion ? rand(-1, 1) * shake * 4 : 0;
+    c.translate(shx, shy);
+    drawSky(z); drawGarden();
+    const lo = Math.max(0, Math.floor(camY - (H - KY) / SH) - 2), hi = Math.min(steps.length - 1, Math.ceil(camY + KY / SH) + 3);
+    for (let i = lo; i <= hi; i++) drawStep(i, 1, z);
+    // 간식 (계단 위에서 통통)
+    for (let i = Math.max(lo, cur); i <= hi; i++) {
+      const s = steps[i]; if (!s.snack || s.ate) continue;
+      const bob = reduceMotion ? 0 : Math.sin(tAnim * 4 + i) * SH * 0.08;
+      bone(sx(s.x), sy(i) - SH * 0.42 + bob, SW * 0.42, -0.3);
+    }
+    if (state !== 'ready') drawFog(z);
+    drawPlanet(z);
+    drawFloats(dt);
+    c.restore();
+    // 위 줄 제목이 옅은 하늘·안개 위에서도 읽히게: 화면 위쪽만 살짝 어둡게
+    const tg = c.createLinearGradient(0, 0, 0, HB + 8); tg.addColorStop(0, 'rgba(20,24,60,.22)'); tg.addColorStop(1, 'rgba(20,24,60,0)');
+    c.fillStyle = tg; c.fillRect(0, 0, W, HB + 8);
+    drawFront(shx, shy);
+  }
+  // 콩이(SVG)가 캔버스 위에 있어서, 같은 열 바로 위 계단(되꺾일 때의 다다음 칸 등)이 콩이 머리 뒤에 숨는다.
+  //   콩이와 겹칠 수 있는 앞 계단(보이는 칸 안에서만)의 윗면·윤곽·간식을 콩이 위 캔버스(#fg)에 한 번 더 그린다
+  function drawFront(shx, shy) {
+    fc.clearRect(0, 0, W, H);
+    if (!steps.length || (state !== 'play' && state !== 'pause')) return;   // 판이 끝나면(떨어짐·헥헥·결과) 필요 없다
+    const dx = fall ? fall.x : kx, top = Math.min(D.vis, 3);
+    fc.save(); fc.translate(shx, shy);
+    for (let i = cur + 1; i <= cur + top; i++) {
+      const s = steps[i]; if (!s || Math.abs(s.x - dx) > 0.75) continue;   // 콩이와 같은 열(폴짝 중이면 거의 같은 열)만
+      const x = sx(s.x), y = sy(i), w = SW * 0.94, th = SH * 0.66, sz = zoneF(i);
+      if (y < -th || y > H + th) continue;
+      fc.globalAlpha = 0.75; fc.lineWidth = 2; fc.strokeStyle = zcol(sz, 'edge'); rr(x - w / 2 + 1, y, w - 2, th - 1, th * 0.3, fc); fc.stroke(); fc.globalAlpha = 1;
+      fc.fillStyle = zcol(sz, 'top'); rr(x - w / 2, y - 1, w, th * 0.36, th * 0.18, fc); fc.fill();
+      fc.lineWidth = 1.5; fc.strokeStyle = zcol(sz, 'edge'); fc.stroke();
+      if (s.snack && !s.ate) bone(x, y - SH * 0.42 + (reduceMotion ? 0 : Math.sin(tAnim * 4 + i) * SH * 0.08), SW * 0.42, -0.3, fc);
+    }
+    fc.restore();
+  }
+
+  // ═══════ 콩이 ═══════
+  function drawKong() {
+    let x = kx, y = ky, o;
+    if (fall) {
+      x = fall.x; y = fall.y;
+      o = { t: tAnim, facing: fall.dir, frame: 'jump', eyes: 'closed', mouth: 'open', earLift: 12, tailAmp: 4, roll: reduceMotion ? 0 : fall.roll };
+      if (k.rig.pose !== 'stand') k.setPose('stand');
+    } else if (state === 'ready' || (state === 'result' && happyT > 0)) {   // 신기록·10층 이상이면 결과 때 손 흔들기 (지쳐서 끝났어도)
+      const pose = state === 'result' && k.has('wave') ? 'wave' : 'sit'; if (k.rig.pose !== pose) k.setPose(pose);
+      o = { t: tAnim, eyes: 'happy', mouth: 'open', blush: 1, tailAmp: 22, tailRate: 3.6, earLift: 4 };
+    } else if (reason === 'tired' || state === 'result') {   // 헥헥 주저앉기 · 아쉬운 결과
+      const pose = k.has('lie') ? 'lie' : 'sit'; if (k.rig.pose !== pose) k.setPose(pose);
+      o = { t: tAnim, eyes: 'closed', mouth: 'open', breath: 3, breathRate: 3.2, tailAmp: 3, earLift: -6, nod: 0.4 };
+    } else {
+      if (k.rig.pose !== 'stand') k.setPose('stand');
+      const low = tBar < 0.25 && going;
+      o = { t: tAnim, facing: face, frame: hop ? 'jump' : landT > 0 ? 'land' : 'idle', squash: landT > 0 ? landT * 4 : 0, eyes: happyT > 0 ? 'happy' : 'open', mouth: 'open',
+        tailAmp: happyT > 0 ? 24 : 14, tailRate: happyT > 0 ? 4 : 2.8, earLift: hop ? 8 : 2, blush: happyT > 0 ? 1 : 0, breath: low ? 2.6 : 0, breathRate: low ? 3 : 0 };
+    }
+    k.render(o);
+    const px = W / 2 + (x - camX) * SW, py = KY - (y - camY) * SH;
+    k.place(px, py + SH * 0.02);
+  }
+
+  // ═══════ 놀이 ═══════
+  function note(msg, ms) { const n = $('note'); n.textContent = msg; n.classList.add('show'); clearTimeout(note.t); note.t = setTimeout(() => n.classList.remove('show'), ms || 1800); }
+  function addFloat(text, col) { floats.push({ x: steps[cur].x, y: cur, text, col, t: 0 }); }
+  function bumpPill() { if (reduceMotion) return; const el = $('hFloor'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+
+  function stepDir(dir) {
+    if (state !== 'play') return 'no';
+    const want = nextDir();
+    face = dir;
+    if (dir !== want) { slip(dir); return 'slip'; }
+    // 한 칸 오르기: 그림은 지금 보이는 자리에서 새 자리로 짧게 폴짝
+    if (!going) { going = true; $('btnL').classList.remove('hint'); $('btnR').classList.remove('hint'); }
+    hop = { x0: kx, y0: ky, b0: kyB, t: 0 };
+    cur++; grow();
+    tBar = Math.min(1, tBar + D.gain);
+    const s = steps[cur];
+    tone(460 + (cur % 8) * 45, 0.06, 'triangle', 0.045);
+    if (s.snack && !s.ate) { s.ate = true; snacks++; tBar = Math.min(1, tBar + D.bonus); sfx('coin'); addFloat('+시간', '#FFE08A'); happyT = 0.5; $('hSnack').textContent = snacks; }
+    if (cur % 10 === 0) { sfx('match'); bumpPill(); if (cur % 50 === 0) addFloat(cur + '층!', '#BFF3D2'); }
+    const zi = Math.floor(zoneF(cur) + 0.001);
+    if (zi > maxZone) { maxZone = zi; note(ZMSG[zi] || '', 2000); }
+    $('hNum').textContent = cur;
+    return 'up';
+  }
+  function slip(dir) {
+    state = 'over'; reason = 'fall'; overT = 0; hop = null;
+    fall = { x: kx, y: ky, vx: dir * 2.2, vy: 4, dir, roll: 0 };
+    sfx('wrong'); tone(620, 0.6, 'sine', 0.08, 0.05, 110); shake = 0.6;
+    if (navigator.vibrate && !reduceMotion) { try { navigator.vibrate(60); } catch (e) {} }
+    showCtl(false); btnPause.hidden = true;
+  }
+  function tired() {
+    state = 'over'; reason = 'tired'; overT = 0; hop = null; kx = steps[cur].x; ky = kyB = cur; tBar = 0;
+    sfx('lose'); addFloat('헥헥…', '#FFFFFF');
+    showCtl(false); btnPause.hidden = true;
+  }
+
+  function update(dt) {
+    if (state === 'play') {
+      if (going) {
+        elapsed += dt; tBar -= drainNow() * dt;
+        if (tBar < 0.25) { lastTick -= dt; if (lastTick <= 0) { lastTick = 0.5; tone(880, 0.05, 'sine', 0.03); } }
+        if (tBar <= 0) { tired(); }
+      }
+    } else if (state === 'over') {
+      overT += dt;
+      if (fall) { fall.vy -= 34 * dt; fall.y += fall.vy * dt; fall.x += fall.vx * dt; fall.vx *= Math.pow(0.4, dt); fall.roll += fall.dir * 420 * dt; }
+      if (overT > (reason === 'fall' ? 1.3 : 1.4)) showResult();
+    }
+    // 그림 자리: 폴짝 중이면 옛 자리 → 새 자리
+    if (hop) {
+      hop.t += dt; const p = clamp(hop.t / HOP, 0, 1), tx = steps[cur].x;
+      kx = lerp(hop.x0, tx, p); kyB = lerp(hop.b0, cur, p); ky = kyB + (reduceMotion ? 0 : Math.sin(p * Math.PI) * 0.35);
+      if (p >= 1) { hop = null; kx = tx; ky = kyB = cur; landT = 0.08; sfx('land'); }
+    } else if (!fall && state !== 'over') { kx = steps[cur].x; ky = kyB = cur; }
+    if (landT > 0) landT -= dt;
+    if (happyT > 0 && state !== 'result') happyT -= dt;
+    if (shake > 0) shake = Math.max(0, shake - dt * 2);
+    // 카메라: 콩이를 따라간다 (떨어질 때는 멈춘다)
+    if (!fall) {
+      const r = reduceMotion ? 1 : 1 - Math.exp(-12 * dt), rx = reduceMotion ? 1 : 1 - Math.exp(-6 * dt);
+      camY += (ky - camY) * r; camX += (kx - camX) * rx;
+    }
+  }
+
+  // ═══════ 점수판 ═══════
+  let shownBar = -1;
+  function paintHud() {
+    const v = Math.round(clamp(tBar, 0, 1) * 400);
+    if (v !== shownBar) {
+      shownBar = v; const tb = $('tbar'); tb.firstElementChild.style.transform = 'scaleX(' + (v / 400).toFixed(4) + ')';
+      tb.classList.toggle('low', v < 100 && going); tb.classList.toggle('mid', v >= 100 && v < 200);
+    }
+  }
+
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = last ? Math.min(0.05, Math.max(0, (now - last) / 1000)) : 0; last = now;
+    tAnim += dt;
+    if (state === 'play' || state === 'over' || state === 'result' || state === 'ready') update(state === 'pause' ? 0 : dt);
+    paintHud(); draw(dt); drawKong();
+  }
+
+  // ═══════ 흐름 ═══════
+  function showCtl(on) { $('btnL').hidden = $('btnR').hidden = !on; $('hud').hidden = !on && state !== 'over'; }
+  function showCard(id, btn) { for (const n of ['cardStart', 'cardPause', 'cardEnd']) $(n).hidden = n !== id; if (id !== 'cardEnd') rb.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function reset() {
+    steps = []; cur = 0; runLeft = 0; runDir = Math.random() < 0.5 ? 1 : -1; nextSnack = Math.max(8, D.snack - 4) + Math.round(rand(0, 3));
+    grow(); kx = 0; ky = 0; kyB = 0; camX = 0; camY = 0; hop = null; fall = null; face = 1; landT = 0; happyT = 0; floats = []; shake = 0;
+    going = false; tBar = 1; elapsed = 0; snacks = 0; reason = ''; overT = 0; lastTick = 0; maxZone = 0; shownBar = -1;
+    $('hNum').textContent = '0'; $('hSnack').textContent = '0';
+  }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    reset(); runBest0 = best(KG.dkey(KEY, diffId)); state = 'play'; rb.hide(); showCard(null); showCtl(true); btnPause.hidden = false;
+    $('btnL').classList.add('hint'); $('btnR').classList.add('hint');
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+    note(fine ? '다음 계단 쪽을 눌러 출발! (← → 키도 돼요)' : '다음 계단 쪽을 눌러 출발!', 2200);
+  }
+  function pause() { if (state !== 'play') return; state = 'pause'; showCard('cardPause', 'btnResume'); }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = 0; }
+  function quit() { if (state !== 'pause' && state !== 'play') return; state = 'ready'; reset(); showCtl(false); $('hud').hidden = true; btnPause.hidden = true; paintBest(); showCard('cardStart', 'btnStart'); }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result';
+    const score = cur;
+    setBest(KG.dkey(KEY, diffId), score);   // 도중에 저장(saveRun)해 둔 값과 같아도 신기록 판정은 판 시작 때의 기록과 비교
+    const isNew = score > 0 && score > runBest0;
+    $('edNew').hidden = !isNew;
+    $('edTitle').textContent = reason === 'fall' ? '앗, 헛디뎠어요' : '헥헥, 힘들어요';
+    $('edSub').textContent = score === 0 ? '첫 계단부터 다시 가 봐요.' : reason === 'fall' ? J(name, '이/가') + ' ' + fmt(score) + '층에서 발을 헛디뎠어요.' : J(name, '이/가') + ' ' + fmt(score) + '층에서 주저앉았어요.';
+    $('edScore').textContent = fmt(score); $('edSnack').textContent = fmt(snacks) + '개'; $('edTime').textContent = Math.round(elapsed) + '초';
+    paintBest();
+    $('hud').hidden = true;
+    // 다시 서 있는 콩이: 떨어졌으면 마지막 계단에 다시 올려 둔다
+    fall = null; kx = steps[cur].x; ky = kyB = cur; happyT = isNew || score >= 10 ? 99 : 0;   // reason 은 실제로 끝난 이유 그대로 둔다
+    endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rb.show(diffId);
+    if (isNew) { sfx('win'); voice('bark', 0.2, 1.0); }
+  }
+  const RULES = { key: KEY, title: TITLE, lead: '지그재그 계단을 한 칸씩 올라가요.', items: [
+    ['👆', '다음 계단이 왼쪽이면 왼쪽, 오른쪽이면 오른쪽을 눌러요. 화면 왼쪽 반·오른쪽 반이나 아래 ◀ ▶ 단추.'],
+    ['💥', '틀린 쪽을 누르면 ' + J(name, '이/가') + ' 헛디뎌 떨어지고 끝나요.'],
+    ['⏳', '위쪽 시간 막대가 계속 줄어요. 한 칸 오를 때마다 조금 차고, 높이 갈수록 빨리 줄어요.'],
+    ['🦴', '계단 위 간식을 먹으면 시간이 많이 차요. 높이 오른 층수가 기록이에요!']
+  ] };
+  const guard = () => performance.now() - endAt < 450;
+  $('btnStart').addEventListener('click', () => { sfx('tap'); start(); });
+  $('btnAgain').addEventListener('click', () => { if (guard()) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (guard()) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); quit(); });
+  $('btnRules').addEventListener('click', () => { sfx('tap'); KG.rules(RULES, true).then(() => { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} }); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); btnPause.blur(); });
+  // 판 도중 「게임」 단추로 나가거나 앱이 닫혀도 그때까지 오른 층은 기록에 남긴다
+  const saveRun = () => { if ((state === 'play' || state === 'pause') && cur > 0) setBest(KG.dkey(KEY, diffId), cur); };
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { saveRun(); pause(); } last = 0; });
+  addEventListener('pagehide', () => { saveRun(); pause(); });
+
+  // ── 누르기: 화면 왼쪽 반·오른쪽 반, 또는 ◀ ▶ 단추
+  stage.addEventListener('pointerdown', e => { if (state !== 'play') return; e.preventDefault(); stepDir(e.clientX < W / 2 ? -1 : 1); });
+  for (const [id, dir] of [['btnL', -1], ['btnR', 1]]) {
+    const b = $(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); if (state !== 'play') return; b.classList.add('on'); stepDir(dir); });
+    const off = () => b.classList.remove('on');
+    b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
+    b.addEventListener('click', e => { if (e.detail === 0 && state === 'play') stepDir(dir); });   // 키보드로 단추를 눌렀을 때
+  }
+  document.addEventListener('keydown', e => {
+    if (KG.rulesOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    const kk = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (state === 'play' && (kk === 'ArrowLeft' || kk === 'a' || kk === 'ArrowRight' || kk === 'd')) { e.preventDefault(); if (!e.repeat) stepDir(kk === 'ArrowLeft' || kk === 'a' ? -1 : 1); return; }
+    if (kk === ' ' || kk === 'Enter') {
+      if (e.repeat) return;
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;
+      e.preventDefault();
+      if (state === 'ready' && !$('cardStart').hidden) start(); else if (state === 'result') { if (!guard()) start(); } else if (state === 'pause') resume(); else if (state === 'play' && kk === ' ') pause();
+    } else if (kk === 'Escape' || kk === 'p') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stKey').textContent = [fine ? '← → 키로도 올라가요' : '', b > 0 ? KG.diffLabel() + ' 최고 기록 ' + fmt(b) + '층' : ''].filter(Boolean).join('  ·  ');
+    const e = best(KG.dkey(KEY, diffId));
+    $('edBest').textContent = fmt(e) + '층';
+    $('edBestL').textContent = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+  }
+  for (const id of ['cardStart', 'cardEnd']) { const card = $(id).querySelector('.kg-card'); card.insertBefore(KG.diffPicker(null, paintBest), card.querySelector('.row')); }
+  reset(); layout(); paintBest(); paintHud();
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+
+  // 시험·디버그용
+  window.GAME = {
+    get state() { return state; }, get floor() { return cur; }, get bar() { return tBar; }, get diff() { return diffId; }, get D() { return D; }, get reason() { return reason; }, get pose() { return k.rig.pose; }, get steps() { return steps; }, get kyB() { return kyB; }, get snacks() { return snacks; },
+    nextDir, stepDir, start, pause, resume, quit, DIFF,
+    field: () => ({ W, H, SW, SH, KY, KS, WIDE }),
+    step: dt => { tAnim += dt; update(dt); }
+  };
+})();
+</script>
+</body>
+</html>
