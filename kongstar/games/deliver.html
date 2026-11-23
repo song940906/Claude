@@ -104,6 +104,8 @@ body .kg-top { z-index: 26; }
 /* 가로 낮은 화면에서 순위 카드가 옆에 붙어 결과 카드가 좁아지면(약 300px) 이 게임만 있는 별·기록 칩 두 줄 때문에 「다음 단계」 단추가 카드 아래로 밀려난다 → 기록 칩을 한 줄로 */
 @media (orientation: landscape) and (max-height: 430px) { body .kg-rbwrap > .kg-card .rec { flex-wrap: nowrap; gap: 6px; } body .kg-rbwrap > .kg-card .rec span { padding: 6px 9px; font-size: 12px; white-space: nowrap; } }
 @media (prefers-reduced-motion: reduce) { #ctl #btnGo.ready, .kg-card .stars svg.on { animation: none; } }
+/* 가로 낮은 화면에서 순위 카드와 나란히 설 때(11-23 결과 단추 정리): 「새 기록」 딱지를 점수 옆에 붙여 한 줄을 아끼고, 단추 줄(「다른 게임」 포함)이 카드 안에 들어오게 */
+@media (orientation: landscape) and (max-height: 430px) { #cardEnd.kg-rbwrap .big { display: inline-block; vertical-align: middle; } #cardEnd.kg-rbwrap .new { margin: 0 0 0 8px; vertical-align: middle; } }
 </style>
 </head>
 <body>
@@ -866,6 +868,7 @@ body .kg-top { z-index: 26; }
   // ═══════ 시작 ═══════
   $('stRec').parentNode.insertBefore(KG.diffPicker(null, () => { if (state === 'ready') preview(); else paintCards(); }), $('stInfo'));
   $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  KG.resultActions($('cardEnd').querySelector('.kg-card'), { guard: late });   // 단계 완료 카드: 단추 줄 아래 「다른 게임」(게임 고르기로) — 막 뜬 카드의 누름은 넘긴다
   const rb = KG.rankBox($('cardEnd').querySelector('.kg-card'), 'deliver');   // 단계 완료 카드 바로 아래(가로 화면은 오른쪽)에 붙는 별도의 가족 순위 카드
   KG.startRank($('cardStart'), 'deliver');   // 시작 카드 아래에 고른 난이도의 가족 순위
   preview();

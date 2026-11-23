@@ -39,6 +39,47 @@
 .card.rankc small { color: #7A5A1E; }
 .card.rankc .go { flex: none; font-size: 24px; line-height: 1; color: #B98A2E; }
 .sec { margin: 22px 4px 0; font-size: 13px; font-weight: 600; color: #AEB8E6; }
+/* 게임 카드 + 즐겨찾기 단추: 단추를 카드(a) 안에 넣을 수 없어 겉상자(.cw)에 카드와 나란히 두고 카드 오른쪽 끝에 겹쳐 놓는다 */
+.cw { position: relative; margin-top: 10px; }
+.cw > .card { margin-top: 0; padding-right: 52px; }
+.fav { position: absolute; right: 4px; top: 50%; width: 46px; height: 46px; margin-top: -23px; padding: 0; border: 0; border-radius: 14px; background: transparent; color: #B4BBC6; font-size: 23px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.fav.on { color: #F2B01E; }
+.fav:active { background: rgba(25,31,40,.06); }
+.nw { display: inline-block; vertical-align: 2px; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 800; font-style: normal; letter-spacing: .3px; line-height: 1.5; white-space: nowrap; }
+#favList .cw:first-child, #recList .cw:first-child { margin-top: 8px; }
+/* 묶음 (C안 · 기분별) — 제목 줄을 누르면 접고 편다 */
+.grp { margin-top: 12px; }
+.grp > summary { list-style: none; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,.12); border: 1px solid var(--glass-line); color: #fff; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.grp > summary::-webkit-details-marker { display: none; }
+.grp .gi { flex: none; width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.14); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.grp .gt { flex: 1; min-width: 0; }
+.grp .gt b { display: block; font-size: 17px; letter-spacing: -.3px; }
+.grp .gt small { display: block; margin-top: 2px; font-size: 12.5px; color: #C9D1F2; }
+.grp .gn { flex: none; min-width: 28px; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 13px; font-weight: 700; text-align: center; }
+.chev { flex: none; width: 10px; height: 10px; border-right: 2px solid #C9D1F2; border-bottom: 2px solid #C9D1F2; transform: rotate(45deg) translate(-2px,-2px); transition: transform .2s; }
+.grp[open] .chev { transform: rotate(-135deg) translate(-2px,-2px); }
+.grp[open] > summary { background: rgba(255,255,255,.2); }
+.grp .cw { margin-top: 8px; }
+/* 「내 기록이 깨졌어요」 알림 카드 */
+.alert { margin-top: 10px; background: var(--card); color: var(--ink); border-radius: 20px; box-shadow: 0 6px 20px rgba(0,0,0,.18); overflow: hidden; }
+.alert .ahd { display: flex; align-items: center; padding: 4px 4px 4px 6px; }
+.alert .at { flex: 1; min-width: 0; height: 46px; border: 0; background: transparent; color: var(--ink); display: flex; align-items: center; gap: 8px; padding: 0 10px; text-align: left; border-radius: 14px; }
+.alert .ai { flex: none; font-size: 19px; }
+.alert .atx { flex: 0 1 auto; min-width: 0; font-size: 16px; font-weight: 700; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert .an { flex: none; min-width: 22px; padding: 1px 7px; box-sizing: border-box; border-radius: 999px; background: var(--danger); color: #fff; font-size: 12px; font-weight: 800; text-align: center; }
+.alert .at .chev { margin-left: auto; border-color: #8B95A1; }
+.alert:not(.fold) .at .chev { transform: rotate(-135deg) translate(-2px,-2px); }
+.alert .ax { flex: none; width: 46px; height: 46px; border: 0; border-radius: 14px; background: transparent; color: var(--sub); font-size: 17px; }
+.alert .at:active, .alert .ax:active { background: var(--soft); }
+.alert .abody { display: block; padding: 0 14px 12px; color: var(--ink); text-decoration: none; }
+.alert.fold .abody { display: none; }
+.alert ul { list-style: none; margin: 0; padding: 0; }
+.alert li { margin-top: 6px; padding: 9px 12px; border-radius: 12px; background: #FFF6DD; font-size: 14px; line-height: 1.45; letter-spacing: -.2px; }
+.alert li:first-child { margin-top: 0; }
+.alert li small { display: block; margin-top: 1px; font-size: 12px; color: #7A5A1E; }
+.alert .amore { display: flex; justify-content: space-between; gap: 8px; margin: 8px 2px 0; font-size: 12.5px; color: var(--sub); }
+.alert .amore span:last-child { margin-left: auto; color: var(--pri); font-weight: 700; white-space: nowrap; }
+@media (max-width: 359px) { .hero h1 { font-size: 21px; } .alert .at { gap: 6px; padding: 0 6px; } .alert .atx { font-size: 15px; } .card { gap: 10px; } .card .ico { width: 48px; height: 48px; font-size: 26px; border-radius: 14px; } .cw > .card { padding-right: 48px; } .fav { right: 2px; } }
 </style>
 </head>
 <body>
@@ -51,36 +92,48 @@
   </div>
   <a class="card daily" href="../index.html"><span class="ico">🌙</span><span class="txt"><b id="dTitle">콩이의 일상</b><small>쓰다듬고, 산책하고, 편지를 띄워요</small></span></a>
   <a class="card rankc" href="rank.html"><span class="ico">🏆</span><span class="txt"><b>가족 순위</b><small id="rkSub">가족끼리 기록을 모아 등수를 봐요</small></span><span class="go" aria-hidden="true">›</span></a>
+  <section class="alert" id="rkAlert" hidden aria-label="내 기록이 깨졌어요"><div class="ahd"><button class="at" id="alFold" type="button" aria-expanded="true"><span class="ai" aria-hidden="true">🔔</span><span class="atx">내 기록이 깨졌어요</span><span class="an" id="alN"></span><span class="chev" aria-hidden="true"></span></button><button class="ax" id="alX" type="button" aria-label="알림 닫기">✕</button></div><a class="abody" id="alGo" href="rank.html"><ul id="alList"></ul><span class="amore"><span id="alMore"></span><span>가족 순위 보기 ›</span></span></a></section>
   <div class="sec">미니게임 난이도</div>
   <div id="diffSpot"></div>
-  <a class="card" href="run.html"><span class="ico" style="background:#E8F5EC">🏃</span><span class="txt"><b>콩이런</b><small>산책길을 달리며 폴짝 뛰어넘어요</small></span><span class="rec" data-rec="run" data-unit="점"></span></a>
-  <a class="card" href="puzzle.html"><span class="ico" style="background:#FFF1E3">🧩</span><span class="txt"><b id="pTitle">콩이의 퍼즐</b><small>간식 3개 맞추기 · 카드 짝 맞추기</small></span><span class="rec" data-rec="m3stage" data-unit="단계"></span></a>
-  <a class="card" href="shoot.html"><span class="ico" style="background:#E9ECFB">⭐</span><span class="txt"><b id="sTitle">콩이의 슈팅</b><small>왈! 짖어서 별나라를 지켜요</small></span><span class="rec" data-rec="shoot" data-unit="점"></span></a>
-  <a class="card" href="basket.html"><span class="ico" style="background:#FFF4D6">🧺</span><span class="txt"><b id="bTitle">콩이의 간식바구니</b><small>떨어지는 간식을 받아먹어요</small></span><span class="rec" data-rec="basket" data-unit="점"></span></a>
-  <a class="card" href="jump.html"><span class="ico" style="background:#E3F3FF">☁️</span><span class="txt"><b id="jTitle">콩이의 점프 점프</b><small>구름을 밟고 높이높이 올라가요</small></span><span class="rec" data-rec="jump" data-unit="점"></span></a>
-  <a class="card" href="toys.html"><span class="ico" style="background:#FBE9F0">🧸</span><span class="txt"><b id="tTitle">콩이의 장난감잡기</b><small>쏙 나오는 장난감을 빨리 잡아요</small></span><span class="rec" data-rec="toys" data-unit="점"></span></a>
-  <a class="card" href="stack.html"><span class="ico" style="background:#F1EAFB">🥞</span><span class="txt"><b id="kTitle">콩이의 간식쌓기</b><small>간식을 딱 맞춰 높이 쌓아요</small></span><span class="rec" data-rec="stack" data-unit="층"></span></a>
-  <a class="card" href="seek.html"><span class="ico" style="background:#E6F6F1">🔍</span><span class="txt"><b id="hkTitle">콩이의 숨바꼭질</b><small>방 안에 숨은 콩이와 장난감 찾기</small></span><span class="rec" data-rec="seek" data-unit="점"></span></a>
-  <a class="card" href="throw.html"><span class="ico" style="background:#E8F5EC">🎾</span><span class="txt"><b id="thTitle">콩이의 공 던지기</b><small>당겼다 놓아 공을 던져요</small></span><span class="rec" data-rec="throw" data-unit="점"></span></a>
-  <a class="card" href="rope.html"><span class="ico" style="background:#FFF1E3">🪢</span><span class="txt"><b id="rpTitle">콩이의 줄넘기</b><small>돌아오는 줄을 폴짝 넘어요</small></span><span class="rec" data-rec="rope" data-unit="번"></span></a>
-  <a class="card" href="shop.html"><span class="ico" style="background:#FBE9F0">🏪</span><span class="txt"><b id="shTitle">콩이의 간식가게</b><small>주문을 기억해 간식을 담아 줘요</small></span><span class="rec" data-rec="shop" data-unit="점"></span></a>
-  <a class="card" href="bowl.html"><span class="ico" style="background:#E9ECFB">🥣</span><span class="txt"><b id="bwTitle">콩이의 사료그릇</b><small>섞인 사료를 색깔별로 모아요</small></span><span class="rec" data-rec="bowl" data-unit="단계"></span></a>
-  <a class="card" href="quiz.html"><span class="ico" style="background:#FFF3D6">❓</span><span class="txt"><b>콩이의 퀴즈 퀴즈</b><small>콩이가 내는 문제를 맞혀요</small></span><span class="rec" data-rec="quiz" data-unit="점"></span></a>
-  <a class="card" href="fish.html"><span class="ico" style="background:#E3F2FB">🎣</span><span class="txt"><b>콩이의 어부체험</b><small>찌가 쑥 들어가면 당겨요</small></span><span class="rec" data-rec="fish" data-unit="점"></span></a>
-  <a class="card" href="deliver.html"><span class="ico" style="background:#FDEBE3">🚀</span><span class="txt"><b>콩이의 로켓배송</b><small>길을 그려 집집마다 간식 배달</small></span><span class="rec" data-rec="deliver" data-unit="단계"></span></a>
-  <a class="card" href="dig.html"><span class="ico" style="background:#F3EBDD">🦴</span><span class="txt"><b>콩이는 도굴단</b><small>숫자를 단서로 뼈다귀를 찾아요</small></span><span class="rec" data-rec="dig" data-unit="점"></span></a>
-  <a class="card" href="race.html"><span class="ico" style="background:#E8F5E4">🏅</span><span class="txt"><b>콩이는 달리기왕</b><small>왼발 오른발 번갈아 달려요</small></span><span class="rec" data-rec="race" data-unit="점"></span></a>
-  <a class="card" href="spot.html"><span class="ico" style="background:#FFF4D6">🔎</span><span class="txt"><b>콩이의 틀린그림찾기</b><small>두 그림에서 다른 곳을 찾아요</small></span><span class="rec" data-rec="spot" data-unit="점"></span></a>
-  <a class="card" href="flower.html"><span class="ico" style="background:#FBE9F0">🌸</span><span class="txt"><b>콩이의 무궁화꽃</b><small>콩이가 돌아보면 얼음!</small></span><span class="rec" data-rec="flower" data-unit="점"></span></a>
-  <a class="card" href="cups.html"><span class="ico" style="background:#E9ECFB">🥤</span><span class="txt"><b>콩이의 야바위</b><small>섞인 컵 속 간식을 찾아요</small></span><span class="rec" data-rec="cups" data-unit="번"></span></a>
-  <a class="card" href="tug.html"><span class="ico" style="background:#FDEBE3">💪</span><span class="txt"><b>콩이랑 줄다리기</b><small>콩이랑 영차영차 줄을 당겨요</small></span><span class="rec" data-rec="tug" data-unit="점"></span></a>
-  <a class="card" href="stairs.html"><span class="ico" style="background:#E3F3FF">🪜</span><span class="txt"><b>콩이의 계단 유산소</b><small>왼쪽 오른쪽, 계단을 올라요</small></span><span class="rec" data-rec="stairs" data-unit="층"></span></a>
-  <a class="card" href="curl.html"><span class="ico" style="background:#E6F6F1">🥌</span><span class="txt"><b>콩이의 간식컬링</b><small>간식을 밀어 접시 한가운데로</small></span><span class="rec" data-rec="curl" data-unit="점"></span></a>
-  <a class="card" href="bubble.html"><span class="ico" style="background:#E8F1FF">🫧</span><span class="txt"><b>콩이의 방울팡</b><small>같은 색 방울 셋을 맞춰 터뜨려요</small></span><span class="rec" data-rec="bubble" data-unit="점"></span></a>
-  <a class="card" href="brick.html"><span class="ico" style="background:#FFF1E3">🧱</span><span class="txt"><b>콩이의 벽돌깨기</b><small>뼈다귀로 공을 튕겨 간식 상자를 깨요</small></span><span class="rec" data-rec="brick" data-unit="점"></span></a>
-  <a class="card" href="parade.html"><span class="ico" style="background:#E8F5EC">🐕</span><span class="txt"><b>콩이의 산책행렬</b><small>간식 먹고 친구들과 줄줄이 산책해요</small></span><span class="rec" data-rec="parade" data-unit="마리"></span></a>
-  <a class="card" href="cross.html"><span class="ico" style="background:#FFF4D6">🚸</span><span class="txt"><b>콩이의 무단횡단</b><small>차와 자전거를 피해 길을 건너요</small></span><span class="rec" data-rec="cross" data-unit="칸"></span></a>
-  <a class="card" href="pinball.html"><span class="ico" style="background:#E9ECFB">🪩</span><span class="txt"><b>콩이의 핀볼</b><small>날개로 공을 튕겨 범퍼를 맞혀요</small></span><span class="rec" data-rec="pinball" data-unit="점"></span></a>
+  <div id="favBox" hidden><div class="sec">⭐ 즐겨찾기</div><div id="favList"></div></div>
+  <div id="recBox" hidden><div class="sec">🕘 최근에 한 게임</div><div id="recList"></div></div>
+  <div class="sec" id="allSec">미니게임</div>
+  <details class="grp" data-g="fast"><summary><span class="gi" aria-hidden="true">🔥</span><span class="gt"><b>신나게 달려요</b><small>손이 바쁜 순발력 게임</small></span><span class="gn">8</span><span class="chev" aria-hidden="true"></span></summary>
+    <a class="card" href="run.html"><span class="ico" style="background:#E8F5EC">🏃</span><span class="txt"><b>콩이런</b><small>산책길을 달리며 폴짝 뛰어넘어요</small></span><span class="rec" data-rec="run" data-unit="점"></span></a>
+    <a class="card" href="race.html"><span class="ico" style="background:#E8F5E4">🏅</span><span class="txt"><b>콩이는 달리기왕</b><small>왼발 오른발 번갈아 달려요</small></span><span class="rec" data-rec="race" data-unit="점"></span></a>
+    <a class="card" href="cross.html"><span class="ico" style="background:#FFF4D6">🚸</span><span class="txt"><b>콩이의 무단횡단</b><small>차와 자전거를 피해 길을 건너요</small></span><span class="rec" data-rec="cross" data-unit="칸"></span></a>
+    <a class="card" href="parade.html"><span class="ico" style="background:#E8F5EC">🐕</span><span class="txt"><b>콩이의 산책행렬</b><small>간식 먹고 친구들과 줄줄이 산책해요</small></span><span class="rec" data-rec="parade" data-unit="마리"></span></a>
+    <a class="card" href="shoot.html"><span class="ico" style="background:#E9ECFB">⭐</span><span class="txt"><b id="sTitle">콩이의 슈팅</b><small>왈! 짖어서 별나라를 지켜요</small></span><span class="rec" data-rec="shoot" data-unit="점"></span></a>
+    <a class="card" href="basket.html"><span class="ico" style="background:#FFF4D6">🧺</span><span class="txt"><b id="bTitle">콩이의 간식바구니</b><small>떨어지는 간식을 받아먹어요</small></span><span class="rec" data-rec="basket" data-unit="점"></span></a>
+    <a class="card" href="toys.html"><span class="ico" style="background:#FBE9F0">🧸</span><span class="txt"><b id="tTitle">콩이의 장난감잡기</b><small>쏙 나오는 장난감을 빨리 잡아요</small></span><span class="rec" data-rec="toys" data-unit="점"></span></a>
+    <a class="card" href="stairs.html"><span class="ico" style="background:#E3F3FF">🪜</span><span class="txt"><b>콩이의 계단 유산소</b><small>왼쪽 오른쪽, 계단을 올라요</small></span><span class="rec" data-rec="stairs" data-unit="층"></span></a>
+  </details>
+  <details class="grp" data-g="aim"><summary><span class="gi" aria-hidden="true">🎯</span><span class="gt"><b>딱 맞춰요</b><small>타이밍·조준이 중요한 게임</small></span><span class="gn">10</span><span class="chev" aria-hidden="true"></span></summary>
+    <a class="card" href="jump.html"><span class="ico" style="background:#E3F3FF">☁️</span><span class="txt"><b id="jTitle">콩이의 점프 점프</b><small>구름을 밟고 높이높이 올라가요</small></span><span class="rec" data-rec="jump" data-unit="점"></span></a>
+    <a class="card" href="rope.html"><span class="ico" style="background:#FFF1E3">🪢</span><span class="txt"><b id="rpTitle">콩이의 줄넘기</b><small>돌아오는 줄을 폴짝 넘어요</small></span><span class="rec" data-rec="rope" data-unit="번"></span></a>
+    <a class="card" href="stack.html"><span class="ico" style="background:#F1EAFB">🥞</span><span class="txt"><b id="kTitle">콩이의 간식쌓기</b><small>간식을 딱 맞춰 높이 쌓아요</small></span><span class="rec" data-rec="stack" data-unit="층"></span></a>
+    <a class="card" href="throw.html"><span class="ico" style="background:#E8F5EC">🎾</span><span class="txt"><b id="thTitle">콩이의 공 던지기</b><small>당겼다 놓아 공을 던져요</small></span><span class="rec" data-rec="throw" data-unit="점"></span></a>
+    <a class="card" href="curl.html"><span class="ico" style="background:#E6F6F1">🥌</span><span class="txt"><b>콩이의 간식컬링</b><small>간식을 밀어 접시 한가운데로</small></span><span class="rec" data-rec="curl" data-unit="점"></span></a>
+    <a class="card" href="brick.html"><span class="ico" style="background:#FFF1E3">🧱</span><span class="txt"><b>콩이의 벽돌깨기</b><small>뼈다귀로 공을 튕겨 간식 상자를 깨요</small></span><span class="rec" data-rec="brick" data-unit="점"></span></a>
+    <a class="card" href="pinball.html"><span class="ico" style="background:#E9ECFB">🪩</span><span class="txt"><b>콩이의 핀볼</b><small>날개로 공을 튕겨 범퍼를 맞혀요</small></span><span class="rec" data-rec="pinball" data-unit="점"></span></a>
+    <a class="card" href="bubble.html"><span class="ico" style="background:#E8F1FF">🫧</span><span class="txt"><b>콩이의 방울팡</b><small>같은 색 방울 셋을 맞춰 터뜨려요</small></span><span class="rec" data-rec="bubble" data-unit="점"></span></a>
+    <a class="card" href="flower.html"><span class="ico" style="background:#FBE9F0">🌸</span><span class="txt"><b>콩이의 무궁화꽃</b><small>콩이가 돌아보면 얼음!</small></span><span class="rec" data-rec="flower" data-unit="점"></span></a>
+    <a class="card" href="tug.html"><span class="ico" style="background:#FDEBE3">💪</span><span class="txt"><b>콩이랑 줄다리기</b><small>콩이랑 영차영차 줄을 당겨요</small></span><span class="rec" data-rec="tug" data-unit="점"></span></a>
+  </details>
+  <details class="grp" data-g="think"><summary><span class="gi" aria-hidden="true">🧠</span><span class="gt"><b>곰곰이 생각해요</b><small>천천히 머리 쓰는 게임</small></span><span class="gn">7</span><span class="chev" aria-hidden="true"></span></summary>
+    <a class="card" href="puzzle.html"><span class="ico" style="background:#FFF1E3">🧩</span><span class="txt"><b id="pTitle">콩이의 퍼즐</b><small>간식 3개 맞추기 · 카드 짝 맞추기</small></span><span class="rec" data-rec="m3stage" data-unit="단계"></span></a>
+    <a class="card" href="bowl.html"><span class="ico" style="background:#E9ECFB">🥣</span><span class="txt"><b id="bwTitle">콩이의 사료그릇</b><small>섞인 사료를 색깔별로 모아요</small></span><span class="rec" data-rec="bowl" data-unit="단계"></span></a>
+    <a class="card" href="quiz.html"><span class="ico" style="background:#FFF3D6">❓</span><span class="txt"><b>콩이의 퀴즈 퀴즈</b><small>콩이가 내는 문제를 맞혀요</small></span><span class="rec" data-rec="quiz" data-unit="점"></span></a>
+    <a class="card" href="dig.html"><span class="ico" style="background:#F3EBDD">🦴</span><span class="txt"><b>콩이는 도굴단</b><small>숫자를 단서로 뼈다귀를 찾아요</small></span><span class="rec" data-rec="dig" data-unit="점"></span></a>
+    <a class="card" href="deliver.html"><span class="ico" style="background:#FDEBE3">🚀</span><span class="txt"><b>콩이의 로켓배송</b><small>길을 그려 집집마다 간식 배달</small></span><span class="rec" data-rec="deliver" data-unit="단계"></span></a>
+    <a class="card" href="shop.html"><span class="ico" style="background:#FBE9F0">🏪</span><span class="txt"><b id="shTitle">콩이의 간식가게</b><small>주문을 기억해 간식을 담아 줘요</small></span><span class="rec" data-rec="shop" data-unit="점"></span></a>
+    <a class="card" href="spot.html"><span class="ico" style="background:#FFF4D6">🔎</span><span class="txt"><b>콩이의 틀린그림찾기</b><small>두 그림에서 다른 곳을 찾아요</small></span><span class="rec" data-rec="spot" data-unit="점"></span></a>
+  </details>
+  <details class="grp" data-g="calm"><summary><span class="gi" aria-hidden="true">😌</span><span class="gt"><b>느긋하게 쉬어요</b><small>가볍게 즐기는 게임</small></span><span class="gn">3</span><span class="chev" aria-hidden="true"></span></summary>
+    <a class="card" href="seek.html"><span class="ico" style="background:#E6F6F1">🔍</span><span class="txt"><b id="hkTitle">콩이의 숨바꼭질</b><small>방 안에 숨은 콩이와 장난감 찾기</small></span><span class="rec" data-rec="seek" data-unit="점"></span></a>
+    <a class="card" href="cups.html"><span class="ico" style="background:#E9ECFB">🥤</span><span class="txt"><b>콩이의 야바위</b><small>섞인 컵 속 간식을 찾아요</small></span><span class="rec" data-rec="cups" data-unit="번"></span></a>
+    <a class="card" href="fish.html"><span class="ico" style="background:#E3F2FB">🎣</span><span class="txt"><b>콩이의 어부체험</b><small>찌가 쑥 들어가면 당겨요</small></span><span class="rec" data-rec="fish" data-unit="점"></span></a>
+  </details>
 </div></div>
 <script src="common.js"></script>
 <script>
@@ -101,14 +154,186 @@
       el.innerHTML = v > 0 ? '최고<strong>' + Math.round(v).toLocaleString() + el.dataset.unit + '</strong>' : '';
     }
   }
-  // 가족 순위 카드: 연결돼 있으면 마지막으로 받아 둔 순위(저장본)로 내 종합 등수를 한 줄 보여 준다
-  (function () {
-    const R = KG.rank, me = R.me(), sub = document.getElementById('rkSub'); if (!R.cfg()) return;
+  // 가족 순위 카드: 연결돼 있으면 마지막으로 받아 둔 순위(저장본)로 내 종합 등수를 한 줄 보여 준다 (새로 받으면 다시 그린다)
+  const R = KG.rank, $ = id => document.getElementById(id);
+  function paintRankSub() {
+    const me = R.me(), sub = $('rkSub'); if (!R.cfg()) return;
     // 등수는 저장소가 내 기록을 받아 준 것이 확인됐고(받아 둔 목록에 내가 있음) 기록이 하나라도 있을 때만 말한다
     const c = R.cache(), up = !!(c && me && c.players.some(p => p.id === me.id)), rows = up ? R.standings(R.withMe(c.players)) : [], mine = up && rows.find(r => r.id === me.id);
     sub.textContent = mine && mine.rank ? 'Very Hard 종합 ' + mine.rank + '등 · 가족 ' + rows.length + '명' : mine ? '아직 Very Hard 기록이 없어요 · 가족 ' + rows.length + '명' : me && me.name ? '가족과 기록을 겨루고 있어요' : '이름을 정하면 순위에 올라가요';
+  }
+  paintRankSub();
+
+  // ── 이 화면만 쓰는 저장 (사생활 모드면 읽기·쓰기가 실패해도 화면은 그대로 돈다)
+  //   저장이 안 되는 기기에서는 이 화면을 연 동안만 메모리(mem)에 들고 있어, 읽는 곳과 그리는 곳이 같은 값을 본다. lsSet 은 실제로 남았는지 돌려준다
+  const mem = {};
+  const lsGet = k => { if (k in mem) return mem[k]; try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { let ok = false; try { localStorage.setItem(k, v); ok = localStorage.getItem(k) === v; } catch (e) {} if (ok) delete mem[k]; else mem[k] = v; return ok; };
+  const readJ = k => { try { return JSON.parse(lsGet(k) || 'null'); } catch (e) { return null; } };
+  const writeJ = (k, v) => lsSet(k, JSON.stringify(v));
+  const U = { recent: 'kongstar.ui.recent', fav: 'kongstar.ui.fav', open: 'kongstar.ui.grpOpen', newSeen: 'kongstar.ui.newSeen', snap: 'kongstar.ui.rankSnap', alerts: 'kongstar.ui.rankAlerts', fold: 'kongstar.ui.alertFold' };
+  // 새 게임: 여기에 카드 열쇠(게임 파일 이름에서 .html 을 뺀 것)만 넣으면 NEW 가 붙는다.
+  //   그 카드를 한 번 눌러 들어갔거나 그 게임 기록이 (어느 난이도든) 있으면 더는 붙지 않는다
+  const NEW_GAMES = ['bubble', 'brick', 'parade', 'cross', 'pinball'];   // 11-23 추가분
+  const RECENT_MAX = 3;
+
+  // ── 카드 정리: 묶음 안의 카드(원본)마다 겉상자(.cw)와 ☆ 단추를 붙인다. 즐겨찾기·최근 줄은 이 겉상자를 복제해 쓴다
+  const WRAP = {}, KEYS = [];
+  for (const a of document.querySelectorAll('.grp a.card')) {
+    const k = (a.getAttribute('href') || '').replace(/\.html$/, ''); if (!k || WRAP[k]) continue;
+    const w = document.createElement('div'); w.className = 'cw'; w.dataset.k = k; a.dataset.k = k;
+    a.parentNode.insertBefore(w, a); w.appendChild(a);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fav'; b.dataset.k = k; b.dataset.t = a.querySelector('b').textContent; w.appendChild(b);
+    WRAP[k] = w; KEYS.push(k);
+  }
+  $('allSec').textContent = '미니게임 ' + KEYS.length;
+  const keyList = k => { const v = readJ(k); return Array.isArray(v) ? v.filter((x, i) => typeof x === 'string' && WRAP[x] && v.indexOf(x) === i) : []; };
+
+  // 묶음 펼침 기억: 처음 방문이면 첫 묶음만 펼친다
+  const GRPS = [...document.querySelectorAll('.grp')];
+  (function () {
+    const v = readJ(U.open), open = Array.isArray(v) ? v : [GRPS[0] && GRPS[0].dataset.g];
+    for (const d of GRPS) d.open = open.indexOf(d.dataset.g) >= 0;
+    const save = () => writeJ(U.open, GRPS.filter(d => d.open).map(d => d.dataset.g));
+    for (const d of GRPS) d.addEventListener('toggle', save);
   })();
-  diffPicker(document.getElementById('diffSpot'), paintRecs).classList.add('dark'); paintRecs();
+
+  // NEW 표시
+  const hasRec = k => { const el = WRAP[k].querySelector('[data-rec]'), rk = el ? el.dataset.rec : k; return KG.DIFFS.some(d => best(dkey(rk, d.id)) > 0); };
+  const isNew = k => !!WRAP[k] && NEW_GAMES.indexOf(k) >= 0 && keyList(U.newSeen).indexOf(k) < 0 && !hasRec(k);
+  function paintNew() {
+    for (const k of KEYS) {
+      const b = WRAP[k].querySelector('.txt b'), old = b.querySelector('.nw'), on = isNew(k);
+      if (on && !old) { const i = document.createElement('i'); i.className = 'nw'; i.textContent = 'NEW'; b.appendChild(i); } else if (!on && old) old.remove();
+    }
+    for (const d of GRPS) {   // 접혀 있어도 새 게임이 있다는 걸 알 수 있게 묶음 제목 줄에도
+      const b = d.querySelector('.gt b'), old = b.querySelector('.nw'), on = [...d.querySelectorAll('.cw')].some(w => isNew(w.dataset.k));
+      if (on && !old) { const i = document.createElement('i'); i.className = 'nw'; i.textContent = 'NEW'; i.setAttribute('aria-label', '새 게임 있음'); b.appendChild(i); } else if (!on && old) old.remove();
+    }
+  }
+  // 즐겨찾기·최근 줄: 원본 겉상자를 복제한다 (id 는 지워 겹치지 않게). 복제본도 data-rec 를 그대로 가져 기록 표시가 함께 맞는다
+  function fillRow(boxId, listId, keys) {
+    const list = $(listId); list.textContent = '';
+    for (const k of keys) { const c = WRAP[k].cloneNode(true); for (const e of c.querySelectorAll('[id]')) e.removeAttribute('id'); list.appendChild(c); }
+    $(boxId).hidden = !keys.length;
+  }
+  function paintFav(list) {
+    const favs = list || keyList(U.fav);
+    for (const b of document.querySelectorAll('.fav')) { const on = favs.indexOf(b.dataset.k) >= 0; b.classList.toggle('on', on); b.textContent = on ? '★' : '☆'; b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-label', b.dataset.t + (on ? ' 즐겨찾기에서 빼기' : ' 즐겨찾기에 넣기')); }
+  }
+  function paintCards() { paintNew(); fillRow('favBox', 'favList', keyList(U.fav)); fillRow('recBox', 'recList', keyList(U.recent)); paintFav(); paintRecs(); }
+
+  // 누르기: ☆ 는 게임으로 가지 않고 즐겨찾기만 바꾼다 · 카드는 들어가기 직전에 최근 목록 맨 앞에 넣고 NEW 를 거둔다
+  document.addEventListener('click', e => {
+    const t = e.target.closest ? e.target : e.target.parentElement;
+    const fb = t && t.closest('.fav');
+    if (fb) {
+      e.preventDefault(); e.stopPropagation(); KG.sfx('tap');
+      const k = fb.dataset.k, cur = keyList(U.fav), i = cur.indexOf(k), on = i < 0;
+      if (on) cur.push(k); else cur.splice(i, 1);
+      const saved = writeJ(U.fav, cur), favs = keyList(U.fav);   // 다시 읽은 값 하나로 줄과 별을 함께 그린다
+      fillRow('favBox', 'favList', favs); paintFav(favs); paintRecs();
+      KG.toast(saved ? (on ? '즐겨찾기에 넣었어요' : '즐겨찾기에서 뺐어요') : (on ? '넣었지만 이 기기엔 저장이 안 돼요' : '뺐지만 이 기기엔 저장이 안 돼요'), saved ? 1400 : 2200);
+      return;
+    }
+    const a = t && t.closest('.cw > a.card');
+    if (a && a.dataset.k) {
+      const k = a.dataset.k;
+      writeJ(U.recent, [k].concat(keyList(U.recent).filter(x => x !== k)).slice(0, RECENT_MAX));
+      if (NEW_GAMES.indexOf(k) >= 0) { const s = keyList(U.newSeen); if (s.indexOf(k) < 0) { s.push(k); writeJ(U.newSeen, s.filter(x => NEW_GAMES.indexOf(x) >= 0)); } }
+    }
+  });
+
+  diffPicker(document.getElementById('diffSpot'), paintRecs).classList.add('dark'); paintCards();
+
+  // ── 「내 기록이 깨졌어요」: 가족 순위가 연결돼 있고 내 이름이 있을 때만.
+  //   이 폰에 지난번에 본 순위 사진(열쇠마다 { t: 1등 id, r: 내 등수, a: 나보다 위인 id들 })을 두고, 새 순위를 받으면 비교한다.
+  //   열쇠는 순위 화면과 같다: 게임별은 KG.recKey(게임, 난이도) 네 난이도 모두 + 종합(rank.standings — Very Hard 칸만). 낮을수록 좋은 기록은 rank.board 가 GAMES 의 lower 로 처리한다
+  //   읽기만 한다(쓰기 요청 없음). 받기는 순위 화면처럼 60초에 한 번까지 — 받아 둔 순위(cache)가 그보다 새것이면 그것으로 비교한다
+  const hashStr = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0; return h.toString(36); };   // 저장소 주소를 그대로 적지 않고 바뀌었는지만 안다
+  function keyInfo(k) {
+    if (k === 'total') return { title: '종합', diff: KG.diffLabel('vhard'), total: true };
+    for (const g of KG.GAMES) for (const d of KG.DIFFS) if (KG.recKey(g, d.id) === k) return { title: g.title, diff: d.label };
+    return null;
+  }
+  function rankState(players) {
+    const me = R.me(), list = R.withMe(players), out = {};
+    for (const g of KG.GAMES) for (const d of KG.DIFFS) {
+      const k = KG.recKey(g, d.id), rows = R.board(list, k, g.lower), mine = rows.find(r => r.id === me.id);
+      if (mine) out[k] = { t: rows[0].id, r: mine.rank, a: rows.filter(r => r.rank < mine.rank).slice(0, 20).map(r => r.id) };
+    }
+    const st = R.standings(list), mt = st.find(r => r.id === me.id);
+    if (mt && mt.rank) out.total = { t: st[0].id, r: mt.rank, a: st.filter(r => r.rank && r.rank < mt.rank).slice(0, 20).map(r => r.id) };
+    return out;
+  }
+  const okEnt = v => v && typeof v === 'object' && typeof v.r === 'number' && v.r > 0 && Array.isArray(v.a);
+  function compare(prev, now) {   // ① 내가 1등이던 칸을 다른 사람이 가져감 ② 내 등수가 내려감
+    const evs = [], at = Date.now();
+    for (const k in now) {
+      const p = prev[k], n = now[k]; if (!okEnt(p) || !(n.r > p.r) || !keyInfo(k)) continue;
+      const who = p.r === 1 ? n.a[0] : (n.a.find(id => p.a.indexOf(id) < 0) || n.a[0]);
+      evs.push({ k, kind: p.r === 1 ? 'top' : 'down', who: typeof who === 'string' ? who : '', from: p.r, to: n.r, at });
+    }
+    return evs;
+  }
+  const readAlerts = () => { const v = readJ(U.alerts); return Array.isArray(v) ? v.filter(x => x && typeof x.k === 'string' && keyInfo(x.k) && (x.kind === 'top' || x.kind === 'down') && typeof x.who === 'string' && x.from > 0 && x.to > x.from).slice(0, 30) : []; };
+  function merge(pend, evs, now) {
+    const out = pend.filter(x => now[x.k] && now[x.k].r > x.from);   // 다시 되찾은 칸(지금 등수가 알림 전 등수 이내)은 거둔다
+    for (const e of evs) {
+      const o = out.find(x => x.k === e.k);
+      if (!o) { out.push(e); continue; }
+      const from = Math.min(o.from, e.from);   // 1등 → 2등 → 3등처럼 이어지면 처음 등수부터 한 줄로
+      Object.assign(o, e, { from, kind: from === 1 ? 'top' : 'down', who: from === 1 && e.kind !== 'top' ? (now[e.k].a[0] || e.who) : e.who });
+    }
+    for (const x of out) if (now[x.k]) x.to = now[x.k].r;
+    return out.sort((a, b) => b.at - a.at).slice(0, 30);
+  }
+  const ranked = () => { const me = R.me(); return !!(R.cfg() && me && me.name); };
+  function checkRank(players, at) {
+    if (!ranked() || !Array.isArray(players)) return;
+    const me = R.me(), u = hashStr(R.cfg().url), snap = readJ(U.snap), now = rankState(players);
+    if (!snap || typeof snap !== 'object' || snap.me !== me.id || snap.u !== u || !snap.s || typeof snap.s !== 'object') {   // 첫 비교(또는 다른 저장소·다른 나): 알리지 않고 사진만
+      writeJ(U.snap, { me: me.id, u, at, s: now }); writeJ(U.alerts, []); paintAlert(players); return;
+    }
+    if (!(at > (+snap.at || 0))) { paintAlert(players); return; }   // 이미 비교한 순위
+    const pend = merge(readAlerts(), compare(snap.s, now), now);
+    writeJ(U.snap, { me: me.id, u, at, s: now }); writeJ(U.alerts, pend); paintAlert(players);
+  }
+  function alertLine(x, names) {
+    const inf = keyInfo(x.k), who = names.get(x.who) || '가족', li = document.createElement('li'), sm = document.createElement('small');
+    const game = /^콩이/.test(inf.title) ? inf.title : J(name, '의') + ' ' + inf.title;   // 「콩이런」처럼 이름이 이미 든 게임은 그대로
+    let main, sub;
+    if (x.kind === 'top') { main = '🏆 ' + J(who, '이/가') + ' ' + (inf.total ? '종합' : game) + ' 1등을 가져갔어요'; sub = inf.diff + ' · 지금 ' + x.to + '등'; }
+    else if (inf.total) { main = '📉 종합 순위가 ' + x.from + '등 → ' + x.to + '등으로 내려갔어요'; sub = inf.diff + ' 기록으로 매긴 종합'; }
+    else { main = '📉 ' + J(who, '이/가') + ' ' + game + '에서 나를 넘었어요'; sub = inf.diff + ' · ' + x.from + '등 → ' + x.to + '등'; }
+    li.textContent = main; sm.textContent = sub; li.appendChild(sm);   // 이름은 저장소 이름 그대로 — 글로만 넣는다
+    return li;
+  }
+  let alFold = lsGet(U.fold) === '1';
+  function paintAlert(players) {
+    const box = $('rkAlert'), list = ranked() ? readAlerts() : [];
+    box.hidden = !list.length; if (!list.length) return;
+    players = players || ((R.cache() || {}).players) || [];
+    const names = new Map(R.withMe(players).map(p => [p.id, p.name])), ul = $('alList'); ul.textContent = '';
+    for (const x of list.slice(0, 3)) ul.appendChild(alertLine(x, names));
+    $('alN').textContent = String(list.length); $('alMore').textContent = list.length > 3 ? '외 ' + (list.length - 3) + '건' : '';
+    box.classList.toggle('fold', alFold); $('alFold').setAttribute('aria-expanded', String(!alFold));
+  }
+  $('alFold').addEventListener('click', () => { KG.sfx('tap'); alFold = !alFold; lsSet(U.fold, alFold ? '1' : '0'); paintAlert(); });
+  $('alX').addEventListener('click', () => { KG.sfx('tap'); writeJ(U.alerts, []); paintAlert(); });   // 닫은 내용은 다시 안 보인다
+  $('alGo').addEventListener('click', () => { writeJ(U.alerts, []); });   // 순위 화면에서 직접 보니 거둔다
+  let lastPull = 0, pulling = false;
+  function pull() {
+    if (!ranked()) { paintAlert(); return; }
+    const c = R.cache(); if (c) checkRank(c.players, c.at); else paintAlert();
+    if (pulling || (c && Date.now() - c.at < 60000) || Date.now() - lastPull < 60000) return;
+    pulling = true; lastPull = Date.now();
+    R.fetchAll().then(list => { pulling = false; if (!list) return; const c2 = R.cache(); checkRank(list, c2 ? c2.at : Date.now()); paintRankSub(); }, () => { pulling = false; });
+  }
+  pull();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(); });
+  // 뒤로 가기로 돌아왔을 때(페이지가 통째로 되살아남): 기록·NEW·최근 줄을 다시 그린다
+  addEventListener('pageshow', e => { if (e.persisted) { paintCards(); paintRankSub(); pull(); } });
   // 콩이: 앉아서 꼬리를 흔들며 기다린다
   const k = kong(document.getElementById('kongSpot'), 150); k.setPose('sit'); k.place(75, 142);
   // 밤하늘

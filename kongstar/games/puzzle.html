@@ -179,7 +179,9 @@ body.land .hero .kspot { right: auto; left: 50%; bottom: auto; top: 136px; }
 @media (max-width: 340px) { .kg-card .kg-diff [data-d=vhard] { flex: 1.25 1 0; } }
 /* 가로 낮은 화면에서 가족 순위 카드와 나란히 설 때: 공통 CSS 의 max-height:100% 는 안쪽 여백을 빼고 재므로 결과 카드가 여백만큼 화면 밖으로 넘친다 → 이 경우만 border-box (넓은 화면 카드 폭은 원본 그대로) */
 @media (orientation: landscape) and (max-height: 520px) { .kg-scrim.kg-rbwrap > .kg-card { box-sizing: border-box; } }
-@media (max-height: 420px) { .kg-scrim.kg-rbwrap > .kg-card { padding-top: 12px; padding-bottom: 10px; } }   /* 가로 낮은 화면: 결과 카드가 몇 px 넘쳐 카드 안 스크롤바가 생기던 것을 위아래 여백으로 줄인다 */
+@media (max-height: 420px) { .kg-scrim.kg-rbwrap > .kg-card { padding-top: 12px; padding-bottom: 10px; } }
+/* 가로 화면 높이 421~520(예: 760×440): 순위 카드와 나란히 선 결과 카드 아래 글 단추 줄(「다시 하기」·「다른 게임」)이 카드 밖으로 잘리던 것 → ≤420 과 같이 결과 카드의 난이도 줄을 숨기고 글 단추를 낮춘다 */
+@media (orientation: landscape) and (min-height: 421px) and (max-height: 520px) { .kg-scrim.kg-rbwrap > .kg-card .dslot.res { display: none; } .kg-scrim.kg-rbwrap > .kg-card .links { margin-top: 4px; } .kg-scrim.kg-rbwrap > .kg-card .links .link { height: 36px; } }   /* 가로 낮은 화면: 결과 카드가 몇 px 넘쳐 카드 안 스크롤바가 생기던 것을 위아래 여백으로 줄인다 */
 /* 아주 낮은 가로 화면(568×320)에서 순위 카드와 나란히 서면 결과 카드가 약 300px 로 좁아져, 목표 줄·안내 글이 있는 단계 실패 카드는 「다시 하기」가 카드 아래 끝에 잘린다 → 글자와 사이를 조금 줄여 주 단추가 처음 화면에 들어오게 (이 게임 카드 내용 때문이라 여기서만) */
 @media (orientation: landscape) and (max-height: 340px) {
   .kg-scrim.kg-rbwrap > .kg-card h2 { font-size: 19px; margin-bottom: 2px; }
@@ -188,6 +190,13 @@ body.land .hero .kspot { right: auto; left: 50%; bottom: auto; top: 136px; }
   .kg-scrim.kg-rbwrap > .kg-card .goalrow { margin: 2px 0 0; }
   .kg-scrim.kg-rbwrap > .kg-card .tip { font-size: 12.5px; line-height: 1.4; padding: 5px 10px; }
   .kg-scrim.kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  /* 결과 카드 아래 「다시 하기·다른 게임」 글 단추 줄까지 첫 화면에 들어오게 (11-23 결과 단추 정리) — 단추·글 단추 높이와 별·딱지 사이를 줄인다 */
+  .kg-scrim.kg-rbwrap > .kg-card .row .kg-btn { height: 44px; }
+  .kg-scrim.kg-rbwrap > .kg-card .links { margin-top: 2px; }
+  .kg-scrim.kg-rbwrap > .kg-card .links .link { height: 32px; }
+  .kg-scrim.kg-rbwrap > .kg-card .newrec { margin-bottom: 0; }
+  .kg-scrim.kg-rbwrap > .kg-card .stars { margin: 0; }
+  .kg-scrim.kg-rbwrap > .kg-card .stars span { width: 22px; height: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .tile.hint .in, .pcard.yay .flip, .pcard.nope .flip, .pcard { animation: none; } }
 </style>
@@ -742,6 +751,7 @@ var M3E = (function () {
     scrim.innerHTML = '<div class="kg-card" role="dialog" aria-modal="true">' + html + '</div>'; scrim.hidden = false; cardAct = onAct; cardKind = kind || ''; cardDiff = null; cardAt = performance.now();
     const ts = document.querySelector('.kg-toast'); if (ts) ts.classList.remove('show');   // 카드 위에 알림이 겹치지 않게
     const sl = scrim.querySelector('.dslot'); if (sl) sl.appendChild(cardPick);
+    if (kind === 'end') KG.resultActions(scrim.querySelector('.kg-card'), { retry: scrim.querySelector('.row [data-act="again"]') || undefined });   // 결과 카드: 줄 안 「다시 하기」는 큰 주 단추로, 게임 고르기 링크는 「다른 게임」으로 (공통 모양)
     const f = scrim.querySelector('.pri') || scrim.querySelector('.row .kg-btn, .link'); if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
     const on = scrim.querySelector('.stg.on'); if (on) on.parentNode.scrollLeft = on.offsetLeft - on.parentNode.clientWidth / 2 + on.offsetWidth / 2;   // 고른 단계가 가운데 오게
   }

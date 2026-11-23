@@ -1,6 +1,6 @@
 // 콩이별 미니게임 공통 — make.js 가 콩이 그림·리그·목소리를 넣어 app/games/common.js 로 만든다 (직접 고칠 파일은 이 common.src.js)
 // 게임 파일(run.html·puzzle.html·shoot.html)과 고르는 화면(index.html)이 <script src="common.js"> 로 함께 쓴다.
-//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), rankBox(결과 카드 순위표), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
+//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), rankBox(결과 카드 순위표), resultActions(결과 카드 단추), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
 // 콩이 리그 구동기 — CONTRACT.md 규약을 지킨 SVG 의 부위를 움직인다.
 //   앱(kongstar.html)과 그림 미리보기(preview.js)가 같은 코드를 쓴다 (make.js 가 앱에 합친다).
 //   사용: const rig = new KongRig(svg); rig.setPose('sit'); rig.render({ t, tilt: 8, eyes: 'happy', … })
@@ -430,7 +430,40 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   .kg-rbox .hd b { font-size:16px; } .kg-rbox li { padding:5px 6px; } .kg-rbox .val small { display:none; }
 }
 @media (max-width:340px) { .kg-diff button { font-size:12px; letter-spacing:-.5px; } }
+/* 결과 카드 단추 줄 (KG.resultActions) — 「다시 하기」는 넓고 굵은 주 단추, 「다른 게임」(게임 고르기 화면으로)은 글자만큼의 보조 단추.
+   높이는 낮은 우선순위로만 키운다 → 게임마다 낮은 화면에서 줄여 둔 높이(body .kg-card … .kg-btn)가 그대로 이긴다 */
+.kg-card .row.kg-res .kg-btn { white-space:nowrap; }
+.kg-card .row.kg-res .kg-again { flex:1.7 1 0; font-size:17px; font-weight:700; }
+.kg-card .row.kg-res .kg-other { flex:0 0 auto; padding:0 18px; }
+/* 단추가 셋인 줄(fish 의 도감): 키 큰 화면은 「다시 하기」를 윗줄 전체로, 나머지 둘은 아랫줄에 반씩. 낮은 가로 화면은 한 줄 그대로(카드 높이를 늘리지 않게) */
+.kg-card .row.kg-res3 .kg-other { padding:0 12px; }
+@media (min-height:521px) { .kg-card .row.kg-res3 { flex-wrap:wrap; } .kg-card .row.kg-res3 .kg-again { order:-1; flex:1 0 100%; } .kg-card .row.kg-res3 .kg-btn:not(.kg-again) { flex:1 1 0; } }
+@media (min-height:521px), (orientation:portrait) and (min-height:431px) { .kg-res .kg-btn { height:56px; } }   /* 낮은 가로 화면은 원래 높이 그대로 (카드가 순위 카드와 나란히 서면 높이가 빠듯하다) */
+@media (max-height:520px) { .kg-card .row.kg-res3 .kg-again svg { display:none; }
+  /* 한 줄로 남는 낮은 화면: 「다시 하기」가 남는 폭을 모두 받고(줄지 않음), 나머지 둘은 글자·여백을 조금 줄여 「다시 하기」가 가장 넓게 */
+  .kg-card .row.kg-res3 .kg-again { flex:1 0 auto; }
+  .kg-card .row.kg-res3 .kg-btn:not(.kg-again) { flex:0 1 auto; padding:0 9px; font-size:15px; } }
+.kg-res a.kg-btn { text-decoration:none; box-sizing:border-box; }
+.kg-again svg { width:19px; height:19px; flex:none; margin-left:-2px; }
+.kg-alt { display:flex; align-items:center; justify-content:center; width:max-content; max-width:100%; box-sizing:border-box; height:40px; margin:8px auto -4px; padding:0 14px; border-radius:12px; font-size:14.5px; font-weight:600; color:var(--sub); text-decoration:none; white-space:nowrap; }
+.kg-alt:active { background:var(--soft); }
+@media (max-height:430px), (orientation:landscape) and (max-height:520px) { .kg-alt { height:32px; margin:2px auto -6px; } }   /* 낮은 가로 화면(순위 카드와 나란히 서는 높이 ≤520)도 줄여 카드 아래가 잘리지 않게 */
+@media (max-width:340px) { .kg-card .row.kg-res .kg-again { font-size:16px; } .kg-card .row.kg-res .kg-other { padding:0 12px; } .kg-again svg { display:none; } }
 .kg-rules { z-index:40; background:rgba(8,10,28,.62); }
+/* 새 버전 띠 (일상 앱과 같은 모양). 게임 고르기·순위 화면은 위 줄 아래, 게임 화면은 카드가 떠 있을 때 흐려진 위 줄 자리에 */
+.kg-upd { position:fixed; z-index:46; left:50%; top:calc(var(--sat) + 62px); transform:translateX(-50%); display:flex; align-items:center; gap:10px; width:max-content; max-width:calc(100vw - 24px - var(--sal) - var(--sar)); box-sizing:border-box; padding:6px 6px 6px 14px; border-radius:18px; background:var(--card); color:var(--ink); box-shadow:0 8px 28px rgba(0,0,0,.3); animation:kgUpdIn .28s cubic-bezier(.2,.85,.25,1); }
+.kg-upd.play { top:calc(var(--sat) + 8px); }
+@keyframes kgUpdIn { from { opacity:0; transform:translateX(-50%) translateY(-8px); } }
+.kg-upd i { width:9px; height:9px; border-radius:50%; flex:none; background:radial-gradient(circle at 35% 35%, #FFF6D8, #FFC861 60%, #E39A63); box-shadow:0 0 8px #FFC861aa; }
+.kg-upd span { font-size:14.5px; font-weight:700; letter-spacing:-.3px; white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.kg-upd .go { flex:none; height:36px; border:0; border-radius:12px; padding:0 14px; background:var(--pri); color:#fff; font-size:14px; font-weight:600; letter-spacing:-.2px; white-space:nowrap; }
+.kg-upd .go:active { background:var(--pri-press); }
+.kg-upd .go:disabled { opacity:.7; cursor:default; }
+.kg-upd .x { flex:none; width:36px; height:36px; border:0; border-radius:50%; padding:0; margin-left:-4px; background:transparent; color:#8B95A1; display:grid; place-items:center; }
+.kg-upd .x svg { width:18px; height:18px; }
+.kg-upd .x:active { background:var(--soft); }
+@media (max-width:360px) { .kg-upd { gap:8px; padding-left:12px; } .kg-upd span { font-size:14px; } .kg-upd .go { padding:0 12px; } }
+@media (prefers-reduced-motion: reduce) { .kg-upd { animation:none; } }
 /* 신기록 추억 사진 (폴라로이드) — 아무 곳이나 누르면 닫힌다 */
 .kg-photo { position:fixed; inset:0; z-index:45; display:flex; align-items:center; justify-content:center; padding:calc(var(--sat) + 24px) calc(var(--sar) + 24px) calc(var(--sab) + 24px) calc(var(--sal) + 24px); background:rgba(8,10,28,.6); opacity:0; transition:opacity .25s; cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .kg-photo.on { opacity:1; }
@@ -505,7 +538,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   }, true);
   window.addEventListener('keyup', e => { if (rulesEl) { e.stopImmediatePropagation(); return; } if (rulesKey && e.key === rulesKey) { rulesKey = null; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
   for (const t of ['pointerdown', 'pointerup', 'touchstart', 'mousedown', 'click'])
-    window.addEventListener(t, e => { if (rulesEl && !(e.target.closest && e.target.closest('.kg-rules .kg-card'))) e.stopImmediatePropagation(); }, true);
+    window.addEventListener(t, e => { if (rulesEl && !(e.target.closest && e.target.closest('.kg-rules .kg-card, .kg-upd'))) e.stopImmediatePropagation(); }, true);
 
   // 안전 영역(노치·홈 표시줄) px: KG.safe() → { t, b, l, r }
   const probe = document.createElement('div');
@@ -839,12 +872,101 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     setInterval(tick, 300); requestAnimationFrame(tick);
     return { rb, refresh() { if (on) rb.show(diffId, opt()); } };
   }
+  // ── 결과 카드 단추: KG.resultActions(결과 카드, { retry, guard }) — 「다시 하기」를 넓고 굵은 주 단추로 꾸미고, 카드 안 게임 고르기 링크(index.html)를 「다른 게임」으로 맞춘다.
+  //   「다시 하기」가 없는 단계 진행형 카드(bowl·deliver)는 단추 줄 아래에 「다른 게임」 글 단추를 붙인다. guard() 가 false 면(결과 카드가 막 떠 두드리던 손가락) 이동하지 않는다.
+  //   단추를 옮기거나 새로 만들지 않으므로 게임마다 걸어 둔 누름·키(Space/Enter)·포커스는 그대로다. 표준 결과 카드(.row 안 #btnAgain)는 이 파일이 읽힐 때 저절로 적용된다
+  const RETRY_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4.5H15"/></svg>';
+  function resultActions(card, o) {
+    o = o || {}; if (!card) return null;
+    const retry = o.retry || card.querySelector('.row #btnAgain');
+    const row = retry ? retry.closest('.row') : card.querySelector('.row');
+    if (retry && row && !retry.classList.contains('kg-again')) { row.classList.add('kg-res'); row.classList.toggle('kg-res3', row.querySelectorAll('.kg-btn').length > 2); retry.classList.add('kg-again'); retry.insertAdjacentHTML('afterbegin', RETRY_SVG); }
+    let other = card.querySelector('a[href="index.html"]');
+    if (other) { other.textContent = '다른 게임'; if (other.classList.contains('kg-btn')) other.classList.add('kg-other'); }
+    else if (row) { other = document.createElement('a'); other.className = 'kg-alt'; other.href = 'index.html'; other.textContent = '다른 게임'; row.after(other); }
+    if (other && typeof o.guard === 'function' && !other.dataset.kgGuard) { other.dataset.kgGuard = '1'; other.addEventListener('click', e => { if (!o.guard()) { e.preventDefault(); e.stopPropagation(); } }); }
+    return { retry: retry || null, other: other || null };
+  }
+  document.querySelectorAll('.kg-card').forEach(c => { if (c.querySelector('.row #btnAgain')) resultActions(c); });
   const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName, flush: rankFlush };
   // 밀린 기록: 화면을 열었을 때·앱이 다시 보일 때 (60초에 한 번). 화면을 떠날 때 보내려던 것이 남았으면 바로 보낸다 (keepalive)
   if (rankCfg()) setTimeout(() => { if (ls.get(RK.dirty) === '1') rankSync(false); }, 1500);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) rankSync(false); });
   addEventListener('pagehide', () => { if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; if (syncing) syncAgain = true; else rankSync(true); } });
 
+  // ── 새 버전 띠: 서비스 워커는 일상 앱(../index.html)만 등록한다. 게임 화면은 등록하지 않고 getRegistration() 으로 같은 등록을 찾아 쓴다.
+  //   게임 화면에는 KONG_VER 가 없어서(make.js 가 게임 파일까지 합쳐 버전을 세므로 넣을 수 없다) '이 화면을 열 때 켜져 있던 캐시 이름(kongstar-<버전>)'을
+  //   이 화면의 판으로 삼는다. 그 뒤 그 캐시가 사라지면(새 워커가 켜지며 옛 캐시를 지움) 옛 판. 열 때 이미 새 워커가 깔리는 중이었다가 켜졌어도 옛 판.
+  //   게임 판이 날아가지 않게 저절로 다시 열지 않는다 — 「지금 적용」을 눌렀을 때만 다시 연다.
+  //   게임 고르기·순위 화면은 늘 보이고, 게임 화면은 규칙·시작·멈춤·결과 카드(.kg-scrim)가 떠 있을 때만 보인다 (놀이 중 화면을 가리지 않게).
+  //   다시 보일 때 새 판 확인(reg.update)은 일상 앱과 같은 열쇠로 30분에 한 번.
+  const UPD = { reg: null, mine: null, stale: false, off: false, el: null, poll: 0, KEY: 'kongstar.ui.swUpdAt', GAP: 30 * 60000 };
+  const updList = /\/games\/(index\.html|rank\.html)?$/.test(location.pathname);
+  function swSettled(reg) {   // 새 워커가 깔리는 중이면 켜지거나(activated) 버려질(redundant) 때까지 (최대 20초)
+    const w = reg && (reg.installing || reg.waiting);
+    if (!w) return Promise.resolve();
+    return new Promise(res => {
+      const t = setTimeout(res, 20000);
+      const on = () => { if (w.state === 'activated' || w.state === 'redundant') { clearTimeout(t); w.removeEventListener('statechange', on); res(); } };
+      w.addEventListener('statechange', on); on();
+    });
+  }
+  const swCaches = () => caches.keys().then(ks => ks.filter(k => k.startsWith('kongstar-')));
+  // 게임 화면: 카드(.kg-scrim)가 떠 있고, 띠가 그 카드 글을 덮지 않을 때만 보인다 (낮은 가로 화면처럼 카드가 위까지 차면 게임 고르기 화면에서 보여 준다)
+  const updCalm = () => {
+    if (updList) return true;
+    const sc = [...document.querySelectorAll('.kg-scrim')].filter(e => e.getClientRects().length > 0);
+    if (!sc.length) return false;
+    const el = UPD.el; if (!el) return true;
+    const was = el.hidden; el.hidden = false; const b = el.getBoundingClientRect(); el.hidden = was;   // 같은 순간에 되돌려 깜빡임 없음
+    return !sc.some(s => [...s.querySelectorAll('.kg-card')].some(c => { const r = c.getBoundingClientRect(); return r.height > 0 && r.bottom > 0 && r.top < b.bottom + 6 && r.left < b.right && r.right > b.left; }));
+  };
+  function updPaint() {
+    if (!UPD.stale || UPD.off) { if (UPD.el) UPD.el.hidden = true; clearInterval(UPD.poll); UPD.poll = 0; return; }
+    if (!UPD.el) {
+      const el = UPD.el = document.createElement('div'); el.className = 'kg-upd' + (updList ? '' : ' play'); el.setAttribute('role', 'region'); el.setAttribute('aria-label', '새 버전 알림'); el.hidden = true;
+      el.innerHTML = '<i aria-hidden="true"></i><span role="status" aria-live="polite">새 버전이 나왔어요</span><button type="button" class="go">지금 적용</button>' +
+        '<button type="button" class="x" aria-label="새 버전 알림 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+      for (const t of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'mouseup', 'click']) el.addEventListener(t, e => e.stopPropagation());   // 띠를 누른 것이 게임 쪽 누름으로 넘어가지 않게
+      const go = el.querySelector('.go');
+      go.addEventListener('click', () => {
+        if (go.disabled) return; go.disabled = true; go.textContent = '바꾸는 중…'; sfx('tap');
+        let gone = false; const re = () => { if (gone) return; gone = true; location.reload(); };
+        if (UPD.reg) swSettled(UPD.reg).then(re, re); else re();
+        setTimeout(re, 6000);
+      });
+      el.querySelector('.x').addEventListener('click', () => { sfx('tap'); UPD.off = true; updPaint(); });   // 닫으면 이번엔 그만 — 화면을 내렸다 다시 보면 또 보여 준다
+      document.body.appendChild(el);
+    }
+    UPD.el.hidden = !updCalm();
+    if (!UPD.poll && !updList) UPD.poll = setInterval(() => { if (UPD.el) UPD.el.hidden = !updCalm(); }, 700);   // 게임 화면: 카드가 뜨고 지는 데 맞춰
+  }
+  function updStale() { UPD.stale = true; updPaint(); }
+  function updCheck() {
+    if (UPD.stale || !UPD.reg || !UPD.mine || !navigator.serviceWorker.controller) return;
+    swSettled(UPD.reg).then(swCaches).then(ks => { if (ks.length && !ks.includes(UPD.mine)) updStale(); }).catch(() => {});
+  }
+  if ('serviceWorker' in navigator && 'caches' in window && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (!reg) return;
+      UPD.reg = reg;
+      const busy = reg.installing || reg.waiting;
+      const pin = () => swCaches().then(ks => { if (ks.length === 1) UPD.mine = ks[0]; });   // 캐시가 하나일 때만 (둘 이상이면 어느 것이 이 화면 판인지 모른다)
+      if (busy) swSettled(reg).then(() => busy.state === 'activated' ? updStale() : pin()).catch(() => {});
+      else pin().catch(() => {});
+      reg.addEventListener('updatefound', () => { const nw = reg.installing; nw && nw.addEventListener('statechange', () => { if (nw.state === 'activated') updCheck(); }); });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', updCheck);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { UPD.off = false; return; }
+      updPaint();
+      if (!UPD.reg || UPD.stale) return;
+      const at = parseFloat(ls.get(UPD.KEY)) || 0;
+      if (Date.now() - at > UPD.GAP) { ls.set(UPD.KEY, String(Date.now())); UPD.reg.update().catch(() => {}).then(updCheck); }
+      else updCheck();
+    });
+  }
+
   const voiceG = (n, delay, vol) => n === 'bark' ? 0 : voice(n, delay, vol);   // 11-23: 게임 속 짖는 소리가 너무 잦다는 요청 → 게임 쪽 짖기는 끄고 신기록 때만(recPhoto)
-  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice: voiceG, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, markNew(beat) { recFlag = true; if (beat !== false) recBeat = true; } };
+  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice: voiceG, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, resultActions, markNew(beat) { recFlag = true; if (beat !== false) recBeat = true; } };
 })();

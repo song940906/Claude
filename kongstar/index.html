@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '5cd94df725';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = '484271d332';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -135,6 +135,29 @@ html, body { touch-action: manipulation; }   /* 두 번 눌러 확대 막기 (�
   text-align: center; opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* 새 버전 띠 — 토스트 자리(상단 줄 아래)에 오래 남는 흰 띠. 떠 있는 동안은 그 아래 것들(토스트·창문 단추·가로 안내·세기)을 한 줄 내린다 */
+.upd {
+  position: fixed; z-index: 61; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; width: max-content; max-width: calc(100vw - 28px); box-sizing: border-box;
+  padding: 6px 6px 6px 14px; border-radius: 18px; background: var(--card); color: var(--ink); box-shadow: 0 8px 28px rgba(0, 0, 0, .3);
+  animation: updIn .28s cubic-bezier(.2, .85, .25, 1);
+}
+@keyframes updIn { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
+.upd-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 35%, #FFF6D8, #FFC861 60%, #E39A63); box-shadow: 0 0 8px #FFC861aa; }
+.upd-msg { font-size: 14.5px; font-weight: 700; letter-spacing: -.3px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.upd-go { flex: none; height: 36px; border: 0; border-radius: 12px; padding: 0 14px; background: var(--pri); color: #fff; font-size: 14px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; }
+.upd-go:active { background: var(--pri-press); }
+.upd-go:disabled { opacity: .7; cursor: default; }
+.upd-x { flex: none; width: 36px; height: 36px; border: 0; border-radius: 50%; padding: 0; background: transparent; color: #8B95A1; display: grid; place-items: center; margin-left: -4px; }
+.upd-x svg { width: 18px; height: 18px; }
+.upd-x:active { background: var(--soft); }
+@media (max-width: 360px) { .upd { gap: 8px; padding-left: 12px; } .upd-msg { font-size: 14px; } .upd-go { padding: 0 12px; } }   /* 320 폭에서도 글이 잘리지 않게 */
+body.upd-cover .upd { display: none; }
+body.upd-on:not(.upd-cover) .toast { top: calc(env(safe-area-inset-top, 0px) + 120px); }
+body.upd-on .winbtn { top: calc(env(safe-area-inset-top, 0px) + 122px); }
+body.upd-on .winbtn.second { top: calc(env(safe-area-inset-top, 0px) + 170px); }
+body.upd-on .counter { top: calc(env(safe-area-inset-top, 0px) + 164px); }
+@media (max-height: 500px) { body.upd-on .hint { top: calc(env(safe-area-inset-top, 0px) + 116px); } }
 
 /* ── 시트 ── */
 .scrim {
@@ -271,6 +294,7 @@ html, body { touch-action: manipulation; }   /* 두 번 눌러 확대 막기 (�
 @media (prefers-reduced-motion: reduce) {
   .sheet { animation: none; }
   .toast, .toast.show { transform: translateX(-50%); transition: opacity .2s; }
+  .upd { animation: none; }
 }
 </style>
 </head>
@@ -373,6 +397,12 @@ html, body { touch-action: manipulation; }   /* 두 번 눌러 확대 막기 (�
   <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="8" width="26" height="10" rx="5" fill="rgba(255,240,215,.25)"/><path d="M13 18v12M17.5 18v14M22 18v13M26.5 18v14M31 18v11"/></svg>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="upd" id="updBar" role="region" aria-label="새 버전 알림" hidden>
+  <span class="upd-dot" aria-hidden="true"></span>
+  <span class="upd-msg" role="status" aria-live="polite">새 버전이 나왔어요</span>
+  <button class="upd-go" id="updGo" type="button">지금 적용</button>
+  <button class="upd-x" id="updX" type="button" aria-label="새 버전 알림 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
 <div class="simon" id="simonBar" hidden><div class="simon-msg" id="simonMsg" role="status" aria-live="polite"></div><div class="simon-keys" id="simonKeys"></div></div>
 
 <!-- 시작 카드 -->
@@ -4232,6 +4262,7 @@ function syncInert() {
   const v = !$('viewer').hidden, on = openStack.length > 0 || v;
   document.querySelector('.top').inert = on; document.querySelector('.dock').inert = on;
   document.querySelectorAll('.scrim').forEach(s => { s.inert = v; });
+  document.body.classList.toggle('upd-cover', on);   // 새 버전 띠는 시트·사진 보기 위에 뜨지 않게 그동안 숨긴다 (닫으면 다시 보임)
 }
 function openSheet(id) {
   if (!openStack.length && $('viewer').hidden) sheetOpener = document.activeElement;   // inert 로 포커스가 빠지기 전에 기억
@@ -4787,17 +4818,62 @@ async function doInstall() {
 $('installBtn').addEventListener('click', doInstall);
 $('wInstall').addEventListener('click', doInstall);
 window.addEventListener('appinstalled', () => { installEvt = null; $('installRow').hidden = true; $('wInstall').hidden = true; toast('홈 화면에 설치했어요'); });
+// ── 새 버전 띠: 새 판이 깔렸는데 지금 화면이 옛 판이면 「새 버전이 나왔어요 · 지금 적용」 띠를 띄운다 ──
+//   옛 판 판정: 캐시 이름(kongstar-<버전>) 가운데 이 화면의 버전(KONG_VER)이 없으면 옛 판 (새 워커는 켜질 때 옛 캐시를 지운다)
+//   깔리는 중(installing·waiting)이면 끝날 때까지 기다렸다 본다. 앱이 다시 보일 때는 30분에 한 번만 reg.update() 로 새 판을 물어본다
+//   (미니게임 화면은 games/common.src.js 가 같은 등록을 찾아 같은 띠를 띄운다 — 확인 간격 열쇠도 같이 쓴다)
+const UPD = { reg: null, shown: false, off: false, KEY: 'kongstar.ui.swUpdAt', GAP: 30 * 60000 };
+function swSettled(reg) {   // 새 워커가 깔리는 중이면 켜지거나(activated) 버려질(redundant) 때까지 (최대 20초)
+  const w = reg && (reg.installing || reg.waiting);
+  if (!w) return Promise.resolve();
+  return new Promise(res => {
+    const t = setTimeout(res, 20000);
+    const on = () => { if (w.state === 'activated' || w.state === 'redundant') { clearTimeout(t); w.removeEventListener('statechange', on); res(); } };
+    w.addEventListener('statechange', on); on();
+  });
+}
+function updStale() {
+  return swSettled(UPD.reg).then(() => caches.keys()).then(ks => { ks = ks.filter(k => k.startsWith('kongstar-')); return ks.length > 0 && !ks.includes('kongstar-' + window.KONG_VER); });
+}
+function updAsk() {   // 서버에 새 sw.js 가 있는지 물어본다 (실패해도 조용히) — 물어본 시각을 남겨 30분 간격을 지킨다
+  try { localStorage.setItem(UPD.KEY, String(Date.now())); } catch (e) {}
+  return UPD.reg.update().catch(() => {});
+}
+// sure: 방금 새 워커가 켜진 걸 본 경우(다시 물어볼 필요 없음). 아니면 '화면이 워커보다 새것'(워커 확인 전에 새 화면을 받은 경우)일 수 있어 한 번 물어본 뒤 다시 본다
+function updCheck(sure) {
+  if (UPD.shown || UPD.off || !UPD.reg || !navigator.serviceWorker.controller) return;
+  updStale().then(s => s && (sure ? true : updAsk().then(updStale))).then(s => { if (s && !UPD.off) showUpd(); }).catch(() => {});
+}
+function showUpd() {
+  if (UPD.shown) return; UPD.shown = true;
+  const b = $('updBar'); b.hidden = false; document.body.classList.add('upd-on');
+}
+function hideUpd() { UPD.shown = false; $('updBar').hidden = true; document.body.classList.remove('upd-on'); }
+$('updGo').addEventListener('click', () => {
+  const btn = $('updGo'); if (btn.disabled) return; btn.disabled = true; btn.textContent = '바꾸는 중…';
+  let gone = false; const go = () => { if (gone) return; gone = true; location.reload(); };
+  // 대기 중이거나 깔리는 중인 워커가 있으면 켜질 때까지 기다렸다가 (sw 는 스스로 skipWaiting·clients.claim 한다) 다시 연다
+  if (UPD.reg) swSettled(UPD.reg).then(go, go); else go();
+  setTimeout(go, 6000);
+});
+$('updX').addEventListener('click', () => { UPD.off = true; hideUpd(); });   // 닫으면 이번엔 그만 — 앱을 내렸다 다시 보면 또 확인한다
 if (PWA && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(reg => {
+    UPD.reg = reg;
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
-      // 지금 화면이 정말 옛 판일 때만 알린다 (새 캐시 이름과 이 화면의 버전 비교 — 화면이 이미 새것이면 조용히)
-      nw && nw.addEventListener('statechange', () => {
-        if (nw.state !== 'activated' || !navigator.serviceWorker.controller) return;
-        caches.keys().then(ks => { if (ks.some(k => k.startsWith('kongstar-') && k !== 'kongstar-' + window.KONG_VER)) toast('새 버전을 받았어요. 앱을 다시 열면 적용돼요', 4000); }).catch(() => {});
-      });
+      nw && nw.addEventListener('statechange', () => { if (nw.state === 'activated') updCheck(true); });
     });
+    updCheck(false);   // 열었더니 이미 새 판이 깔려 있는데 이 화면은 옛 판인 경우
   }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => updCheck(true));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { UPD.off = false; return; }
+    if (!UPD.reg) return;
+    let at = 0; try { at = +localStorage.getItem(UPD.KEY) || 0; } catch (e) {}
+    if (Date.now() - at > UPD.GAP) updAsk().then(() => updCheck(true));
+    else updCheck(false);
+  });
 }
 
 // ═══════════════ 시작 ═══════════════

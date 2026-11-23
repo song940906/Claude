@@ -65,6 +65,8 @@ body .kg-top { z-index: 26; }
   body .kg-card .kg-btn { height: 44px; }
   body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
 }
+/* 가로 낮은 화면에서 순위 카드와 나란히 설 때(11-23 결과 단추 정리): 「새 기록」 딱지를 점수 옆에 붙여 한 줄을 아끼고, 단추 줄(「다른 게임」 포함)이 카드 안에 들어오게 */
+@media (orientation: landscape) and (max-height: 430px) { #cardEnd.kg-rbwrap .big { display: inline-block; vertical-align: middle; } #cardEnd.kg-rbwrap .new { margin: 0 0 0 8px; vertical-align: middle; } #cardEnd.kg-rbwrap .row { margin-top: 8px; } }
 </style>
 </head>
 <body>
