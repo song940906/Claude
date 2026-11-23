@@ -149,7 +149,17 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     hard:   { pw: 1.55, g0: 1.6, g1: 2.3,  ramp: 300, h0: 60,  reach: 0.74, mv0: 0.22, mv1: 0.40, va0: 0.14, va1: 0.28, spring: 0.07, extra: 0.12, mvSp: 2.4, amp: 1.8, bone: 0.09 },
     vhard:  { pw: 1.25, g0: 1.9, g1: 2.5,  ramp: 200, h0: 100, reach: 0.90, mv0: 0.30, mv1: 0.50, va0: 0.22, va1: 0.38, spring: 0.05, extra: 0,    mvSp: 3.0, amp: 2.2, bone: 0.08 }
   };
-  let D = DIFF[KG.diff()] || DIFF.normal, runKey = KG.dkey(KEY);   // 판을 시작할 때 한 번 정해 그 판 동안 그대로
+  // 방해하는 새: 점수 BIRD_AT 을 넘으면 나온다. 점수가 BIRD_AT → BIRD_AT + BIRD_RAMP 로 오르는 동안 gap0→gap1(나오는 사이 초) · sp0→sp1(빠르기, 단위/초)
+  //   warn 가장자리 ❗ 예고 시간(초) · max 한꺼번에 날 수 있는 수 · max2At 두 마리가 되는 점수 진행(0~1, 없으면 늘 한 마리)
+  //   drop 부딪히면 방금 밟고 뛴 구름을 한 번 뚫고 떨어진다(한 칸 아래로 — Easy 는 그 구름에 다시 내려앉을 수 있다)
+  const BIRD_AT = 1000, BIRD_RAMP = 2000, STOMP_PT = 5;
+  const BIRD = {
+    easy:   { gap0: 10,  gap1: 6,   sp0: 2.0, sp1: 3.0, warn: 1.4, max2At: 2,   drop: false },
+    normal: { gap0: 8,   gap1: 4.5, sp0: 2.6, sp1: 4.0, warn: 1.2, max2At: 2,   drop: true },
+    hard:   { gap0: 6.5, gap1: 3.5, sp0: 3.2, sp1: 5.0, warn: 1.0, max2At: 0.5, drop: true },
+    vhard:  { gap0: 5.5, gap1: 2.8, sp0: 3.8, sp1: 6.0, warn: 0.9, max2At: 0.3, drop: true }
+  };
+  let D = DIFF[KG.diff()] || DIFF.normal, BD = BIRD[KG.diff()] || BIRD.normal, runKey = KG.dkey(KEY);   // 판을 시작할 때 한 번 정해 그 판 동안 그대로
 
   const mod = (a, n) => ((a % n) + n) % n;
   const wd = d => mod(d + FW / 2, FW) - FW / 2;   // 좌우가 이어진 칸에서 가장 가까운 쪽 거리(부호 있음)
@@ -211,14 +221,17 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     ['☁️', '구름을 밟으면 ' + J(name, '이/가') + ' 저절로 폴짝 뛰어올라요.'],
     ['👆', '아래 ◀ ▶ 단추를 누르고 있으면 그쪽으로 움직여요. 화면 끝은 반대쪽과 이어져요.'],
     ['🌸', '분홍 솜구름은 한 번 밟으면 사라지고, 푹신한 쿠션은 아주 높이 튕겨 줘요.'],
-    ['🦴', '뼈다귀를 먹으면 ' + BONE_PT + '점 보너스! 화면 아래로 떨어지면 끝나요.']
+    ['🦴', '뼈다귀를 먹으면 ' + BONE_PT + '점 보너스! 화면 아래로 떨어지면 끝나요.'],
+    ['🐦', BIRD_AT.toLocaleString() + '점을 넘으면 새가 날아다녀요. 가장자리에 ❗가 뜨면 곧 그쪽에서 와요. 부딪히면 아래로 튕겨 떨어져요! 위에서 밟으면 한 번 더 폴짝, ' + STOMP_PT + '점 보너스.']
   ] };
 
   // ── 상태
   const S = {
     mode: 'ready', t: 0, x: FW / 2, y: 0, vx: 0, vy: 0, face: 1, dir: 0, jumpY: 0, cam: 0, high: 0, bones: 0, score: 0, bounces: 0,
-    plats: [], items: [], top: null, landT: 0, happy: 0, munch: 0, scare: 0, endT: 0, sat: false, say: 0, sayTxt: '', freeze: 0, mile: 0, skyIdx: 0, parts: [], simulating: false, newBest: false
+    plats: [], items: [], top: null, landT: 0, happy: 0, munch: 0, scare: 0, endT: 0, sat: false, say: 0, sayTxt: '', freeze: 0, mile: 0, skyIdx: 0, parts: [], simulating: false, newBest: false,
+    birds: [], birdOn: false, birdT: 0, birdMsg: 0, stun: 0, inv: 0, ouch: 0, bonus: 0, bHit: 0, bStomp: 0, bDrop: 0, lastP: null, skipP: null
   };
+  const BIRD0 = { birds: [], birdOn: false, birdT: 0, birdMsg: 0, stun: 0, inv: 0, ouch: 0, bonus: 0, bHit: 0, bStomp: 0, bDrop: 0, lastP: null, skipP: null };
   const BOT = { on: false, err: 0, lag: 0, slip: 0, tgt: null, off: 0, wait: 0 };
 
   function layout() {
@@ -240,7 +253,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
 
   // ── 판 깔기
   function reset() {
-    Object.assign(S, { t: 0, x: FW / 2, y: 0, vx: 0, vy: 0, face: 1, dir: 0, jumpY: 0, cam: -GROUND, high: 0, bones: 0, score: 0, bounces: 0, plats: [], items: [], landT: 0, happy: 0, munch: 0, scare: 0, endT: 0, sat: false, say: 0, freeze: 0, mile: 0, skyIdx: 0, parts: [], newBest: false });
+    Object.assign(S, { t: 0, x: FW / 2, y: 0, vx: 0, vy: 0, face: 1, dir: 0, jumpY: 0, cam: -GROUND, high: 0, bones: 0, score: 0, bounces: 0, plats: [], items: [], landT: 0, happy: 0, munch: 0, scare: 0, endT: 0, sat: false, say: 0, freeze: 0, mile: 0, skyIdx: 0, parts: [], newBest: false }, BIRD0, { birds: [] });
     const ground = { type: 'g', x: FW / 2, y: 0, w: FW + 2, A: 0, ph: 0, om: 0, gone: false, fade: 0, sq: 0, chain: true, seed: 0 };
     S.plats.push(ground); S.top = ground; grow();
   }
@@ -271,6 +284,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   function sparkle(x, y, n, col) { for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(30, 110); emit({ kind: 'star', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, g: 160, r: rand(2.5, 5), col: col || '#FFD25E', max: rand(0.35, 0.6) }); } }
   let noteT = 0;
   function note(msg) { if (S.simulating) return; const n = $('note'); n.textContent = msg; n.classList.add('show'); clearTimeout(noteT); noteT = setTimeout(() => n.classList.remove('show'), 2200); }
+  // 새 예고 ❗ 가 알림 띠에 가리면 알림을 먼저 걷는다 (낮은 가로 화면에서는 ❗ 가 알림 높이에 뜰 수 있다)
+  function unNote(y) { const n = $('note'); if (!n.classList.contains('show')) return; const r = n.getBoundingClientRect(); if (y < r.bottom + 26) { clearTimeout(noteT); n.classList.remove('show'); } }
 
   // ── 조작: 누르고 있는 단추·키 가운데 가장 나중 것이 방향
   const holds = [];
@@ -280,7 +295,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   function paintCtl() { const d = inputDir(); $('btnL').classList.toggle('on', d < 0); $('btnR').classList.toggle('on', d > 0); }
 
   function bounce(p) {
-    S.y = p.y; S.jumpY = p.y; S.bounces++; S.landT = 0.1; p.sq = 1; BOT.tgt = null;
+    S.y = p.y; S.jumpY = p.y; S.bounces++; S.landT = 0.1; p.sq = 1; BOT.tgt = null; S.lastP = p; S.skipP = null;
     const X = sx(S.x), Y = sy(p.y);
     if (p.type === 's') { S.vy = VS; S.happy = 1.4; tone(300, 0.28, 'sine', 0.1, 0, 1250); tone(600, 0.2, 'triangle', 0.04, 0.05, 1600); sparkle(X, Y, 8, '#FFE9A8'); sayUp(pick(['슈웅!', '높이높이!', '우와!']), '#FFE9A8'); }
     else { S.vy = VJ; tone(rand(400, 440), 0.11, 'sine', 0.07, 0, 680); puff(X, Y, 3); }
@@ -292,28 +307,95 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     if (S.bones % 5 === 0) { sayUp('냠냠!', '#FFF1D6'); voice('bark', 0, 0.9); }
   }
 
+  // ── 방해하는 새: 콩이보다 조금 위 높이에서, 가장자리 ❗ 예고 뒤 놀이 칸을 가로질러 날아간다 (좌우로 이어지지 않고 반대쪽으로 빠져나간다)
+  //   부딪히면(올라가던 중·옆에서) 아래로 튕겨 떨어지고 잠깐 조작이 안 된다 → 곧바로 끝나지는 않지만 아래 구름을 못 밟으면 떨어진다
+  //   내려오면서 위에서 밟으면 한 번 더 폴짝 + 보너스. 부딪힌 뒤 잠깐은 새에 다시 맞지 않는다
+  const BW = 0.5, BH = 0.3, KW = 0.55, KH0 = 0, KH1 = 1.55;   // 새 반 너비·반 높이, 콩이 몸통(발 기준 좌우 반 너비 · 아래 · 위)
+  const birdP = () => clamp((S.score - BIRD_AT) / BIRD_RAMP, 0, 1);
+  const birdY = (b, t) => b.y + (reduceMotion ? 0 : Math.sin(b.ph + t * 2.6) * 0.22);
+  function spawnBird() {
+    // 점수판 아래까지만 (세로: 점수판이 놀이 칸 위를 가로지른다 · 가로: 점수판이 양옆이라 제목줄 아래까지)
+    const p = birdP(), top = S.cam + VH - (SAFE.t + (PORT ? 124 : 72)) / U - 0.4;
+    if (S.y - S.cam < VH * 0.3) return false;                       // 콩이가 화면 아래쪽에 있을 때는 내보내지 않는다 (맞자마자 떨어지지 않게)
+    // 콩이가 곧 올라갈 높이 (화면 위쪽 절반쯤). 낮은 가로 화면(높이 9 단위 안팎)에서도 자리가 나오게 간격을 화면 높이에 맞춰 줄인다
+    const lo = S.y + clamp(VH * 0.25, 1.8, 3), hi = Math.min(S.y + 9, top);
+    if (hi < lo + 0.3) return false;
+    let y = 0;
+    for (let i = 0; i < 6; i++) { const yy = rand(lo, hi); if (S.birds.every(b => Math.abs(b.y - yy) > 3.2)) { y = yy; break; } }   // 두 마리가 같은 높이를 막지 않게
+    if (!y) return false;
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    S.birds.push({ st: 'warn', w: BD.warn, dir, x: dir > 0 ? -BW - 0.4 : FW + BW + 0.4, y, vy: 0, sp: lerp(BD.sp0, BD.sp1, p) * rand(0.9, 1.1), ph: rand(0, TAU), rot: 0, hit: false });
+    if (!S.simulating) { tone(1700, 0.05, 'sine', 0.035, 0, 2300); tone(1700, 0.05, 'sine', 0.035, 0.11, 2300); }
+    return true;
+  }
+  function birds(dt, y0) {
+    const play = S.mode === 'play';
+    if (play && !S.birdOn && S.score >= BIRD_AT) {
+      // 같은 때 뜬 1,000점 축하 알림(2.2초)을 덮지 않게, 그 뒤에 새 알림 → 새 알림(2.2초)을 다 읽고 나서 첫 새의 ❗ 가 뜬다
+      S.birdOn = true; S.birdMsg = 2.3; S.birdT = S.birdMsg + 2.4;
+    }
+    if (play && S.birdMsg > 0) {
+      S.birdMsg -= dt;
+      if (S.birdMsg <= 0 && !S.simulating) { note('새가 나타났어요! 가장자리 ❗ 를 조심해요'); tone(1500, 0.08, 'triangle', 0.05, 0, 2100); tone(1900, 0.1, 'triangle', 0.05, 0.12, 2500); }
+    }
+    if (play && S.birdOn) {
+      S.birdT -= dt;
+      if (S.birdT <= 0) {
+        const p = birdP(), max = p >= BD.max2At ? 2 : 1, live = S.birds.filter(b => b.st !== 'fall').length;
+        if (live < max && spawnBird()) { const gap = lerp(BD.gap0, BD.gap1, p); S.birdT = rand(gap * 0.75, gap * 1.25); }
+        else S.birdT = 0.4;
+      }
+    }
+    for (let i = S.birds.length - 1; i >= 0; i--) {
+      const b = S.birds[i];
+      if (b.st === 'warn') { b.w -= dt; if (b.w <= 0) b.st = 'fly'; else if (!S.simulating) unNote(sy(b.y)); continue; }
+      if (b.st === 'fall') { b.vy -= G * 0.6 * dt; b.y += b.vy * dt; b.x += b.dir * b.sp * 0.4 * dt; b.rot += dt * 9 * b.dir; if (b.y < S.cam - 3) S.birds.splice(i, 1); continue; }
+      b.x += b.dir * b.sp * dt;
+      if (b.x < -BW - 1 || b.x > FW + BW + 1 || b.y < S.cam - 3) { S.birds.splice(i, 1); continue; }
+      if (!play || b.hit || S.inv > 0 || b.x < 0 || b.x > FW) continue;
+      const by = birdY(b, S.t), dx = Math.abs(wd(b.x - S.x));
+      if (dx > BW + KW || S.y + KH0 > by + BH || S.y + KH1 < by - BH) continue;
+      if (S.vy < 0 && y0 >= by - 0.1) stomp(b); else knock(b);
+    }
+  }
+  function stomp(b) {
+    b.st = 'fall'; b.vy = 2; S.bStomp++; S.bonus += STOMP_PT;
+    S.y = Math.max(S.y, birdY(b, S.t)); S.jumpY = S.y; S.vy = VJ * 1.08; S.bounces++; S.landT = 0.1; S.happy = 1; BOT.tgt = null; S.inv = 0.3;
+    const X = sx(b.x), Y = sy(S.y);
+    if (!S.simulating) { sfx('pop'); tone(520, 0.14, 'triangle', 0.07, 0, 980); }
+    sparkle(X, Y, 6, '#CFE0FF'); emit({ kind: 'text', text: '+' + STOMP_PT, col: '#E4ECFF', x: X, y: Y - 10, vy: -50, max: 0.6, size: 14 }); sayUp(pick(['꾹!', '밟았다!', '폴짝!']), '#E4ECFF');
+  }
+  function knock(b) {
+    b.hit = true; S.bHit++;
+    if (BD.drop && S.lastP && S.lastP.type !== 'g' && S.lastP.y < S.y) { S.skipP = S.lastP; S.bDrop++; }   // 방금 뛰어오른 구름은 한 번 뚫고 지나간다 → 한 칸 아래로
+    S.vy = Math.min(S.vy, -4.5); S.vx = b.dir * 3.5; S.stun = 0.32; S.inv = 1.4; S.ouch = 0.6; S.happy = 0; BOT.tgt = null; BOT.fresh = -1;
+    if (!S.simulating) { sfx('hit'); tone(300, 0.22, 'square', 0.03, 0, 140); }
+    puff(sx(S.x), sy(S.y + 1), 8, 'rgba(210,222,255,.9)'); sayUp('아야!', '#FFD0D0');
+  }
+
   // ── 한 걸음 (그리기와 따로 — 시험에서 빨리 돌릴 수 있다)
   function step(dt) {
     S.t += dt;
     const m = S.mode;
     S.landT = Math.max(0, S.landT - dt); S.happy = Math.max(0, S.happy - dt); S.munch = Math.max(0, S.munch - dt);
+    S.stun = Math.max(0, S.stun - dt); S.inv = Math.max(0, S.inv - dt); S.ouch = Math.max(0, S.ouch - dt);
     for (const p of S.plats) { if (p.sq > 0) p.sq = Math.max(0, p.sq - dt * 5); if (p.gone && p.fade < 1) p.fade = Math.min(1, p.fade + dt * 4); }
     if (m === 'play' || (m === 'ending' && !S.sat)) {
-      const dir = m !== 'play' ? 0 : BOT.on ? botDir(dt) : inputDir();
+      const dir = m !== 'play' || S.stun > 0 ? 0 : BOT.on ? botDir(dt) : inputDir();
       S.dir = dir; if (dir) S.face = dir;
-      const want = dir * VX, a = (dir ? AX : FR) * dt;
+      const want = dir * VX, a = (dir ? AX : FR) * dt * (S.stun > 0 ? 0.08 : 1);   // 새에 맞아 튕겨 나가는 동안은 미끄러지듯
       S.vx = S.vx < want ? Math.min(want, S.vx + a) : Math.max(want, S.vx - a);
       S.x = mod(S.x + S.vx * dt, FW);
       const y0 = S.y; S.vy = Math.max(-VFALL, S.vy - G * dt); S.y += S.vy * dt;
       if (m === 'play') {
         if (S.vy < 0) {   // 내려오는 중에만 밟힌다 (아래에서는 그냥 지나간다)
           let hit = null;
-          for (const p of S.plats) { if (p.gone || p.y > y0 || p.y < S.y) continue; if (Math.abs(wd(S.x - pxAt(p, S.t))) <= p.w / 2 + FOOT && (!hit || p.y > hit.y)) hit = p; }
+          for (const p of S.plats) { if (p.gone || p === S.skipP || p.y > y0 || p.y < S.y) continue; if (Math.abs(wd(S.x - pxAt(p, S.t))) <= p.w / 2 + FOOT && (!hit || p.y > hit.y)) hit = p; }
           if (hit) bounce(hit);
         }
         for (const it of S.items) { if (it.got) continue; if (Math.abs(wd(it.x - S.x)) < 0.95 && it.y > S.y - 0.35 && it.y < S.y + 2.1) eat(it); }
         if (S.y > S.high) S.high = S.y;
-        S.score = Math.floor(S.high) + S.bones * BONE_PT;
+        S.score = Math.floor(S.high) + S.bones * BONE_PT + S.bonus;
         // 화면은 위로만 따라간다
         const want = S.y - FOLLOW; if (want > S.cam) S.cam += (want - S.cam) * (1 - Math.exp(-dt * 12));
         S.scare = S.vy < -9 && S.y - S.cam < VH * 0.22 ? Math.min(1, S.scare + dt * 6) : Math.max(0, S.scare - dt * 4);
@@ -323,9 +405,12 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
         const lim = S.cam - 3;
         for (let i = S.plats.length - 1; i >= 0; i--) { const p = S.plats[i]; if (p.y < lim || (p.gone && p.fade >= 1)) S.plats.splice(i, 1); }
         while (S.items.length && S.items[0].y < lim) S.items.shift();
+        birds(dt, y0);
+        S.score = Math.floor(S.high) + S.bones * BONE_PT + S.bonus;   // 새를 밟은 보너스까지
         if (S.y < S.cam - 1.4) fall();
       }
     }
+    if (m === 'ending') birds(dt, S.y);   // 끝나는 동안에도 새는 날아서 빠져나간다 (부딪히지는 않는다)
     if (S.mode === 'ending') {
       S.endT += dt;
       if (!S.sat && S.endT > 0.6) { S.sat = true; k.setPose('sit'); S.say = 1.5; S.sayTxt = S.newBest ? '새 기록이야!' : '아쉽다… 한 번 더!'; if (S.newBest) { sfx('win'); voice('bark', 0.2, 1.1); } }
@@ -495,22 +580,26 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     // 콩이 (놀이 칸 기준 좌표)
     if (S.sat) {
       const rise = clamp((S.endT - 0.6) / 0.35, 0, 1), e = 1 - (1 - rise) * (1 - rise), bx = FWPX / 2, by = H - SAFE.b - (PORT ? 22 : 12) + (1 - e) * KS * 1.2;
-      k.place(bx, by); k2.el.style.display = 'none'; dogBox.classList.remove('air');
+      k.place(bx, by); k2.el.style.display = 'none'; dogBox.classList.remove('air'); dogBox.style.opacity = '';
       k.render(S.newBest ? { t, eyes: 'happy', mouth: 'open', blush: true, tailAmp: 24, tailRate: 4.2, earLift: 6 }
         : { t, eyes: S.endT < 1.5 ? 'closed' : 'open', mouth: 'closed', tilt: reduceMotion ? -6 : -6 + Math.sin(t * 2) * 2, earLift: -6, tailAmp: 3, tailRate: 1, look: [0, 0.6] });
     } else {
       const X = S.x * U, Y = H - (S.y - S.cam) * U, air = S.mode === 'play' || S.mode === 'ending' || S.mode === 'pause';
       const o = { t, facing: S.face, walk: 0, frame: !air ? undefined : S.landT > 0 ? 'land' : 'jump', squash: S.landT > 0 ? S.landT * 4 : 0,
         roll: air && S.landT <= 0 ? clamp(-S.vy * 1.6, -16, 24) * (reduceMotion ? 0.3 : 1) : 0, rollPivot: [200, 300],
-        eyes: S.happy > 0 ? 'happy' : 'open', mouth: S.munch > 0 || S.happy > 0 || S.scare > 0.4 ? 'open' : 'closed', blush: S.happy > 0,
+        eyes: S.ouch > 0 ? 'closed' : S.happy > 0 ? 'happy' : 'open', mouth: S.ouch > 0 || S.munch > 0 || S.happy > 0 || S.scare > 0.4 ? 'open' : 'closed', blush: S.happy > 0,
         earLift: air ? clamp(4 - S.vy * 0.9, -6, 16) : 3, tailAmp: air ? 10 : 16, tailRate: air ? 5 : 3 };
       k.place(X, Y + KS * 0.03); k.render(o); dogBox.classList.toggle('air', air);
+      // 새에 맞은 뒤 다시 맞지 않는 동안: 깜빡임 (움직임 줄이기면 살짝 흐리게만)
+      const op = S.inv > 0.3 && S.mode === 'play' ? (reduceMotion ? '0.6' : Math.sin(t * 28) > 0 ? '0.4' : '1') : '';
+      if (dogBox.style.opacity !== op) dogBox.style.opacity = op;
       const gx = X < KS * 0.7 ? X + FWPX : X > FWPX - KS * 0.7 ? X - FWPX : null;
       if (gx == null) k2.el.style.display = 'none'; else { k2.el.style.display = ''; k2.place(gx, Y + KS * 0.03); k2.render(o); }
     }
 
     // 효과
     f.clearRect(0, 0, W, H);
+    if (S.birds.length) drawBirds(t);
     for (const p of S.parts) {
       const a = 1 - p.life / p.max;
       if (p.kind === 'dot') { f.globalAlpha = a; f.fillStyle = p.col; f.beginPath(); f.arc(p.x, p.y, p.r * (0.6 + 0.6 * (1 - a)), 0, TAU); f.fill(); }
@@ -528,6 +617,52 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       if (hudCache.b !== S.bones) { hudCache.b = S.bones; $('hBone').textContent = S.bones; }
     }
   }
+  // 새 그림 (원점 = 몸 가운데, 단위 좌표, 오른쪽을 보는 모습 — 왼쪽으로 날면 뒤집는다)
+  function birdArt(g, b, t) {
+    const fl = reduceMotion ? 0.35 : Math.sin(t * 15 + b.ph);   // 날갯짓
+    g.scale(b.dir, 1);
+    g.fillStyle = 'rgba(30,40,90,.16)'; g.beginPath(); g.ellipse(0.02, 0.42, 0.42, 0.08, 0, 0, TAU); g.fill();   // 그림자 기운
+    g.fillStyle = '#34417A';   // 뒷날개
+    g.save(); g.translate(-0.06, -0.08); g.rotate(-0.5 - fl * 0.55); g.beginPath(); g.ellipse(-0.06, -0.2, 0.15, 0.3, -0.3, 0, TAU); g.fill(); g.restore();
+    g.beginPath(); g.moveTo(-0.38, -0.04); g.lineTo(-0.74, -0.22); g.lineTo(-0.7, 0.02); g.lineTo(-0.76, 0.16); g.lineTo(-0.36, 0.1); g.closePath(); g.fill();   // 꽁지
+    g.fillStyle = '#4C60AA'; g.beginPath(); g.ellipse(0, 0, 0.48, 0.31, 0, 0, TAU); g.fill();   // 몸
+    g.fillStyle = '#5C72C2'; g.beginPath(); g.arc(0.22, -0.1, 0.24, 0, TAU); g.fill();   // 머리
+    g.fillStyle = '#E2EAFF'; g.beginPath(); g.ellipse(0.06, 0.12, 0.27, 0.15, 0, 0, TAU); g.fill();   // 배
+    g.fillStyle = '#FFB13D'; g.beginPath(); g.moveTo(0.4, -0.15); g.lineTo(0.66, -0.06); g.lineTo(0.4, 0.02); g.closePath(); g.fill();   // 부리
+    g.fillStyle = '#E8901F'; g.beginPath(); g.moveTo(0.4, -0.06); g.lineTo(0.62, -0.05); g.lineTo(0.4, 0.02); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(0.28, -0.15, 0.085, 0, TAU); g.fill();   // 눈
+    g.fillStyle = '#141A33'; g.beginPath(); g.arc(0.3, -0.14, 0.045, 0, TAU); g.fill();
+    g.strokeStyle = '#141A33'; g.lineWidth = 0.05; g.lineCap = 'round'; g.beginPath(); g.moveTo(0.17, -0.29); g.lineTo(0.37, -0.23); g.stroke();   // 찡그린 눈썹
+    g.fillStyle = '#3A4C93';   // 앞날개
+    g.save(); g.translate(-0.02, -0.04); g.rotate(-0.25 - fl * 0.75); g.beginPath(); g.ellipse(-0.08, -0.2, 0.17, 0.34, -0.25, 0, TAU); g.fill(); g.restore();
+  }
+  function drawBirds(t) {
+    f.save(); f.beginPath(); f.rect(FX0, 0, FWPX, H); f.clip();
+    let pills = null;
+    for (const b of S.birds) {
+      const Y = sy(birdY(b, t));
+      if (b.st === 'warn') {   // 들어올 가장자리에 ❗ (안쪽을 가리키는 작은 화살표와 함께)
+        const r = clamp(U * 0.36, 11, 16); let X = b.dir > 0 ? FX0 + r + 6 : FX0 + FWPX - r - 6;
+        // 낮은 가로 화면: 점수판 알약이 놀이 칸 가장자리까지 들어와 ❗ 를 가리면, 높이는 그대로(새가 들어올 높이) 두고 알약 안쪽 옆으로 비킨다
+        if (!pills) pills = $('hud').hidden ? [] : Array.from(document.querySelectorAll('#hud .hp'), e => e.getBoundingClientRect());
+        for (const q of pills) if (Y + r + 3 > q.top && Y - r - 3 < q.bottom && X + r + 3 > q.left && X - r - 3 < q.right) X = b.dir > 0 ? Math.max(X, q.right + r + 4) : Math.min(X, q.left - r - 4);
+        X = clamp(X, FX0 + r + 2, FX0 + FWPX - r - 2);
+        const pul = reduceMotion ? 1 : 0.75 + 0.25 * Math.sin(t * 14);
+        f.globalAlpha = Math.min(1, (BD.warn - b.w) * 6 + 0.2) * pul;
+        f.fillStyle = 'rgba(229,72,77,.94)'; f.beginPath(); f.arc(X, Y, r, 0, TAU); f.fill();
+        f.beginPath(); f.moveTo(X + b.dir * (r + 9), Y); f.lineTo(X + b.dir * (r + 2), Y - 6); f.lineTo(X + b.dir * (r + 2), Y + 6); f.closePath(); f.fill();
+        f.lineWidth = 2; f.strokeStyle = '#fff'; f.beginPath(); f.arc(X, Y, r, 0, TAU); f.stroke();
+        f.fillStyle = '#fff'; f.font = '800 ' + Math.round(r * 1.35) + 'px ' + FONT; f.textAlign = 'center'; f.textBaseline = 'middle'; f.fillText('!', X, Y + 1);
+        f.globalAlpha = 1; continue;
+      }
+      if (Y < -U * 2 || Y > H + U * 2) continue;
+      f.save(); f.translate(sx(b.x), Y); f.scale(U, U);
+      if (b.st === 'fall') { f.rotate(b.rot); f.globalAlpha = 0.85; }
+      else if (b.hit) f.globalAlpha = 0.7;
+      birdArt(f, b, t); f.restore();
+    }
+    f.restore();
+  }
   function bubble(text, x, y, a) {
     f.save(); f.globalAlpha = clamp(a, 0, 1); const fs = clamp(U * 0.42, 15, 22); f.font = '700 ' + fs + 'px ' + FONT;
     const tw = f.measureText(text).width, bw = tw + fs * 1.5, bh = fs * 2.1; x = clamp(x, bw / 2 + 8, W - bw / 2 - 8);
@@ -541,7 +676,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   const showCtl = on => { $('btnL').hidden = $('btnR').hidden = !on; };
   function start(id) {
     const did = DIFF[id] ? id : KG.diff();
-    D = DIFF[did] || DIFF.normal; runKey = KG.dkey(KEY, did); S.diffId = did; $('hDiff').textContent = KG.diffLabel(did);
+    D = DIFF[did] || DIFF.normal; BD = BIRD[did] || BIRD.normal; runKey = KG.dkey(KEY, did); S.diffId = did; $('hDiff').textContent = KG.diffLabel(did);
     reset(); S.mode = 'play'; S.vy = VJ; S.landT = 0; BOT.tgt = null; BOT.fresh = -1; BOT.wait = 0;
     k.setPose('stand'); hudCache.s = hudCache.b = -1; unhold(); rb.hide();
     $('cardStart').hidden = true; $('cardOver').hidden = true; $('cardPause').hidden = true; $('hud').hidden = false; btnPause.hidden = false; showCtl(true);
@@ -550,12 +685,13 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   }
   function fall() {
     if (S.mode !== 'play') return;
-    S.mode = 'ending'; S.endT = 0; S.scare = 0; S.newBest = S.score > 0 && S.score > KG.best(runKey); btnPause.hidden = true; showCtl(false); unhold();
+    S.mode = 'ending'; S.endT = 0; S.scare = 0; S.birdMsg = 0; S.birds = S.birds.filter(b => b.st !== 'warn');   // 아직 안 들어온 새의 ❗ 는 걷는다 (나는 새는 마저 빠져나간다)
+    S.newBest = S.score > 0 && S.score > KG.best(runKey); btnPause.hidden = true; showCtl(false); unhold();
     if (!S.simulating) { sfx('lose'); tone(520, 0.4, 'sine', 0.06, 0, 160); }
   }
   let ovNew = false, overAt = 0;   // 이번 판이 새 기록이었나 · 결과 카드가 뜬 때(두드리던 손가락에 카드가 바로 넘어가지 않게)
   function showOver() {
-    if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now();
+    if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now(); S.birds.length = 0;   // 결과 카드 뒤에 공중에 멈춘 새가 남지 않게
     ovNew = S.score > 0 && KG.setBest(runKey, S.score);
     $('ovTitle').textContent = ovNew ? '하늘 높이 올라갔어요!' : S.score >= 100 ? '높이 올라갔어요!' : '아쉬워요, 한 번 더!';
     $('ovSub').textContent = ovNew ? J(name, '이/가') + ' 신나서 꼬리를 흔들어요' : J(name, '이/가') + ' 다시 올라가고 싶대요';
@@ -647,7 +783,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
 
   // ── 시험용
   window.GAME = {
-    S, BOT, DIFF, get state() { return S.mode; }, get score() { return S.score; }, get high() { return S.high; }, get bones() { return S.bones; },
+    S, BOT, DIFF, BIRD, get state() { return S.mode; }, get score() { return S.score; }, get high() { return S.high; }, get bones() { return S.bones; },
     get metrics() { return { W, H, U, FX0, FWPX, VH, FOLLOW, GROUND, KS, diff: S.diffId }; },
     start, end: fall, over: showOver, pause, resume, quit, step, draw, toReady,
     left(on) { if (on === false) unhold('api'); else hold('api', -1); }, right(on) { if (on === false) unhold('api'); else hold('api', 1); }, stop() { unhold('api'); },
@@ -657,7 +793,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     sim(id, o, maxT) {
       const was = BOT.on; S.simulating = true; BOT.on = true; Object.assign(BOT, { err: 0, lag: 0, slip: 0 }, o); start(id);
       const lim = maxT || 180; while (S.mode === 'play' && S.t < lim) step(1 / 60);
-      const r = { score: S.score, high: Math.floor(S.high), bones: S.bones, time: +S.t.toFixed(1), alive: S.mode === 'play', bounces: S.bounces };
+      const r = { score: S.score, high: Math.floor(S.high), bones: S.bones, time: +S.t.toFixed(1), alive: S.mode === 'play', bounces: S.bounces, birdHit: S.bHit, birdStomp: S.bStomp, birdOn: S.birdOn };
       S.simulating = false; BOT.on = was; toReady(); return r;
     }
   };

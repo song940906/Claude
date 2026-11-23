@@ -241,7 +241,10 @@
   const best = k => { const v = parseFloat(ls.get('kongstar.game.' + k)); return isFinite(v) ? v : 0; };
   // 더 좋은 기록이면 저장하고 true (lower: 작을수록 좋은 기록 — 걸린 시간·횟수)
   let recFlag = false;   // 이번 판에 새 기록이 났다 → 결과 순위 카드를 띄울 때 추억 사진 한 장
-  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { ls.set('kongstar.game.' + k, String(v)); rankPush(); recFlag = true; return true; } return false; }
+  let recBase = {};      // 열쇠마다 이번 판에서 처음 setBest 를 부를 때의 기록 — 판 도중 여러 번 저장하는 게임도 「판 시작 때 기록」과 비교한다
+  let recBeat = false;   // 그 새 기록이 「이미 있던 기록」을 넘은 것이다 → 결과 카드에서 콩이가 한 번 짖는다 (첫 기록은 안 짖음, 11-23 사용자 요청)
+  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (!(k in recBase)) recBase[k] = b != null && isFinite(cur) ? cur : null;
+    if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { const base = recBase[k]; if (base != null && (lower || base > 0) && (lower ? v < base : v > base)) recBeat = true; ls.set('kongstar.game.' + k, String(v)); rankPush(); recFlag = true; return true; } return false; }
 
   // ── 난이도: 게임 세 개가 함께 쓴다 (한 번 고르면 다른 게임에서도 그대로)
   //   KG.DIFFS[i] = { id, label } · KG.diff() → 'easy'|'normal'|'hard'|'vhard' · KG.diffIdx() → 0~3 · KG.setDiff(id)
@@ -527,8 +530,8 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   //               check(url, code), leave(), cache(), myRecs(), withMe(players), board(players, 열쇠, lower), standings(players), parseInvite(hash), cleanName(이름) }
   const GAMES = [
     { key: 'run', title: '콩이런', ico: '🏃', unit: '점', lower: false, href: 'run.html' },
-    { key: 'match3', title: '간식 3개 맞추기', ico: '🧩', unit: '점', lower: false, href: 'puzzle.html' },
-    { key: 'pairs', title: '카드 짝 맞추기', ico: '🃏', unit: '번', lower: true, href: 'puzzle.html' },
+    { key: 'm3stage', title: '간식 3개 맞추기', ico: '🧩', unit: '단계', lower: false, href: 'puzzle.html' },     // 11-23: 순위를 점수 → 깬 단계로 (옛 열쇠 match3 은 순위에서 뺌)
+    { key: 'pairstage', title: '카드 짝 맞추기', ico: '🃏', unit: '단계', lower: false, href: 'puzzle.html' },  // 11-23: 순위를 뒤집은 횟수 → 깬 단계로 (옛 열쇠 pairs.* 은 순위에서 뺌)
     { key: 'shoot', title: '슈팅', ico: '⭐', unit: '점', lower: false, href: 'shoot.html' },
     { key: 'basket', title: '간식바구니', ico: '🧺', unit: '점', lower: false, href: 'basket.html' },
     { key: 'jump', title: '점프 점프', ico: '☁️', unit: '점', lower: false, href: 'jump.html' },
@@ -549,7 +552,12 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { key: 'cups', title: '야바위', ico: '🥤', unit: '번', lower: false, href: 'cups.html' },
     { key: 'tug', title: '줄다리기', ico: '💪', unit: '점', lower: false, href: 'tug.html' },
     { key: 'stairs', title: '계단 유산소', ico: '🪜', unit: '층', lower: false, href: 'stairs.html' },
-    { key: 'curl', title: '간식컬링', ico: '🥌', unit: '점', lower: false, href: 'curl.html' }
+    { key: 'curl', title: '간식컬링', ico: '🥌', unit: '점', lower: false, href: 'curl.html' },
+    { key: 'bubble', title: '방울팡', ico: '🫧', unit: '점', lower: false, href: 'bubble.html' },
+    { key: 'brick', title: '벽돌깨기', ico: '🧱', unit: '점', lower: false, href: 'brick.html' },
+    { key: 'parade', title: '산책행렬', ico: '🐕', unit: '마리', lower: false, href: 'parade.html' },
+    { key: 'cross', title: '무단횡단', ico: '🚸', unit: '칸', lower: false, href: 'cross.html' },
+    { key: 'pinball', title: '핀볼', ico: '🪩', unit: '점', lower: false, href: 'pinball.html' }
   ];
   const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };
   const RK = { me: 'kongstar.rank.me', cfg: 'kongstar.rank.cfg', dirty: 'kongstar.rank.dirty', last: 'kongstar.rank.last', cache: 'kongstar.rank.cache', seen: 'kongstar.rank.seen' };
@@ -748,7 +756,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     document.body.appendChild(w); photoEl = w; requestAnimationFrame(() => requestAnimationFrame(() => w.classList.add('on')));
     w._t = setTimeout(() => { if (photoEl === w) closePhoto(); }, 6500);
   }
-  function recPhoto() { if (!recFlag) return; recFlag = false; setTimeout(() => memPhoto().then(p => { if (p) showPhoto(p); }), 500); }
+  function recPhoto() { const beat = recBeat; recBeat = false; recBase = {}; if (!recFlag) return; recFlag = false; if (beat) voice('bark', 0.2, 1.4); setTimeout(() => memPhoto().then(p => { if (p) showPhoto(p); }), 500); }
   const RB_TOP = 5, RB_EVERY = 20000, RB_FOR = 600000;
   const hhmm = t => { try { return new Date(t || Date.now()).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
   function rankBox(host, gameKey, atStart) {
@@ -826,7 +834,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     const rb = rankBox(card, gameKey, true), opt = () => (o && o.note ? { note: typeof o.note === 'function' ? o.note() : o.note } : undefined);
     let on = false;
     const vis = () => !scrim.hidden && card.getClientRects().length > 0;
-    function tick() { const v = vis(); if (v && !on) { on = true; recFlag = false; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
+    function tick() { const v = vis(); if (v && !on) { on = true; recFlag = false; recBeat = false; recBase = {}; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
     diffWatch.push(id => { if (on) rb.show(id, opt()); });
     setInterval(tick, 300); requestAnimationFrame(tick);
     return { rb, refresh() { if (on) rb.show(diffId, opt()); } };
@@ -837,5 +845,6 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   document.addEventListener('visibilitychange', () => { if (!document.hidden) rankSync(false); });
   addEventListener('pagehide', () => { if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; if (syncing) syncAgain = true; else rankSync(true); } });
 
-  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, markNew() { recFlag = true; } };
+  const voiceG = (n, delay, vol) => n === 'bark' ? 0 : voice(n, delay, vol);   // 11-23: 게임 속 짖는 소리가 너무 잦다는 요청 → 게임 쪽 짖기는 끄고 신기록 때만(recPhoto)
+  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice: voiceG, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, markNew(beat) { recFlag = true; if (beat !== false) recBeat = true; } };
 })();

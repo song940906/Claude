@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '3db33a7498';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = '5cd94df725';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -4286,11 +4286,10 @@ document.addEventListener('keydown', e => {
 $('btnMenu').addEventListener('click', () => {
   const unseen = bkUnseen;   // 설정을 닫은 채 끝난 가져오기 결과는 덮지 않고 그 칸으로 내려 보여 준다
   unlockAudio(); fillSettings(); openSheet('sheetMenu');
-  // 메뉴의 주황 점이 무슨 뜻인지 알려 주고 백업 칸으로 내려 준다
-  if (!$('menuBadge').hidden || unseen) {
-    if (!unseen) { $('bkMsg').textContent = `새 추억이 ${S.newSinceBackup}개 생겼어요. 백업 파일을 만들어 가족에게 보내 두면 안전해요.`; $('bkMsg').hidden = false; }
-    setTimeout(() => $('bkStatus').scrollIntoView({ block: 'center' }), 320);
-  }
+  // 설정은 늘 맨 위(이름)부터 연다 — 전에는 새 추억이 있으면 백업 칸으로 내려가 중간부터 보였다(사용자 요청 11-23으로 바꿈)
+  const sh = $('sheetMenu').querySelector('.sheet'); if (sh) sh.scrollTop = 0;
+  // 메뉴의 주황 점이 무슨 뜻인지는 백업 칸 안내 글로 알려 준다 (내려가지는 않음)
+  if (!$('menuBadge').hidden && !unseen) { $('bkMsg').textContent = `새 추억이 ${S.newSinceBackup}개 생겼어요. 백업 파일을 만들어 가족에게 보내 두면 안전해요.`; $('bkMsg').hidden = false; }
 });
 function fillSettings() {
   $('sName').value = S.name; $('sBirth').value = S.birthday; $('sFamily').value = S.familyDay; $('sStar').value = S.starDay;

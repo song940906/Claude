@@ -1,6 +1,6 @@
 // node make.js 가 생성 — 직접 고치지 말 것
-const CACHE = 'kongstar-3db33a7498';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './games/common.js', './games/basket.html', './games/bowl.html', './games/cups.html', './games/curl.html', './games/deliver.html', './games/dig.html', './games/fish.html', './games/flower.html', './games/index.html', './games/jump.html', './games/puzzle.html', './games/quiz.html', './games/race.html', './games/rank.html', './games/rope.html', './games/run.html', './games/seek.html', './games/shoot.html', './games/shop.html', './games/spot.html', './games/stack.html', './games/stairs.html', './games/throw.html', './games/toys.html', './games/tug.html'];
+const CACHE = 'kongstar-5cd94df725';
+const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './games/common.js', './games/basket.html', './games/bowl.html', './games/brick.html', './games/bubble.html', './games/cross.html', './games/cups.html', './games/curl.html', './games/deliver.html', './games/dig.html', './games/fish.html', './games/flower.html', './games/index.html', './games/jump.html', './games/parade.html', './games/pinball.html', './games/puzzle.html', './games/quiz.html', './games/race.html', './games/rank.html', './games/rope.html', './games/run.html', './games/seek.html', './games/shoot.html', './games/shop.html', './games/spot.html', './games/stack.html', './games/stairs.html', './games/throw.html', './games/toys.html', './games/tug.html'];
 
 self.addEventListener('install', e => {
   // HTTP 캐시(GitHub Pages 10분)를 거치지 않고 새로 받아 새 캐시에 넣는다

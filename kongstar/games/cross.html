@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 무단횡단</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 무단횡단: 땅·통나무·콩이 뒤쪽 물건(cv) → 콩이(stage) → 콩이 앞쪽 물건·비둘기·글자(fx) → 점수판 순서로 겹친다 */
+#cv, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#cv { z-index: 1; pointer-events: none; background: #9AD27B; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; touch-action: none; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6px; pointer-events: none; transform: translateX(-50%); }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud svg { width: 16px; height: 16px; display: block; }
+#hud .sc.bump { animation: scBump .35s; }
+@keyframes scBump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+#hud .pg.warn { background: rgba(229,72,77,.72); }
+#hud.tight { gap: 4px; }
+#hud.tight > div { padding: 0 8px; font-size: 13px; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+body .kg-top .kg-title { pointer-events: none; }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stKeys { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면: 카드가 위 줄(게임·소리 단추) 밑에서 시작하게, 결과 카드 높이를 줄인다 */
+@media (orientation: landscape) and (max-height: 360px) {
+  #cardStart, #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+  body .kg-rbwrap > .kg-card #edText { display: none; }
+  body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="stage"></div>
+<canvas id="fx" aria-label="콩이가 건너는 길"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="sc" id="hudSc"><span id="hudRow">0</span><small>칸</small></div>
+  <div class="tr"><svg viewBox="0 0 16 16"><path fill="#FFE0A8" stroke="#C98B52" stroke-width="1" d="M4.2 6.2a1.9 1.9 0 1 1 1.6-2.6h4.4a1.9 1.9 0 1 1 1.6 2.6v3.6a1.9 1.9 0 1 1-1.6 2.6H5.8a1.9 1.9 0 1 1-1.6-2.6z"/></svg><span id="hudTr">0</span></div>
+  <div class="pg" id="hudPg" hidden><span>구구!</span></div>
+</div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 무단횡단</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>화면을 누르면 앞으로 한 칸.</b> 옆·아래로 밀면 그쪽으로 한 칸.</p>
+      <p>차·자전거·기차를 피하고, 개울은 <b>통나무·연잎</b>을 밟아요.</p>
+      <p id="stKeys" hidden><b>↑ ↓ ← →</b> 한 칸씩 · <b>스페이스</b> 앞으로 · <b>Esc</b> 멈춤</p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">데굴데굴 굴렀어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>칸</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>간식<b id="edTr"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const KEY = 'cross', TITLE = J(name, '의') + ' 무단횡단';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 길: 가로 9칸. 한 줄 = 한 칸 높이. 줄 번호 r 은 위로 갈수록 커진다 (0 = 출발 잔디) ═══════
+  //   가로 좌표 x 는 칸 가운데가 정수 (0~8 칸은 x-0.5 ~ x+0.5). 차·통나무의 x 는 왼쪽 끝
+  const COLS = 9, HOP = 0.13, KHW = 0.26;          // 칸 수 · 한 칸 뛰는 시간(초) · 콩이 몸 판정 반폭(그림보다 작게: 너그럽게)
+  const VPAD = 0.14;                               // 차·자전거 판정은 앞뒤로 이만큼 줄인다
+  const PLAT = 0.3;                                // 통나무·연잎은 양 끝을 이만큼 넓게 봐 준다 (살짝 걸쳐도 선다)
+  const EDGE = 0.7;                                // 떠내려가다 길 밖으로 이만큼(칸) 나가면 풍덩 — 끝 칸에 내려도 바로 빠지지 않게 넉넉히
+  const TRAIN_V = 20, TRAIN_LEN = 10.5;            // 기차 빠르기(칸/초) · 길이
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   car 차 빠르기 [처음, 가장 빠를 때] 칸/초 · gapT 차 사이 최소 틈을 빠르기×이 초만큼 더 벌림 · gapK 틈 최대 = 최소×gapK
+  //   bike 자전거 빠르기 · log 통나무 빠르기 · logLen 통나무 길이 · lgap 통나무 사이 물 폭 · lanes 차도 최대 차선
+  //   riverFrom·trainFrom 개울·기차가 처음 나올 수 있는 줄 · warn 기차 경고등 시간(초) · tgap 기차 간격(초)
+  //   pv 비둘기 떼 빠르기 [처음, 가장 빠를 때] 줄/초 · lag 콩이가 간 가장 먼 줄에서 비둘기가 이만큼 뒤에 따라온다 · ramp 이 줄에서 가장 어려워진다
+  const DIFF = {
+    easy:   { car: [1.1, 2.9], gapT: 1.3,  gapK: 2.3, bike: [2.8, 4.4], log: [0.7, 1.5], logLen: [3, 4], lgap: [0.9, 1.5], lanes: 3, riverFrom: 24, trainFrom: 40, warn: 2.2, tgap: [6, 10], pv: [0.22, 0.55], lag: 6,   ramp: 240, treat: 0.16 },
+    normal: { car: [1.4, 3.7], gapT: 1.05, gapK: 2.1, bike: [3.4, 5.4], log: [0.8, 1.9], logLen: [2, 4], lgap: [1.0, 1.9], lanes: 4, riverFrom: 14, trainFrom: 26, warn: 1.7, tgap: [5, 9],  pv: [0.3, 0.75],  lag: 5,   ramp: 190, treat: 0.13 },
+    hard:   { car: [1.9, 4.5], gapT: 0.85, gapK: 1.9, bike: [4.2, 6.4], log: [1.0, 2.3], logLen: [2, 3], lgap: [1.1, 2.2], lanes: 5, riverFrom: 9,  trainFrom: 17, warn: 1.35, tgap: [4, 8], pv: [0.38, 0.95], lag: 4.5, ramp: 150, treat: 0.11 },
+    vhard:  { car: [2.3, 5.3], gapT: 0.72, gapK: 1.8, bike: [5.0, 7.4], log: [1.2, 2.6], logLen: [2, 3], lgap: [1.2, 2.4], lanes: 5, riverFrom: 7,  trainFrom: 12, warn: 1.1, tgap: [3.5, 7], pv: [0.45, 1.1], lag: 4,   ramp: 120, treat: 0.1 }
+  };
+  let diffId = 'normal', D = DIFF.normal;
+  const fr = r => clamp(r / D.ramp, 0, 1);
+  const CAR_COLS = ['#FF8A8A', '#FFB86B', '#7FC8FF', '#B79CFF', '#7ED9A6', '#FF9BC8'];
+  const BUS_COLS = ['#FFD45E', '#7ED9C3', '#FFA98A'];
+  const RIDER_COLS = ['#6C8CFF', '#FF7A9C', '#3FBF9B', '#FFB84D'];
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '차도·자전거길·개울·기찻길을 한 칸씩 건너 멀리멀리 가요.';
+  if (KEYS_OK) $('stKeys').hidden = false;
+  const cv = $('cv'), fx = $('fx'), stage = $('stage'), hud = $('hud');
+  const g = cv.getContext('2d'), fg = fx.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const K = kong(stage, 60);
+  const HAS_REAR = K.has('rear');
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';                       // ready · play · pause · over · result
+  let rows = new Map(), genR = -6, zoneQ = [], reach = null, lastZone = '', riverDir = 1, firstRiver = true, easyRiverN = 0;
+  let tW = 0, tAnim = 0, camB = -3, pig = -5, maxR = 0, treats = 0, moves = 0, isNew = false, quit = false, overAt = 0, overT = 0;
+  let cause = '', deadT = 0, deadDir = 1, queued = null, honkCD = 0, cooT = 0, lastMile = 0;
+  const kg = { r: 0, x: 4, fr: 0, fx: 4, tx: 4, hop: null, face: 'up', bump: 0, bumpDir: 0 };
+  let bubbles = [], floats = [], rings = [], drops = [], crumbs = [];
+  let W = 0, H = 0, DPR = 1, S = 40, ox = 0, rowsVis = 14, xLw = -4, xRw = 12, SAF = { t: 0, b: 0, l: 0, r: 0 }, KSZ = 60, lowTop = false, edge = 0.7;
+
+  const X = x => ox + (x + 0.5) * S;                   // 가로 좌표 → 화면 x (칸 가운데·물건 왼쪽 끝 모두 같은 식)
+  const RT = r => H - (r + 1 - camB) * S;              // 줄 r 의 화면 위쪽 y (실수 줄도 됨)
+  const hash = (a, b) => { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+
+  // ═══════ 줄 만들기: 몇 줄씩 묶음(차도 n 차선, 개울 n 줄 …)을 정하고 사이사이 쉬는 잔디를 둔다 ═══════
+  function planZone(r) {
+    if (r < 4) { zoneQ.push('grass'); return; }                    // 출발 앞 네 줄은 잔디
+    const f = fr(r), opts = [['road', 5]];
+    if (r >= 8) opts.push(['bike', 1.5]);
+    if (r >= D.riverFrom) opts.push(['river', 2.2 + f]);
+    if (r >= D.trainFrom) opts.push(['train', 1.1 + f * 0.6]);
+    const pool = opts.filter(o => o[0] !== lastZone || o[0] === 'road');
+    let sum = 0; for (const o of pool) sum += o[1];
+    let u = Math.random() * sum, z = pool[0][0];
+    for (const o of pool) { if ((u -= o[1]) < 0) { z = o[0]; break; } }
+    if (r < 10) z = 'road';                                         // 처음 묶음들은 차도(느린 차, 한두 차선)
+    let n = 1;
+    if (z === 'road') n = r < 12 ? ri(1, 2) : ri(1, Math.min(D.lanes, 2 + Math.floor(f * (D.lanes - 1))));
+    else if (z === 'river') { n = firstRiver ? 2 : ri(1, Math.min(D.lanes >= 4 ? 3 : 2, 1 + Math.round(f * 2))); if (firstRiver) easyRiverN = n; firstRiver = false; }
+    else if (z === 'bike') n = f > 0.5 && Math.random() < 0.4 ? 2 : 1;
+    for (let i = 0; i < n; i++) zoneQ.push(z);
+    const rest = r < 30 ? ri(1, 2) : Math.random() < 0.25 + (1 - f) * 0.3 ? 2 : 1;   // 사이 잔디 (개울·기찻길 뒤에도 늘 하나 이상)
+    for (let i = 0; i < rest; i++) zoneQ.push('grass');
+    lastZone = z;
+  }
+  function genRow() {
+    const r = genR++;
+    const type = r < 0 ? 'grass' : (zoneQ.length || planZone(r), zoneQ.shift());
+    const row = { r, type, shade: r & 1 };
+    if (type === 'grass') makeGrass(row);
+    else { reach = null; if (type === 'train') row.train = { st: 'idle', next: tW + rand(2.5, 5), x: 0, dir: 1, dinged: 0 }; else makeLane(row); }
+    row.edge = rows.has(r - 1) ? rows.get(r - 1).type : 'grass';
+    rows.set(r, row);
+  }
+  function makeGrass(row) {
+    const r = row.r, obs = new Array(COLS).fill(0); row.obs = obs; row.treat = -1;
+    if (r < 0) { for (let c = 0; c < COLS; c++) obs[c] = 1 + (hash(r, c) < 0.35 ? 2 : 0); reach = null; return; }   // 출발 뒤는 나무 울타리
+    if (r === 0) { reach = [[...Array(COLS).keys()]]; return; }
+    const f = fr(r), n = r < 4 ? ri(0, 1) : ri(1, 2 + Math.round(f * 2));
+    for (let i = 0; i < n; i++) { const c = ri(0, COLS - 1); if (r < 3 && Math.abs(c - 4) < 2) continue; obs[c] = pick([1, 1, 2, 3]); }   // 출발 바로 앞은 비워 둔다
+    // 지나갈 길 보장 (막다른 곳 없음): 바로 아래 줄에서 닿을 수 있는 칸 무리(옆으로 이어진 빈칸)마다 위로 빈칸이 하나 이상.
+    //   아래가 찻길·개울·기찻길이면 아래 줄 전체가 한 무리. 이 줄에서 닿는 칸 = 아래에서 올라올 수 있는 빈칸과 옆으로 이어진 빈칸
+    const comps = reach || [[...Array(COLS).keys()]];
+    for (const comp of comps) if (!comp.some(c => !obs[c])) obs[pick(comp)] = 0;
+    const entry = new Set(); for (const comp of comps) for (const c of comp) if (!obs[c]) entry.add(c);
+    const seen = new Set(), out = [];
+    for (const s of entry) {
+      if (seen.has(s)) continue;
+      const comp = [], st = [s];
+      while (st.length) { const c = st.pop(); if (seen.has(c)) continue; seen.add(c); comp.push(c); for (const d of [-1, 1]) { const k = c + d; if (k >= 0 && k < COLS && !obs[k] && !seen.has(k)) st.push(k); } }
+      out.push(comp);
+    }
+    reach = out;
+    const cells = out.flat();
+    if (r >= 3 && Math.random() < D.treat) row.treat = pick(cells);
+  }
+  function makeLane(row) {
+    const r = row.r, f = fr(r), objs = [], target = rand(17, 24); let x = 0, s = 1;
+    if (row.type === 'road') {
+      s = lerp(D.car[0], D.car[1], f) * rand(0.85, 1.15); if (r < 12) s = Math.min(s, D.car[0] * 1.1);
+      const gmin = Math.max(2.4, s * D.gapT + 1.3) + (r < 12 ? 1 : 0);
+      while (x < target) { const bus = r >= 8 && Math.random() < 0.15 + 0.2 * f, len = bus ? 2.5 : 1.4; objs.push({ o: x, len, k: bus ? 'bus' : 'car', c: pick(bus ? BUS_COLS : CAR_COLS) }); x += len + rand(gmin, gmin * D.gapK); }
+      row.dir = Math.random() < 0.5 ? 1 : -1;
+    } else if (row.type === 'bike') {
+      s = lerp(D.bike[0], D.bike[1], f) * rand(0.9, 1.1);
+      const gmin = Math.max(3.2, s * D.gapT + 1.6);
+      while (x < target) { objs.push({ o: x, len: 0.9, k: 'bike', c: pick(RIDER_COLS) }); x += 0.9 + rand(gmin, gmin * D.gapK * 1.2); }
+      row.dir = Math.random() < 0.5 ? 1 : -1;
+    } else {   // 개울: 줄마다 흐르는 쪽이 번갈아 바뀐다
+      riverDir = -riverDir; row.dir = riverDir;
+      const easy = easyRiverN > 0; if (easy) easyRiverN--;
+      const pads = !easy && Math.random() < 0.3;
+      s = lerp(D.log[0], D.log[1], f) * rand(0.85, 1.15) * (pads ? 0.7 : 1) * (easy ? 0.8 : 1);
+      while (x < target) {
+        const len = pads ? ri(2, 3) : ri(D.logLen[0] + (easy ? 1 : 0), D.logLen[1]);
+        objs.push({ o: x, len, k: pads ? 'pads' : 'log', fl: pads ? ri(0, len - 1) : 0 });
+        x += len + rand(D.lgap[0], D.lgap[1]) + f * 0.3 * (easy ? 0 : 1);
+      }
+    }
+    row.objs = objs; row.P = x; row.v = row.dir * s;
+  }
+  function rowAt(r) { while (genR <= r) genRow(); return rows.get(r); }
+  // 줄 위 물건의 왼쪽 끝 (시각 tt). 한 줄의 물건은 길이 P 마다 되풀이된다
+  function laneX(row, ob, tt) { const P = row.P, A = COLS / 2 - P / 2 - 0.5; return A + (((ob.o + row.v * tt - A) % P) + P) % P; }
+  function eachCopy(row, ob, tt, x0, x1, fn) {
+    const P = row.P, b = laneX(row, ob, tt);
+    for (let x = b - Math.ceil((b - (x0 - ob.len)) / P) * P; x < x1; x += P) fn(x);
+  }
+  // 시각 tt 에 줄 r 의 가로 x 가 위험한가: 'car' · 'train' · 'water' · ''(안전)
+  function hazardAt(row, x, tt) {
+    if (!row) return '';
+    if (row.type === 'road' || row.type === 'bike') {
+      let hit = '';
+      for (const ob of row.objs) eachCopy(row, ob, tt, x - 2, x + 2, vx => { if (x + KHW > vx + VPAD && x - KHW < vx + ob.len - VPAD) hit = row.type === 'bike' ? 'bike' : 'car'; });
+      return hit;
+    }
+    if (row.type === 'train') { const tr = row.train; if (tr.st === 'go' && x + KHW > tr.x + 0.1 && x - KHW < tr.x + TRAIN_LEN - 0.1) return 'train'; return ''; }
+    if (row.type === 'river') return platformAt(row, x, tt) ? '' : 'water';
+    return '';
+  }
+  function platformAt(row, x, tt) {
+    let on = null;
+    for (const ob of row.objs) eachCopy(row, ob, tt, x - 5, x + 5, vx => { if (x > vx - PLAT && x < vx + ob.len + PLAT) on = { ob, x: vx }; });
+    return on;
+  }
+
+  // ═══════ 화면 맞추기 ═══════
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    const aw = W - SAF.l - SAF.r - 12;
+    lowTop = W > H && H < 520;
+    // 길 양옆에 반 칸쯤은 남긴다 (끝 칸에서 떠내려가도 콩이가 화면 밖으로 나가지 않게). 낮은 가로 화면은 줄을 조금 작게 해 앞을 더 보이게
+    S = Math.max(16, Math.min(aw / (COLS + 1), H / (lowTop ? 9.2 : 8.2), 66));
+    ox = (W - COLS * S) / 2 + (SAF.l - SAF.r) / 2;
+    edge = clamp((ox - SAF.l) / S + 0.25, 0.35, EDGE);   // 길 밖 허용폭: 화면에 콩이 몸 절반이 남는 만큼까지만
+    rowsVis = H / S;
+    xLw = -ox / S - 1.5; xRw = (W - ox) / S + 0.5;
+    KSZ = Math.round(S * 1.9); K.setSize(KSZ);
+    hud.style.top = (SAF.t + (lowTop ? 16 : 62)) + 'px'; hud.style.left = (W / 2 + (SAF.l - SAF.r) / 2) + 'px';
+    hud.classList.toggle('tight', W < 360);
+    bar.setTitle(lowTop ? '' : W < 360 ? '무단횡단' : TITLE);
+    for (const c of [cv, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    camB = Math.max(camB, camTarget()); if (state === 'ready') camB = camTarget();
+  }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+  const kVis = () => kg.hop != null ? lerp(kg.fr, kg.r, clamp(kg.hop / HOP, 0, 1)) : kg.r;
+  // 화면 아래 끝 줄: 콩이를 아래에서 36% 쯤에 두되, 비둘기 떼가 쫓아오면 떼가 아래 끝에 보이게
+  function camTarget() { return Math.max(pig - 0.8, kVis() - (lowTop ? (rowsVis - 0.6) * 0.30 : (rowsVis - 1.6) * 0.36)); }
+
+  // ═══════ 새 판 ═══════
+  function newWorld() {
+    rows = new Map(); genR = -6; zoneQ = []; reach = null; lastZone = ''; riverDir = 1; firstRiver = true; easyRiverN = 0; tW = 0;
+    Object.assign(kg, { r: 0, x: 4, fr: 0, fx: 4, tx: 4, hop: null, face: 'up', bump: 0, bumpDir: 0 });
+    pig = -D.lag; maxR = 0; treats = 0; moves = 0; queued = null; honkCD = 0; cooT = 0; lastMile = 0; cause = ''; deadT = 0;
+    bubbles = []; floats = []; rings = []; drops = []; crumbs = [];
+    camB = camTarget();
+    rowAt(Math.ceil(camB + rowsVis) + 3);
+    K.el.style.opacity = '';
+  }
+
+  // ═══════ 움직이기 ═══════
+  function tryMove(d) {
+    if (state !== 'play') return;
+    if (kg.hop != null) { queued = d; return; }
+    let nr = kg.r, nx = kg.x;
+    if (d === 'up') nr++; else if (d === 'down') nr--; else nx += d === 'left' ? -1 : 1;
+    const to = rowAt(nr);
+    if (!to || nr < -1) return bump(d);
+    if (to.type === 'river') { if (nx < -edge + 0.1 || nx > COLS - 1 + edge - 0.1) return bump(d); }
+    else {
+      // 통나무에서 내릴 때는 가까운 칸으로. 가장 가까운 칸에 나무가 있으면 반 칸 안쪽의 다른 칸
+      // 길 밖으로 떠내려가 있으면 길 끝 칸으로 (아직 안 빠졌으면 내릴 수 있게)
+      const c0 = clamp(Math.round(nx), 0, COLS - 1), c1 = nx - Math.floor(nx) < 0.5 ? Math.ceil(nx) : Math.floor(nx);
+      const cands = [c0, c1].filter((c, i, a) => a.indexOf(c) === i && c >= 0 && c < COLS && Math.abs(c - nx) <= ((c === 0 && nx < 0) || (c === COLS - 1 && nx > COLS - 1) ? edge + 0.05 : 0.62));
+      const ok = cands.find(c => !(to.type === 'grass' && to.obs[c]));
+      if (ok == null) return bump(d);
+      nx = ok;
+    }
+    kg.fr = kg.r; kg.fx = kg.x; kg.r = nr; kg.tx = nx; kg.hop = 0; kg.face = d; moves++;
+    tone(d === 'down' ? 470 : 560, 0.05, 'sine', 0.035, 0, d === 'down' ? 380 : 760);
+  }
+  function bump(d) { kg.bump = 0.16; kg.bumpDir = d; tone(190, 0.06, 'square', 0.02); }
+  function landed() {
+    kg.hop = null; kg.x = kg.tx;
+    const row = rowAt(kg.r);
+    if (row.type === 'river') {
+      const p = platformAt(row, kg.x, tW);
+      if (!p) { die('water'); return; }
+      if (!reduceMotion) for (let i = 0; i < 4; i++) drops.push({ x: kg.x + rand(-0.3, 0.3), y: kg.r + 0.5, vx: rand(-1, 1), vy: rand(1.2, 2.2), life: 0.35 });
+      tone(330, 0.05, 'sine', 0.04);
+    }
+    if (row.type === 'grass' && row.treat === kg.x) {
+      row.treat = -1; treats++; sfx('coin'); sfx('munch');
+      addFloat(kg.x, kg.r + 1.1, '+간식', '#FFE08A');
+      if (!reduceMotion) for (let i = 0; i < 6; i++) crumbs.push({ x: kg.x, y: kg.r + 0.6, vx: rand(-1.5, 1.5), vy: rand(1, 3), life: 0.5 });
+      paintHud();
+    }
+    if (kg.r > maxR) {
+      maxR = kg.r; paintHud(true);
+      if (maxR >= lastMile + 25) { lastMile = maxR - maxR % 25; sfx('power'); addFloat(kg.x, kg.r + 1.6, lastMile + '칸 돌파!', '#fff', true); }
+    }
+    if (queued) { const q = queued; queued = null; tryMove(q); }
+  }
+  function die(c) {
+    if (state !== 'play') return;
+    state = 'over'; cause = c; deadT = 0; overT = c === 'water' ? 1.5 : 1.7; btnPause.hidden = true; queued = null; tch.id = null;
+    if (c === 'car' || c === 'bike' || c === 'train') {
+      const row = rows.get(kg.r); deadDir = row && row.type === 'train' ? row.train.dir : row && row.v ? Math.sign(row.v) : 1;
+      sfx('hit'); tone(880, 0.1, 'triangle', 0.05, 0.15); tone(660, 0.12, 'triangle', 0.05, 0.27);
+    } else if (c === 'water') {
+      noise(0.4, 0.12, 1400, 300); tone(300, 0.25, 'sine', 0.06, 0, 140);
+      for (let i = 0; i < 3; i++) rings.push({ x: kg.x, y: kg.r + 0.5, t: -i * 0.18 });
+      if (!reduceMotion) for (let i = 0; i < 10; i++) drops.push({ x: kg.x, y: kg.r + 0.5, vx: rand(-2, 2), vy: rand(2, 4.5), life: 0.6 });
+    } else if (c === 'pigeon') { voice('growl', 0, 0.7); for (let i = 0; i < 4; i++) tone(rand(280, 360), 0.14, 'sine', 0.035, i * 0.13, 230); }
+    setTimeout(() => sfx('lose'), 350);
+  }
+
+  // ═══════ 흐름 ═══════
+  function updateTrains(dt) {
+    for (const row of rows.values()) {
+      const tr = row.train; if (!tr) continue;
+      if (tr.st === 'idle' && tW >= tr.next - D.warn) { tr.st = 'warn'; tr.dinged = 0; }
+      if (tr.st === 'warn') {
+        const vis = row.r >= camB - 1 && row.r <= camB + rowsVis;
+        if (vis && state === 'play' && tW - tr.dinged > 0.42) { tr.dinged = tW; tone(1250, 0.07, 'triangle', 0.028); }
+        if (tW >= tr.next) { tr.st = 'go'; tr.dir = Math.random() < 0.5 ? 1 : -1; tr.x = tr.dir > 0 ? xLw - TRAIN_LEN : xRw; if (vis && state === 'play') noise(0.9, 0.06, 600, 300); }
+      }
+      if (tr.st === 'go') {
+        tr.x += tr.dir * TRAIN_V * dt;
+        if ((tr.dir > 0 && tr.x > xRw + 1) || (tr.dir < 0 && tr.x + TRAIN_LEN < xLw - 1)) { tr.st = 'idle'; tr.next = tW + rand(D.tgap[0], D.tgap[1]); }
+      }
+    }
+  }
+  function update(dt) {
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y += dt * 0.7; if (f.life <= 0) floats.splice(i, 1); }
+    for (const arr of [drops, crumbs]) for (let i = arr.length - 1; i >= 0; i--) { const p = arr[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 9 * dt; if (p.life <= 0) arr.splice(i, 1); }
+    for (let i = rings.length - 1; i >= 0; i--) { rings[i].t += dt; if (rings[i].t > 1) rings.splice(i, 1); }
+    for (let i = bubbles.length - 1; i >= 0; i--) { bubbles[i].life -= dt; if (bubbles[i].life <= 0) bubbles.splice(i, 1); }
+    if (state === 'pause') return;
+    tW += dt; updateTrains(dt);
+    if (kg.bump > 0) kg.bump -= dt;
+    if (state === 'over') {
+      deadT += dt; overT -= dt;
+      if ((cause === 'car' || cause === 'bike' || cause === 'train') && deadT < 0.6) kg.x = clamp(kg.x + deadDir * (cause === 'train' ? 2.2 : 1.4) * (1 - deadT / 0.6) * dt, -0.4, COLS - 0.6);
+      if (overT <= 0) showResult();
+      return;
+    }
+    if (state !== 'play') return;
+    // 콩이 뛰기
+    if (kg.hop != null) { kg.hop += dt; const u = clamp(kg.hop / HOP, 0, 1); kg.x = lerp(kg.fx, kg.tx, u); if (u >= 1) landed(); }
+    if (state !== 'play') return;
+    // 통나무·연잎 위면 같이 떠내려간다
+    const row = rowAt(kg.r);
+    if (kg.hop == null && row.type === 'river') {
+      const p = platformAt(row, kg.x, tW);
+      if (!p) { die('water'); return; }
+      kg.x += row.v * dt;
+      if (kg.x < -edge || kg.x > COLS - 1 + edge) { die('water'); return; }
+    }
+    // 부딪힘 (뛰는 중엔 반을 넘기 전까지 출발 줄로 본다)
+    const rc = kg.hop != null && kg.hop / HOP < 0.5 ? kg.fr : kg.r, rr0 = rows.get(rc);
+    if (rr0 && rr0.type !== 'river') { const hz = hazardAt(rr0, kg.x, tW); if (hz) { die(hz); return; } }
+    // 빵빵: 콩이가 찻길 위에 있고 차가 다가오면 말풍선 (가끔)
+    honkCD -= dt;
+    if (honkCD <= 0 && kg.hop == null && (row.type === 'road' || row.type === 'bike')) {
+      for (const ob of row.objs) eachCopy(row, ob, tW, kg.x - 4, kg.x + 4, vx => {
+        if (honkCD > 0) return;
+        const dist = row.v > 0 ? kg.x - (vx + ob.len) : vx - kg.x;
+        if (dist > 0.45 && dist < 2.3) {
+          honkCD = 3.5; bubbles.push({ row, ob, shift: vx - (ob.o + row.v * tW), life: 1.2, text: row.type === 'bike' ? '따르릉!' : pick(['빵빵! 무단횡단!', '빵! 무단횡단이야!']) });
+          if (row.type === 'bike') { tone(1800, 0.06, 'triangle', 0.03); tone(1800, 0.06, 'triangle', 0.03, 0.1); }
+          else { tone(420, 0.12, 'square', 0.025); tone(420, 0.14, 'square', 0.025, 0.17); }
+        }
+      });
+    }
+    // 비둘기 떼: 첫 걸음을 떼면 쫓아오기 시작. 가장 먼 줄에서 lag 줄보다 멀리 처지지는 않는다
+    if (moves > 0) pig += lerp(D.pv[0], D.pv[1], fr(maxR)) * dt;
+    pig = Math.max(pig, maxR - D.lag);
+    const near = pig > kg.r - 2.2;
+    $('hudPg').hidden = !near; $('hudPg').classList.toggle('warn', near);
+    if (near) { cooT -= dt; if (cooT <= 0) { cooT = 1.1; tone(rand(290, 340), 0.16, 'sine', 0.03, 0, 240); } }
+    if (pig >= kg.r - 0.12 && kg.hop == null) { die('pigeon'); return; }
+    // 카메라
+    const tgt = camTarget();
+    if (tgt > camB) camB += (tgt - camB) * Math.min(1, dt * (reduceMotion ? 20 : 7));
+    if (kVis() - camB < 1.3) camB += (kVis() - 1.3 - camB) * Math.min(1, dt * 7);
+    // 멀리 지난 줄은 버리고 앞줄은 미리 만든다
+    rowAt(Math.ceil(camB + rowsVis) + 3);
+    for (const k of rows.keys()) if (k < camB - 4) rows.delete(k);
+  }
+
+  // ═══════ 그림 ═══════
+  function rr(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function ell(c, x, y, rx, ry, col) { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, TAU); c.fill(); }
+  function drawGround(c, row, y) {
+    const t = row.type, h = S + 1;
+    if (t === 'grass') {
+      c.fillStyle = row.shade ? '#A5DA85' : '#98D07A'; c.fillRect(0, y, W, h);
+      c.fillStyle = 'rgba(60,130,60,.22)';
+      for (let i = Math.floor(xLw); i < xRw; i++) { const u = hash(row.r, i); if (u < 0.45) { const px = X(i + u * 1.6 - 0.4), py = y + S * (0.3 + hash(i, row.r) * 0.5); c.fillRect(px, py, 2, S * 0.1); c.fillRect(px + 3, py - S * 0.03, 2, S * 0.13); } }
+    } else if (t === 'road') {
+      c.fillStyle = '#5D6479'; c.fillRect(0, y, W, h);
+      const up = rows.get(row.r + 1);
+      if (up && up.type === 'road') { c.fillStyle = 'rgba(255,255,255,.6)'; for (let x = Math.floor(xLw); x < xRw; x += 2) c.fillRect(X(x - 0.35), y - 1, S * 0.7, 3); }
+      else { c.fillStyle = '#C9CDD8'; c.fillRect(0, y, W, Math.max(2, S * 0.07)); }
+      if (row.edge !== 'road') { c.fillStyle = '#C9CDD8'; c.fillRect(0, y + S - Math.max(2, S * 0.07), W, Math.max(2, S * 0.07)); }
+    } else if (t === 'bike') {
+      c.fillStyle = '#D98A72'; c.fillRect(0, y, W, h);
+      c.fillStyle = 'rgba(255,255,255,.75)'; c.fillRect(0, y + S * 0.08, W, 2); c.fillRect(0, y + S * 0.92 - 2, W, 2);
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = Math.max(1.5, S * 0.05);
+      for (let x = Math.floor(xLw / 4) * 4 + 1; x < xRw; x += 4) { const cx = X(x), cy = y + S * 0.55, rw = S * 0.13; c.beginPath(); c.arc(cx - S * 0.2, cy, rw, 0, TAU); c.arc(cx + S * 0.2 + rw, cy, rw, 0, TAU); c.moveTo(cx - S * 0.2, cy); c.lineTo(cx, cy - S * 0.2); c.lineTo(cx + S * 0.2, cy); c.stroke(); }
+    } else if (t === 'river') {
+      c.fillStyle = '#6CC4EA'; c.fillRect(0, y, W, h);
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = Math.max(1.2, S * 0.04);
+      const sh = reduceMotion ? 0 : (tW * row.v * 0.5) % 3;
+      for (let i = Math.floor(xLw / 3) * 3 - 3; i < xRw + 3; i += 3) { const px = X(i + sh + hash(row.r, i) * 0.8), py = y + S * (0.3 + hash(i, row.r) * 0.45); c.beginPath(); c.moveTo(px, py); c.quadraticCurveTo(px + S * 0.2, py - S * 0.08, px + S * 0.4, py); c.stroke(); }
+      if (row.edge !== 'river') { c.fillStyle = 'rgba(40,110,160,.25)'; c.fillRect(0, y + S - S * 0.08, W, S * 0.08); }
+      const up = rows.get(row.r + 1); if (!up || up.type !== 'river') { c.fillStyle = 'rgba(30,90,140,.3)'; c.fillRect(0, y, W, S * 0.12); }
+    } else if (t === 'train') {
+      c.fillStyle = '#BDB1A3'; c.fillRect(0, y, W, h);
+      c.fillStyle = '#8E6B52'; for (let x = Math.floor(xLw * 2) / 2; x < xRw; x += 0.5) c.fillRect(X(x), y + S * 0.18, S * 0.16, S * 0.64);
+      c.fillStyle = '#7D8696'; c.fillRect(0, y + S * 0.3, W, Math.max(2, S * 0.07)); c.fillRect(0, y + S * 0.64, W, Math.max(2, S * 0.07));
+      const tr = row.train;
+      if (tr.st !== 'idle') { const on = reduceMotion || Math.floor(tW * 5) % 2 === 0; if (on) { c.fillStyle = 'rgba(255,70,80,.22)'; c.fillRect(0, y, W, h); } }
+    }
+  }
+  function drawFlat(c, row, y) {
+    if (row.type === 'river') {
+      for (const ob of row.objs) eachCopy(row, ob, tW, xLw, xRw, vx => {
+        const L = X(vx - 0.5), w = ob.len * S;
+        if (ob.k === 'log') {
+          ell(c, L + w / 2, y + S * 0.78, w * 0.5, S * 0.1, 'rgba(20,60,100,.25)');
+          c.fillStyle = '#B07A4F'; rr(c, L + 2, y + S * 0.2, w - 4, S * 0.58, S * 0.28); c.fill();
+          c.fillStyle = 'rgba(90,50,20,.3)'; for (let i = 0.6; i < ob.len - 0.3; i += 0.8) c.fillRect(L + i * S, y + S * 0.34, S * 0.4, Math.max(1.5, S * 0.05));
+          ell(c, L + w - S * 0.2, y + S * 0.49, S * 0.13, S * 0.25, '#E3B98A'); c.strokeStyle = 'rgba(140,90,50,.6)'; c.lineWidth = 1; c.beginPath(); c.ellipse(L + w - S * 0.2, y + S * 0.49, S * 0.06, S * 0.13, 0, 0, TAU); c.stroke();
+        } else {
+          for (let i = 0; i < ob.len; i++) {
+            const cx = L + (i + 0.5) * S, cy = y + S * 0.52, pr = S * 0.42;
+            c.fillStyle = '#5DBB72'; c.beginPath(); c.moveTo(cx, cy); c.arc(cx, cy, pr, -1.2 + i, -1.2 + i + TAU - 0.5); c.closePath(); c.fill();
+            c.strokeStyle = 'rgba(30,110,60,.4)'; c.lineWidth = 1; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(i + 1.5) * pr * 0.7, cy + Math.sin(i + 1.5) * pr * 0.7); c.stroke();
+            if (i === ob.fl) { c.fillStyle = '#FF9BC8'; for (let k = 0; k < 5; k++) { const a = k * TAU / 5; c.beginPath(); c.arc(cx + Math.cos(a) * S * 0.08, cy - S * 0.05 + Math.sin(a) * S * 0.08, S * 0.07, 0, TAU); c.fill(); } ell(c, cx, cy - S * 0.05, S * 0.05, S * 0.05, '#FFE08A'); }
+          }
+        }
+      });
+    }
+    if (row.type === 'grass' && row.treat >= 0) drawTreat(c, X(row.treat), y + S * 0.55 - (reduceMotion ? 0 : Math.sin(tAnim * 4 + row.r) * S * 0.05), S * 0.36);
+  }
+  function drawTreat(c, x, y, s) {   // 뼈다귀 쿠키
+    ell(c, x, y + s * 0.6, s * 0.7, s * 0.16, 'rgba(0,0,0,.15)');
+    c.save(); c.translate(x, y); c.rotate(-0.35);
+    c.fillStyle = '#F4D29C'; c.strokeStyle = '#C98B52'; c.lineWidth = Math.max(1, s * 0.08);
+    c.beginPath(); c.rect(-s * 0.45, -s * 0.16, s * 0.9, s * 0.32);
+    for (const [px, py] of [[-0.5, -0.18], [-0.5, 0.18], [0.5, -0.18], [0.5, 0.18]]) { c.moveTo(px * s + s * 0.2, py * s); c.arc(px * s, py * s, s * 0.2, 0, TAU); }
+    c.fill(); c.stroke(); c.restore();
+    const tw = reduceMotion ? 0.7 : 0.5 + 0.5 * Math.sin(tAnim * 6 + x);
+    c.fillStyle = 'rgba(255,255,255,' + (0.5 + tw * 0.5).toFixed(2) + ')'; star(c, x + s * 0.55, y - s * 0.55, s * 0.18 * (0.6 + tw * 0.5));
+  }
+  function star(c, x, y, r) { c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.45 : r; c.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } c.closePath(); c.fill(); }
+  function drawTall(c, row, y) {
+    if (row.type === 'grass') {
+      for (let i = Math.floor(xLw); i < xRw; i++) {
+        let k = i >= 0 && i < COLS ? row.obs[i] : 0;
+        if ((i < 0 || i >= COLS) && hash(row.r, i + 50) < 0.42) k = hash(i, row.r + 9) < 0.7 ? 1 : 3;   // 길 밖 장식 나무
+        if (k) drawObstacle(c, k, X(i), y, row.r * 31 + i);
+      }
+    } else if (row.type === 'road' || row.type === 'bike') {
+      for (const ob of row.objs) eachCopy(row, ob, tW, xLw, xRw, vx => {
+        if (ob.k === 'bike') drawBike(c, X(vx - 0.5), y, ob.len * S, ob.c, row.dir);
+        else drawCar(c, X(vx - 0.5), y, ob.len * S, ob.c, row.dir, ob.k === 'bus');
+      });
+    } else if (row.type === 'train') {
+      const tr = row.train;
+      drawSignal(c, y, tr.st !== 'idle');
+      if (tr.st === 'go') drawTrain(c, X(tr.x - 0.5), y, tr.dir);
+    }
+  }
+  function drawObstacle(c, k, cx, y, seed) {
+    if (k === 1) {   // 둥근 나무
+      ell(c, cx, y + S * 0.84, S * 0.36, S * 0.1, 'rgba(0,0,0,.16)');
+      c.fillStyle = '#9A6B48'; c.fillRect(cx - S * 0.07, y + S * 0.42, S * 0.14, S * 0.42);
+      const tone2 = hash(seed, 3) < 0.5;
+      ell(c, cx, y + S * 0.22, S * 0.42, S * 0.4, tone2 ? '#4FA862' : '#58B56A');
+      ell(c, cx - S * 0.12, y + S * 0.1, S * 0.2, S * 0.18, tone2 ? '#68C27A' : '#74CC84');
+      if (hash(seed, 7) < 0.4) { c.fillStyle = '#FF8A8A'; for (const [a, b] of [[0.16, 0.25], [-0.2, 0.32], [0.05, 0.4]]) { c.beginPath(); c.arc(cx + a * S, y + b * S, S * 0.05, 0, TAU); c.fill(); } }
+    } else if (k === 2) {   // 꽃 화분
+      ell(c, cx, y + S * 0.86, S * 0.3, S * 0.08, 'rgba(0,0,0,.16)');
+      c.strokeStyle = '#3F9A55'; c.lineWidth = Math.max(1.5, S * 0.05); c.beginPath(); c.moveTo(cx, y + S * 0.5); c.lineTo(cx, y + S * 0.2); c.stroke();
+      ell(c, cx - S * 0.1, y + S * 0.38, S * 0.1, S * 0.05, '#4FA862'); ell(c, cx + S * 0.1, y + S * 0.32, S * 0.1, S * 0.05, '#4FA862');
+      const pc = ['#FF9BC8', '#FFD45E', '#B79CFF'][Math.floor(hash(seed, 5) * 3)];
+      c.fillStyle = pc; for (let i = 0; i < 5; i++) { const a = i * TAU / 5; c.beginPath(); c.arc(cx + Math.cos(a) * S * 0.1, y + S * 0.16 + Math.sin(a) * S * 0.1, S * 0.08, 0, TAU); c.fill(); }
+      ell(c, cx, y + S * 0.16, S * 0.06, S * 0.06, '#FFF3C4');
+      c.fillStyle = '#E08A68'; c.beginPath(); c.moveTo(cx - S * 0.28, y + S * 0.5); c.lineTo(cx + S * 0.28, y + S * 0.5); c.lineTo(cx + S * 0.2, y + S * 0.86); c.lineTo(cx - S * 0.2, y + S * 0.86); c.closePath(); c.fill();
+      c.fillStyle = '#C96F50'; c.fillRect(cx - S * 0.3, y + S * 0.48, S * 0.6, S * 0.09);
+    } else {   // 덤불
+      ell(c, cx, y + S * 0.82, S * 0.38, S * 0.09, 'rgba(0,0,0,.16)');
+      ell(c, cx - S * 0.18, y + S * 0.55, S * 0.22, S * 0.22, '#469E58'); ell(c, cx + S * 0.18, y + S * 0.55, S * 0.22, S * 0.22, '#469E58'); ell(c, cx, y + S * 0.42, S * 0.26, S * 0.25, '#55AD66');
+      c.fillStyle = '#FFE08A'; for (const [a, b] of [[-0.15, 0.45], [0.12, 0.38], [0.2, 0.6]]) { c.beginPath(); c.arc(cx + a * S, y + b * S, S * 0.04, 0, TAU); c.fill(); }
+    }
+  }
+  function drawCar(c, L, y, w, col, dir, bus) {
+    ell(c, L + w / 2, y + S * 0.86, w * 0.5, S * 0.09, 'rgba(0,0,0,.2)');
+    const front = dir > 0 ? L + w : L;
+    if (bus) {
+      c.fillStyle = col; rr(c, L + 1, y + S * 0.06, w - 2, S * 0.7, S * 0.16); c.fill();
+      c.fillStyle = '#DDF3FF'; for (let i = 0; i < 4; i++) { const wx = L + S * 0.18 + i * (w - S * 0.36) / 4; rr(c, wx + 1, y + S * 0.15, (w - S * 0.36) / 4 - 3, S * 0.24, S * 0.06); c.fill(); }
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(L + 2, y + S * 0.48, w - 4, S * 0.06);
+    } else {
+      const cw = w * 0.56, cx = dir > 0 ? L + w * 0.14 : L + w * 0.3;
+      c.fillStyle = col; rr(c, cx, y + S * 0.08, cw, S * 0.36, S * 0.13); c.fill();
+      c.fillStyle = '#DDF3FF'; rr(c, cx + S * 0.07, y + S * 0.14, cw - S * 0.14, S * 0.2, S * 0.06); c.fill();
+      c.fillStyle = col; c.fillRect(cx + cw / 2 - 1, y + S * 0.14, 2, S * 0.2);
+      c.fillStyle = col; rr(c, L + 1, y + S * 0.32, w - 2, S * 0.42, S * 0.15); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.35)'; rr(c, L + S * 0.1, y + S * 0.36, w - S * 0.2, S * 0.07, S * 0.03); c.fill();
+    }
+    ell(c, front - dir * S * 0.07, y + S * 0.52, S * 0.055, S * 0.06, '#FFF1A8');
+    ell(c, L + w - front + L + dir * S * 0.07, y + S * 0.52, S * 0.045, S * 0.05, '#FF6B6B');
+    for (const u of bus ? [0.18, 0.82] : [0.24, 0.76]) { ell(c, L + w * u, y + S * 0.76, S * 0.12, S * 0.12, '#2E3346'); ell(c, L + w * u, y + S * 0.76, S * 0.05, S * 0.05, '#A7AFC2'); }
+  }
+  function drawBike(c, L, y, w, col, dir) {
+    ell(c, L + w / 2, y + S * 0.9, w * 0.55, S * 0.07, 'rgba(0,0,0,.18)');
+    const wr = S * 0.16, a = L + w * 0.18, b = L + w * 0.82, wy = y + S * 0.74;
+    c.strokeStyle = '#333A4D'; c.lineWidth = Math.max(1.5, S * 0.05);
+    c.beginPath(); c.arc(a, wy, wr, 0, TAU); c.moveTo(b + wr, wy); c.arc(b, wy, wr, 0, TAU); c.stroke();
+    const seat = L + w * (dir > 0 ? 0.4 : 0.6), bar2 = L + w * (dir > 0 ? 0.75 : 0.25);
+    c.strokeStyle = col; c.beginPath(); c.moveTo(a, wy); c.lineTo(seat, y + S * 0.5); c.lineTo(bar2, y + S * 0.48); c.lineTo(b, wy); c.moveTo(seat, y + S * 0.5); c.lineTo(L + w / 2, wy); c.stroke();
+    // 탄 사람: 둥근 몸 + 헬멧
+    c.strokeStyle = col; c.lineWidth = Math.max(3, S * 0.14); c.lineCap = 'round';
+    c.beginPath(); c.moveTo(seat, y + S * 0.42); c.lineTo(seat + dir * S * 0.1, y + S * 0.18); c.stroke(); c.lineCap = 'butt';
+    ell(c, seat + dir * S * 0.14, y + S * 0.06, S * 0.11, S * 0.11, '#FFD9B8');
+    c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(seat + dir * S * 0.14, y + S * 0.04, S * 0.12, Math.PI, 0); c.fill();
+  }
+  function drawTrain(c, L, y, dir) {
+    const n = 3, cw = TRAIN_LEN * S / n;
+    ell(c, L + TRAIN_LEN * S / 2, y + S * 0.86, TRAIN_LEN * S / 2, S * 0.08, 'rgba(0,0,0,.2)');
+    for (let i = 0; i < n; i++) {
+      const x0 = L + i * cw, head = (dir > 0 && i === n - 1) || (dir < 0 && i === 0);
+      c.fillStyle = '#5E8CF0';
+      if (head) { c.beginPath(); const nose = S * 0.4; if (dir > 0) { c.moveTo(x0 + 2, y + S * 0.04); c.lineTo(x0 + cw - nose, y + S * 0.04); c.quadraticCurveTo(x0 + cw, y + S * 0.08, x0 + cw - 2, y + S * 0.78); c.lineTo(x0 + 2, y + S * 0.78); } else { c.moveTo(x0 + cw - 2, y + S * 0.04); c.lineTo(x0 + nose, y + S * 0.04); c.quadraticCurveTo(x0, y + S * 0.08, x0 + 2, y + S * 0.78); c.lineTo(x0 + cw - 2, y + S * 0.78); } c.closePath(); c.fill(); }
+      else { rr(c, x0 + 2, y + S * 0.04, cw - 4, S * 0.74, S * 0.12); c.fill(); }
+      c.fillStyle = '#FFF1C9'; c.fillRect(x0 + 3, y + S * 0.5, cw - 6, S * 0.1);
+      c.fillStyle = '#DDF3FF'; for (let k = 0; k < 4; k++) { const wx = x0 + S * 0.35 + k * (cw - S * 0.7) / 4; if (head && ((dir > 0 && k === 3) || (dir < 0 && k === 0))) continue; rr(c, wx, y + S * 0.14, (cw - S * 0.7) / 4 - 4, S * 0.24, S * 0.05); c.fill(); }
+      for (const u of [0.18, 0.82]) ell(c, x0 + cw * u, y + S * 0.8, S * 0.1, S * 0.08, '#2E3346');
+      if (head) ell(c, dir > 0 ? x0 + cw - S * 0.12 : x0 + S * 0.12, y + S * 0.62, S * 0.07, S * 0.07, '#FFF1A8');
+    }
+  }
+  function drawSignal(c, y, on) {   // 건널목 경고등: 길 양 끝
+    drawSignal1(c, y, on, Math.max(ox - S * 0.28, S * 0.22 + SAF.l));
+    drawSignal1(c, y, on, Math.min(ox + COLS * S + S * 0.28, W - S * 0.22 - SAF.r));
+  }
+  function drawSignal1(c, y, on, px) {
+    c.fillStyle = '#4A4F63'; c.fillRect(px - S * 0.03, y - S * 0.25, S * 0.06, S * 0.95);
+    c.fillStyle = '#2E3346'; rr(c, px - S * 0.2, y - S * 0.32, S * 0.4, S * 0.2, S * 0.1); c.fill();
+    const b = Math.floor(tW * 5) % 2, l1 = on && (reduceMotion || b === 0), l2 = on && (reduceMotion || b === 1);
+    ell(c, px - S * 0.09, y - S * 0.22, S * 0.065, S * 0.065, l1 ? '#FF4D5A' : '#6B3A40');
+    ell(c, px + S * 0.09, y - S * 0.22, S * 0.065, S * 0.065, l2 ? '#FF4D5A' : '#6B3A40');
+    c.fillStyle = '#FFE08A'; c.save(); c.translate(px, y + S * 0.02); c.rotate(0.6); c.fillRect(-S * 0.17, -S * 0.025, S * 0.34, S * 0.05); c.rotate(-1.2); c.fillRect(-S * 0.17, -S * 0.025, S * 0.34, S * 0.05); c.restore();
+  }
+  function drawPigeon(c, x, y, s, face, bob, seed) {
+    ell(c, x, y + s * 0.3, s * 0.32, s * 0.07, 'rgba(0,0,0,.15)');
+    c.strokeStyle = '#F08CA0'; c.lineWidth = Math.max(1, s * 0.05); c.beginPath(); c.moveTo(x - s * 0.06, y + s * 0.14); c.lineTo(x - s * 0.08, y + s * 0.3); c.moveTo(x + s * 0.06, y + s * 0.14); c.lineTo(x + s * 0.06, y + s * 0.3); c.stroke();
+    ell(c, x, y, s * 0.3, s * 0.22, '#B7BDCF');
+    ell(c, x - face * s * 0.06, y + s * 0.02, s * 0.18, s * 0.12, '#9AA1B6');
+    c.fillStyle = '#9AA1B6'; c.beginPath(); c.moveTo(x - face * s * 0.24, y - s * 0.02); c.lineTo(x - face * s * 0.42, y - s * 0.1); c.lineTo(x - face * s * 0.38, y + s * 0.06); c.closePath(); c.fill();
+    const hx = x + face * (s * 0.24 + bob * s * 0.06), hy = y - s * 0.2;
+    ell(c, hx - face * s * 0.04, hy + s * 0.08, s * 0.1, s * 0.08, seed % 2 ? '#8FD3B5' : '#B9A3E8');
+    ell(c, hx, hy, s * 0.13, s * 0.13, '#A3AABF');
+    c.fillStyle = '#F4A04B'; c.beginPath(); c.moveTo(hx + face * s * 0.11, hy - s * 0.02); c.lineTo(hx + face * s * 0.22, hy + s * 0.02); c.lineTo(hx + face * s * 0.11, hy + s * 0.05); c.closePath(); c.fill();
+    ell(c, hx + face * s * 0.04, hy - s * 0.03, s * 0.03, s * 0.03, '#1E2233');
+  }
+  function drawPigeons(c) {
+    const yb = H - (pig - 0.45 - camB) * S;
+    if (yb > H + S) return;
+    const lg = c.createLinearGradient(0, yb - S * 0.6, 0, H); lg.addColorStop(0, 'rgba(232,236,250,0)'); lg.addColorStop(0.4, 'rgba(232,236,250,.35)'); lg.addColorStop(1, 'rgba(232,236,250,.55)');
+    c.fillStyle = lg; c.fillRect(0, yb - S * 0.6, W, H - yb + S * 0.6);
+    const s = S * 0.9, n = Math.ceil(W / (S * 0.85)) + 1;
+    for (let rI = 1; rI >= 0; rI--) for (let i = 0; i < n; i++) {
+      const sd = i * 7 + rI * 3, x = (i + (rI ? 0.5 : 0)) * S * 0.85 + (hash(sd, 1) - 0.5) * S * 0.3;
+      const bob = reduceMotion ? 0 : Math.sin(tAnim * 8 + sd), hop = reduceMotion ? 0 : Math.max(0, Math.sin(tAnim * 5 + sd * 1.7)) * S * 0.05;
+      drawPigeon(c, x, yb + rI * S * 0.32 - hop, s, hash(sd, 2) < 0.5 ? 1 : -1, bob, sd);
+    }
+    if (state === 'play' && pig > kg.r - 2.4) {
+      const x = clamp(X(kg.x) + S * 1.2, 40, W - 40);
+      say(c, '구구구~', x, yb - S * 0.75, 12);
+    }
+  }
+  function say(c, txt, x, y, size) {   // 말풍선 (꼬리는 아래)
+    c.font = '700 ' + size + 'px ' + FONT; const tw = c.measureText(txt).width + 16, h = size + 12;
+    x = clamp(x, tw / 2 + 4 + SAF.l, W - tw / 2 - 4 - SAF.r); y = clamp(y, h / 2 + SAF.t + 4, H - h / 2 - 4);
+    c.fillStyle = '#fff'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill();
+    c.beginPath(); c.moveTo(x - 5, y + h / 2 - 1); c.lineTo(x, y + h / 2 + 6); c.lineTo(x + 5, y + h / 2 - 1); c.closePath(); c.fill();
+    c.fillStyle = '#2B3A67'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, x, y + 0.5);
+  }
+  function pill(c, txt, x, y, size) {
+    c.font = '600 ' + (size || 13) + 'px ' + FONT; let tw = c.measureText(txt).width + 22; const h = (size || 13) + 13;
+    if (tw > W - 12) { c.font = '600 ' + ((size || 13) - 2) + 'px ' + FONT; tw = c.measureText(txt).width + 18; }
+    x = clamp(x, tw / 2 + 6 + SAF.l, W - tw / 2 - 6 - SAF.r); y = clamp(y, h / 2 + 4, H - h / 2 - 4 - SAF.b);
+    c.fillStyle = 'rgba(18,22,52,.8)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, x, y + 0.5);
+  }
+  function draw() {
+    const c = g; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const f = fg; f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, fx.width, fx.height); f.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const rLo = Math.floor(camB) - 1, rHi = Math.ceil(camB + rowsVis) + 1;
+    rowAt(rHi);
+    const kr = kg.hop != null && kg.hop / HOP < 0.5 ? kg.fr : kg.r;
+    for (let r = rHi; r >= rLo; r--) { const row = rows.get(r); if (row) drawGround(c, row, RT(r)); }
+    for (let r = rHi; r >= rLo; r--) { const row = rows.get(r); if (row) drawFlat(c, row, RT(r)); }
+    // 키 큰 것: 콩이 줄과 그 위는 콩이 뒤(cv), 아래 줄은 콩이 앞(fx)
+    for (let r = rHi; r >= rLo; r--) { const row = rows.get(r); if (row) drawTall(r >= kr ? c : f, row, RT(r)); }
+    // 길 밖은 살짝 어둡게 (갈 수 있는 9칸이 보이게). 콩이(#stage)는 덮지 않게: 뒤 층(cv)은 그대로, 앞 층(fx)은 이미 그린 앞 나무 위에만
+    if (ox > 0) {
+      const dim = cx => { cx.fillStyle = 'rgba(16,22,52,.26)'; cx.fillRect(0, 0, ox, H); cx.fillRect(ox + COLS * S, 0, W - ox - COLS * S, H); };
+      dim(c); f.globalCompositeOperation = 'source-atop'; dim(f); f.globalCompositeOperation = 'source-over';
+    }
+    // 물보라·부스러기
+    for (const g2 of rings) if (g2.t > 0) { const u = g2.t; f.strokeStyle = 'rgba(255,255,255,' + (0.8 * (1 - u)).toFixed(2) + ')'; f.lineWidth = 2; f.beginPath(); f.ellipse(X(g2.x), RT(g2.y - 0.5) + S * 0.5, S * (0.2 + u * 0.6), S * (0.08 + u * 0.22), 0, 0, TAU); f.stroke(); }
+    for (const p of drops) ell(f, X(p.x), H - (p.y - camB) * S, S * 0.05, S * 0.05, 'rgba(220,245,255,.9)');
+    for (const p of crumbs) ell(f, X(p.x), H - (p.y - camB) * S, S * 0.045, S * 0.045, '#E7B877');
+    drawPigeons(f);
+    // 빵빵 말풍선: 그 차 위
+    for (const b of bubbles) {
+      const vx = b.ob.o + b.row.v * tW + b.shift; f.globalAlpha = Math.min(1, b.life / 0.25);
+      say(f, b.text, X(vx - 0.5 + b.ob.len / 2), RT(b.row.r) - S * 0.2, 12); f.globalAlpha = 1;
+    }
+    // 떠오르는 글자
+    f.textAlign = 'center'; f.textBaseline = 'middle'; f.lineJoin = 'round';
+    for (const t of floats) {
+      f.font = '700 ' + (t.big ? 18 : 14) + 'px ' + FONT; f.globalAlpha = Math.min(1, t.life / 0.35);
+      const tw = f.measureText(t.text).width / 2 + 6, x = clamp(X(t.x), tw + SAF.l, W - tw - SAF.r), y = H - (t.y - camB) * S;
+      f.strokeStyle = 'rgba(12,16,48,.7)'; f.lineWidth = 3.5; f.strokeText(t.text, x, y); f.fillStyle = t.col; f.fillText(t.text, x, y);
+    }
+    f.globalAlpha = 1;
+    drawKong(f);
+    if (state === 'play' && moves === 0) pill(f, KEYS_OK ? '누르거나 ↑ 앞으로 · 밀거나 ← → 옆으로' : '누르면 앞으로 · 옆으로 밀면 옆 칸', W / 2, RT(kg.r) + S * 1.75, 13);
+  }
+  function drawKong(f) {
+    const u = kg.hop != null ? clamp(kg.hop / HOP, 0, 1) : 0, kv = kVis();
+    let px = X(kg.x), py = RT(kv) + S * 0.84, sc = 1;
+    if (kg.hop != null && !reduceMotion) py -= Math.sin(u * Math.PI) * S * 0.32;
+    if (kg.bump > 0 && !reduceMotion) { const b = Math.sin(kg.bump / 0.16 * Math.PI) * S * 0.08; if (kg.bumpDir === 'up') py -= b; else if (kg.bumpDir === 'down') py += b; else px += kg.bumpDir === 'left' ? -b : b; }
+    const dead = (state === 'over' && !quit) || (state === 'result' && cause && !quit);
+    let pose = HAS_REAR ? 'rear' : 'sit', o = { t: tAnim, eyes: 'open', mouth: 'open', tailAmp: 14, tailRate: 2.6 };
+    if (!dead) {
+      if (kg.face === 'left' || kg.face === 'right') { pose = 'stand'; o.facing = kg.face === 'left' ? -1 : 1; o.frame = kg.hop != null ? 'jump' : 'idle'; }
+      else if (kg.face === 'down') pose = 'sit';
+      if (state === 'result' || state === 'ready') { pose = state === 'ready' && HAS_REAR ? 'rear' : 'sit'; if (state === 'result' && K.has('wave') && quit) pose = 'wave'; }
+      o.earLift = kg.hop != null ? 6 : 0;
+      if (pig > kg.r - 2.2 && state === 'play') { o.earLift = 10; o.tailAmp = 24; o.tailRate = 4; }
+    } else {
+      pose = 'sit'; o.eyes = 'closed'; o.tailAmp = 3; o.earLift = -8;
+      const d = deadT;
+      if (cause === 'water') { sc = Math.max(0.55, 1 - d * 0.6); py += Math.min(1, d * 1.5) * S * 0.25; K.el.style.opacity = String(Math.max(0.35, 1 - d * 0.5)); o.mouth = 'open'; o.tilt = reduceMotion ? 0 : Math.sin(tAnim * 7) * 8; }
+      else if (cause === 'pigeon') { o.tilt = reduceMotion ? -6 : Math.sin(tAnim * 6) * 10; o.mouth = 'closed'; }
+      else { o.roll = reduceMotion ? 0 : d < 0.6 ? d / 0.6 * 720 * deadDir : 0; o.rollPivot = [200, 250]; o.tilt = -10; o.mouth = 'open'; }
+    }
+    if (K.rig.pose !== pose) K.setPose(pose);
+    K.render(o);
+    K.place(px, py, sc);
+    // 비둘기 떼가 콩이 곁으로 몰려와 구구 (잡혔을 때)
+    if (dead && cause === 'pigeon') {
+      const k = Math.min(1, deadT / 0.5);
+      for (const [dx, dy, fc] of [[-0.95, 0.05, 1], [0.95, 0.1, -1], [-0.55, 0.32, 1], [0.6, 0.36, -1]]) {
+        const hop = reduceMotion ? 0 : Math.max(0, Math.sin(tAnim * 7 + dx * 3)) * S * 0.08;
+        drawPigeon(f, px + dx * S * (2.2 - k * 1.2), py + dy * S - hop, S * 0.85, fc, reduceMotion ? 0 : Math.sin(tAnim * 9 + dx), Math.round(dx * 10));
+      }
+      if (deadT > 0.4) say(f, '구구구!', px + S * 1.1, py - S * 1.6, 12);
+    }
+    // 별이 빙글빙글 (부딪혔을 때)
+    if (dead && (cause === 'car' || cause === 'bike' || cause === 'train') && deadT > 0.3) {
+      const hd = K.head(); f.fillStyle = '#FFE08A';
+      for (let i = 0; i < 3; i++) { const a = (reduceMotion ? 0 : tAnim * 4) + i * TAU / 3; star(f, hd.x + Math.cos(a) * S * 0.42, hd.y - S * 0.32 + Math.sin(a) * S * 0.12, S * 0.1); }
+    }
+  }
+  let last = 0, dtFrame = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; dtFrame = dt;
+    tAnim += state === 'pause' ? 0 : dt;
+    update(dt);
+    draw();
+  }
+
+  // ═══════ 점수판 ═══════
+  function paintHud(bumpIt) {
+    $('hudRow').textContent = fmt(maxR); $('hudTr').textContent = treats;
+    if (bumpIt && !reduceMotion) { const e = $('hudSc'); e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
+  }
+  function addFloat(x, y, text, col, big) { floats.push({ x, y, text, col: col || '#fff', life: 1.2, big: !!big }); }
+
+  // ═══════ 시작·멈춤·끝 ═══════
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    quit = false; isNew = false; state = 'play'; newWorld(); paintHud();
+    $('hudPg').hidden = true;
+    showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+  }
+  function pause() {
+    if (state !== 'play') return; state = 'pause'; tch.id = null; queued = null;
+    $('psText').textContent = fmt(maxR) + '칸까지 왔어요. ' + J(name, '이/가') + ' 기다리고 있어요.';
+    showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
+  }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = performance.now(); }
+  function end() {   // 「그만하기」: 지금 기록으로 끝낸다
+    if (state === 'pause') { state = 'play'; showCard(null); }
+    if (state !== 'play') return;
+    quit = true; state = 'over'; cause = ''; overT = 0.3; btnPause.hidden = true;
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now(); $('hudPg').hidden = true;
+    isNew = maxR > 0 && setBest(KG.dkey(KEY, diffId), maxR);
+    $('edScore').textContent = fmt(maxR); $('edTr').textContent = treats + '개';
+    const nm = J(name, '이/가');
+    const T = { car: ['데굴데굴 굴렀어요', '차에 콩 부딪혔어요. 빈틈이 생길 때 건너요.'], bike: ['따르릉, 데굴데굴!', '자전거는 빨라요. 멀리서 오는지 먼저 봐요.'],
+      train: ['기차는 기다려 줘야 해요', '빨간 불이 깜빡이면 곧 기차가 와요.'], water: ['풍덩! 개울에 빠졌어요', '통나무·연잎 위에서만 건널 수 있어요.'],
+      pigeon: ['비둘기 떼에 둘러싸였어요', '너무 오래 머뭇거리면 비둘기가 쫓아와요.'] };
+    const tt = quit ? ['여기까지 했어요', nm + ' 신나게 건넜어요.'] : T[cause] || T.car;
+    $('edTitle').textContent = maxR >= 100 && !quit ? '무단횡단 달인이에요!' : tt[0];
+    $('edText').textContent = maxR > 0 ? tt[1] + (treats ? ' 간식 ' + treats + '개 냠!' : '') : '화면을 누르면 앞으로 한 칸 가요.';
+    paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    K.el.style.opacity = '';
+    if (isNew) sfx('win');
+  }
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { tch.id = null; });
+
+  // ═══════ 입력: 누르면 앞으로, 밀면 민 쪽으로 (손을 떼기 전에 22px 넘게 밀리면 바로 움직인다) ═══════
+  const tch = { id: null, x: 0, y: 0, done: false };
+  fx.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    e.preventDefault();
+    try { fx.setPointerCapture(e.pointerId); } catch (err) {}
+    tch.id = e.pointerId; tch.x = e.clientX; tch.y = e.clientY; tch.done = false;
+  });
+  fx.addEventListener('pointermove', e => {
+    if (e.pointerId !== tch.id || tch.done) return;
+    const dx = e.clientX - tch.x, dy = e.clientY - tch.y;
+    if (Math.hypot(dx, dy) < 22) return;
+    tch.done = true;
+    tryMove(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down');
+  });
+  fx.addEventListener('pointerup', e => { if (e.pointerId !== tch.id) return; tch.id = null; if (!tch.done) tryMove('up'); });
+  fx.addEventListener('pointercancel', e => { if (e.pointerId === tch.id) tch.id = null; });
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', W: 'up', s: 'down', S: 'down', a: 'left', A: 'left', d: 'right', D: 'right' };
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (KEYMAP[k]) {
+      if (state !== 'play') { if (state === 'pause' && k.startsWith('Arrow')) e.preventDefault(); return; }
+      e.preventDefault(); if (e.repeat || KG.rulesOpen) return; tryMove(KEYMAP[k]);
+    } else if (k === ' ' || k === 'Enter') {
+      if (state === 'play') { e.preventDefault(); if (e.repeat || KG.rulesOpen || k === 'Enter') return; tryMove('up'); return; }
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault(); if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    } else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '칸';
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '칸';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+  }
+  function onDiff() { paintBest(); if (state === 'ready') { D = DIFF[KG.diff()] || DIFF.normal; newWorld(); paintHud(); } }
+  $('stRec').before(KG.diffPicker(null, onDiff));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);   // 결과 카드 바로 아래(가로 낮은 화면은 오른쪽) 가족 순위 — 방금 판 난이도
+  KG.startRank($('cardStart'), KEY);   // 시작 카드 아래에 고른 난이도의 가족 순위
+  diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+  layout(); newWorld(); paintBest(); paintHud();
+  const RULES = { key: KEY, title: TITLE, lead: '차도·자전거길·개울·기찻길을 한 칸씩 건너는 놀이예요.', items: [
+    ['👆', '화면을 누르면 앞으로 한 칸, 옆·아래로 밀면 그쪽으로 한 칸' + (KEYS_OK ? ' (방향키).' : '.')],
+    ['🚗', '차·버스·자전거에 부딪히면 데굴데굴! 기찻길은 빨간 불이 깜빡이면 곧 기차가 와요.'],
+    ['🪵', '개울은 통나무·연잎을 밟고 건너요. 물에 빠지거나 길 밖으로 떠내려가면 끝이에요.'],
+    ['🐦', '오래 머뭇거리면 비둘기 떼가 쫓아와요. 기록은 간 칸 수, 간식은 덤이에요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  // bot(): 지금 누르면 좋은 방향 ('up'·'left'·'right'·'down' 또는 기다리기 null) — 시험 봇이 이 방향을 실제 키로 누른다
+  function safeSpan(r, x, a, b) {
+    const row = rowAt(r); if (!row) return false;
+    if (row.type === 'grass') return !(x >= 0 && x < COLS && row.obs[Math.round(x)]);
+    if (row.type === 'train') { const tr = row.train; if (tr.st !== 'idle') return false; return tr.next - D.warn - tW > b + 0.4; }
+    if (row.type === 'river') { const p = platformAt(row, x, tW + a); if (!p) return false; const m = Math.min(x - (p.x - PLAT), p.x + p.ob.len + PLAT - x); const xe = x + row.v * 0.35; return m > 0.15 && xe > -edge + 0.15 && xe < COLS - 1 + edge - 0.15; }
+    for (let t = a; t <= b; t += 0.03) if (hazardAt(row, x, tW + t)) return false;
+    return true;
+  }
+  function bot() {
+    if (state !== 'play' || kg.hop != null) return null;
+    const cand = { up: [1, 0], left: [0, -1], right: [0, 1], down: [-1, 0] }, ok = {}, roomy = {};
+    for (const d in cand) {
+      let nr = kg.r + cand[d][0], nx = kg.x + cand[d][1]; const to = rowAt(nr);
+      if (to.type !== 'river') { nx = Math.round(nx); if (nx < -1 || nx > COLS) continue; nx = clamp(nx, 0, COLS - 1); if (Math.abs(nx - (kg.x + cand[d][1])) > edge) continue; if (to.type === 'grass' && to.obs[nx]) continue; }
+      else if (nx < -edge + 0.2 || nx > COLS - 1 + edge - 0.2) continue;
+      if (nr <= pig + 0.3) continue;
+      ok[d] = safeSpan(nr, nx, HOP * 0.5, HOP + 0.55); if (ok[d]) roomy[d] = safeSpan(nr, nx, HOP * 0.5, HOP + 1.1);
+    }
+    const here = safeSpan(kg.r, kg.x, 0, 0.28), hereLong = safeSpan(kg.r, kg.x, 0, 1.2);
+    if (ok.up && (roomy.up || !hereLong || pig > kg.r - 1.6)) return 'up';
+    const urgent = pig > kg.r - 1.6 || !here;
+    const upRow = rowAt(kg.r + 1), curRow = rowAt(kg.r);
+    // 앞이 나무로 막혔으면 옆으로 (위가 비어 있는 가까운 칸 쪽)
+    if (upRow.type === 'grass' && curRow.type !== 'river' && upRow.obs[Math.round(kg.x)]) {
+      const k0 = Math.round(kg.x), free = c => curRow.type !== 'grass' || !curRow.obs[c];
+      let bd = null; for (const s of [-1, 1]) for (let c = k0 + s; c >= 0 && c < COLS && free(c); c += s) if (!upRow.obs[c]) { if (bd == null || Math.abs(c - k0) < Math.abs(bd - k0)) bd = c; break; }
+      const d = bd != null && bd < kg.x ? 'left' : 'right'; if (ok[d]) return d;
+    }
+    if (!urgent) return null;
+    if (curRow.type === 'river') { const d = kg.x > COLS / 2 ? 'left' : 'right'; if (ok[d]) return d; }
+    if (ok.left && kg.x > 1) return 'left'; if (ok.right) return 'right'; if (ok.left) return 'left';
+    if (ok.down) return 'down';
+    return here ? null : 'up';
+  }
+  window.GAME = {
+    DIFF, get state() { return state; }, get maxR() { return maxR; }, get treats() { return treats; }, get pig() { return pig; }, get cause() { return cause; }, get moves() { return moves; },
+    get kong() { return { r: kg.r, x: kg.x, hop: kg.hop, face: kg.face }; }, get diff() { return diffId; }, get camB() { return camB; },
+    row: r => { const w = rowAt(r); return w && { type: w.type, obs: w.obs && w.obs.slice(), treat: w.treat, v: w.v, P: w.P, objs: w.objs && w.objs.map(o => ({ k: o.k, len: o.len, x: laneX(w, o, tW) })), train: w.train && Object.assign({}, w.train) }; },
+    rowsInfo: (a, b) => { const out = []; for (let r = a; r <= b; r++) { const w = rowAt(r); out.push(w.type[0]); } return out.join(''); },
+    field: () => ({ W, H, S, ox, camB, rowsVis, kongEl: K.el.getBoundingClientRect().toJSON(), hud: hud.getBoundingClientRect().toJSON(), kongScreen: [X(kg.x), RT(kg.r) + S * 0.84] }),
+    bot, safeSpan, get tW() { return tW; }, hazard: (r, x, dt) => hazardAt(rowAt(r), x, tW + (dt || 0)), start, end, pause, resume, tryMove, newWorld,
+    setPig: v => { pig = v; }, step: dt => { tAnim += dt; update(dt); }
+  };
+})();
+</script>
+</body>
+</html>

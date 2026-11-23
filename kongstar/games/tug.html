@@ -612,7 +612,7 @@ body .kg-top { z-index: 26; }
     if (state !== 'over') return;
     state = 'result'; hideBanner(); p = 0;
     const isNew = (score > 0 && setBest(KG.dkey(KEY, diffId), score)) || (score > 0 && pendingNew && best(KG.dkey(KEY, diffId)) === score);
-    if (isNew && pendingNew) KG.markNew();
+    if (isNew && pendingNew) KG.markNew(false);   // 짖기 여부는 판 도중 setBest 가 이미 정해 두었다(이전 기록을 넘었을 때만)
     $('edScore').textContent = fmt(score); $('edWins').textContent = wins + '판'; $('edFast').textContent = stats.fastest ? stats.fastest.toFixed(1) + '초' : '없음'; $('edSlip').textContent = stats.slips + '번';
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = wins >= 5 ? '줄다리기 왕이에요!' : wins >= 2 ? wins + '판이나 이겼어요' : wins === 1 ? '1판 이겼어요' : '줄을 빼앗겼어요';

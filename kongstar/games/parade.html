@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 산책행렬</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 산책행렬: 밤 공원(bg) → 잔디·울타리·화단(cv, 판마다 한 번 그린 그림 + 간식·친구들) → 콩이(stage) → 안내·글자(fx, 손가락 받기) → 점수판 */
+#bg, #cv, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#cv { z-index: 1; pointer-events: none; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; touch-action: none; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6px; pointer-events: none; transform: translateX(-50%); }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud .sc svg { width: 18px; height: 16px; display: block; }
+#hud .sc.bump { animation: scBump .35s; }
+#hud .sc.gold { background: rgba(176,122,0,.75); }
+@keyframes scBump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+.kg-card .unit { margin: 0; font-size: 13px; color: var(--sub); }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stKeys { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면: 카드가 위 줄(게임·소리 단추) 밑에서 시작하게, 결과 카드 높이를 줄인다 */
+@media (orientation: landscape) and (max-height: 360px) {
+  #cardStart, #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+  body .kg-rbwrap > .kg-card #edText { display: none; }
+  body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .unit { display: none; }
+  body .kg-rbwrap > .kg-card .rec { flex-wrap: nowrap; }
+  body .kg-rbwrap > .kg-card .rec span { white-space: nowrap; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="cv"></canvas>
+<div id="stage"></div>
+<canvas id="fx" aria-label="콩이와 친구들이 산책하는 공원. 화면을 밀어 방향을 바꿔요"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="sc" id="hudSc"><svg viewBox="0 0 18 16" fill="#FFC861"><ellipse cx="9" cy="11" rx="4.2" ry="3.4"/><circle cx="3.6" cy="6.4" r="1.9"/><circle cx="7" cy="3.4" r="1.9"/><circle cx="11" cy="3.4" r="1.9"/><circle cx="14.4" cy="6.4" r="1.9"/></svg><small>친구</small><span id="hudN">0</span><small>마리</small></div>
+  <div class="bs" id="hudBs"><small>최고</small><span id="hudBest">0</span></div>
+</div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 산책행렬</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>화면을 위·아래·왼쪽·오른쪽으로 밀어</b> 방향을 바꿔요.</p>
+      <p id="stKeys" hidden><b>방향키 · WASD</b> 방향 · <b>P</b> 멈춤</p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">산책 끝!</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edN">0</span><small>마리</small></div>
+    <p class="unit" id="edUnit">행렬에 함께 선 친구 수</p>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>간식<b id="edEat"></b></span><span>황금 간식<b id="edGold"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const KEY = 'parade', TITLE = J(name, '의') + ' 산책행렬';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   wrap 울타리를 지나 반대편으로 나온다(Easy) · obs 장애물 칸 비율(판 넓이 기준) · v0 처음 빠르기(칸/초) · inc 친구 한 마리마다 더해지는 빠르기 · vmax 가장 빠른 빠르기
+  //   gold 황금 간식이 나오기까지 먹을 간식 수 [최소, 최대] · goldT 황금 간식이 머무는 시간(초, 달리는 동안만 줄어든다)
+  const DIFF = {
+    easy:   { wrap: true,  obs: 0,     v0: 3.6, inc: 0.08, vmax: 6.5,  gold: [3, 5], goldT: 8 },
+    normal: { wrap: false, obs: 0,     v0: 4.4, inc: 0.10, vmax: 8.0,  gold: [4, 6], goldT: 7 },
+    hard:   { wrap: false, obs: 0.035, v0: 5.0, inc: 0.11, vmax: 9.0,  gold: [4, 7], goldT: 6.5 },
+    vhard:  { wrap: false, obs: 0.065, v0: 6.0, inc: 0.12, vmax: 10.5, gold: [5, 8], goldT: 6 }
+  };
+  const GOLD_ADD = 2;   // 황금 간식 = 친구 2마리
+  let diffId = 'normal', D = DIFF.normal;
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '간식을 먹을 때마다 친구 강아지가 ' + J(name, '을/를') + ' 줄줄이 따라와요. 울타리와 내 행렬은 조심!';
+  $('edUnit').textContent = '행렬에 함께 선 친구 수 (' + J(name, '은/는') + ' 빼고)';
+  if (KEYS_OK) $('stKeys').hidden = false;
+  const bg = $('bg'), cv = $('cv'), fx = $('fx'), stage = $('stage'), hud = $('hud');
+  const g = cv.getContext('2d'), fg = fx.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const K = kong(stage, 60);
+  const HAS_REAR = K.has('rear');
+  const stat = document.createElement('canvas'), sg = stat.getContext('2d');   // 잔디·울타리·장애물 (판마다 한 번)
+
+  // ═══════ 상태 ═══════
+  let state = 'ready', phase = 'wait';   // state: ready · play · pause · over · result   phase: wait(밀면 출발) · run · dead
+  let cols = 12, rows = 18, gridFixed = false;   // 판이 시작되면 칸 수는 그대로 (화면이 바뀌면 칸 크기만 다시 맞춘다)
+  let body = [], prev = [], pups = [], dir = { x: 1, y: 0 }, queue = [], grow = 0;
+  let food = null, gold = null, nextGold = 4, obs = new Set(), shapes = [];
+  let count = 0, eatN = 0, goldN = 0, acc = 0, stepT = 0.2, sps = 5, walkPh = 0, face = 1, isNew = false, quit = false;
+  let deadT = 0, deadWhy = '', deadDir = { x: 0, y: 0 }, overT = 0, overAt = 0, tAnim = 0, floats = [], crumbs = [], waitHintT = 0, eatT = 0, backHintAt = -9, kClip = '';
+  let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, cell = 24, bx = 0, by = 0, fence = 8, wide = false;
+  const START = () => ({ x: Math.max(1, Math.floor(cols * 0.25)), y: Math.floor(rows / 2) });
+
+  // ═══════ 화면 맞추기 ═══════
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function area() {   // 놀이판이 쓸 수 있는 네모 (위 줄·점수판 아래)
+    const titled = wide && W >= 760;
+    let top, hudTop;
+    if (wide) { hudTop = SAF.t + (titled ? 66 : 16); top = SAF.t + 62 + (titled ? 46 : 0); }
+    else { hudTop = SAF.t + 62; top = hudTop + 42; }
+    return { top, hudTop, x0: SAF.l + 8, w: W - SAF.l - SAF.r - 16, h: H - top - SAF.b - 10 };
+  }
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    wide = W > H * 1.1;
+    const a = area();
+    if (!gridFixed) {   // 칸 수 정하기: 짧은 쪽이 13칸 남짓, 칸은 22~44px (손가락으로 보고 고르기 좋은 크기)
+      const c0 = clamp(Math.min(a.w, a.h) / 13, 22, 44), f0 = c0 * 0.36;
+      cols = clamp(Math.floor((a.w - 2 * f0) / c0), 8, 26); rows = clamp(Math.floor((a.h - 2 * f0) / c0), 8, 26);
+    }
+    const oldCell = cell;
+    cell = Math.max(8, Math.min((a.w) / (cols + 0.72), (a.h) / (rows + 0.72), 44)); fence = cell * 0.36;
+    if (state === 'play' && phase === 'run' && Math.abs(cell - oldCell) > oldCell * 0.15) setTimeout(pause, 0);   // 판 도중 화면을 돌리면 잠깐 멈춘다 (칸 수는 그대로라 칸 크기가 바뀐다)
+    bx = Math.round(a.x0 + (a.w - cols * cell) / 2); by = Math.round(a.top + (a.h - rows * cell) / 2);
+    hud.style.top = a.hudTop + 'px'; hud.style.left = (W / 2) + 'px';
+    bar.setTitle(wide ? (W < 760 ? '' : TITLE) : W < 350 ? '산책행렬' : TITLE);   // 낮은 가로 화면은 점수판이 위 줄 가운데에 들어가니 제목을 지운다
+    for (const c of [cv, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    stat.width = cv.width; stat.height = cv.height;
+    K.setSize(Math.round(cell * 2.1));
+    buildBg(); buildStatic();
+  }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  function buildBg() {
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const c = bg.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const lg = c.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0B1030'); lg.addColorStop(0.6, '#18245A'); lg.addColorStop(1, '#1F3A5A');
+    c.fillStyle = lg; c.fillRect(0, 0, W, H);
+    const blob = (x, y, r, col) => { const rg = c.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2); };
+    blob(W * 0.15, H * 0.12, Math.max(W, H) * 0.5, 'rgba(130,130,255,.13)'); blob(W * 0.9, H * 0.9, Math.max(W, H) * 0.45, 'rgba(120,220,170,.08)');
+    const rnd = mulberry32(77), n = Math.round(clamp(W * H / 2800, 70, 380));
+    for (let i = 0; i < n; i++) { const x = rnd() * W, y = rnd() * H, r = rnd() < 0.07 ? 1.1 + rnd() * 0.7 : 0.4 + rnd() * 0.7; c.globalAlpha = 0.25 + rnd() * 0.55; c.fillStyle = rnd() < 0.3 ? '#FFE9C4' : '#EAF0FF'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+    // 공원 가로등 불빛 (판 네 귀퉁이 근처)
+    const bw = cols * cell, bh = rows * cell;
+    for (const [x, y] of [[bx, by], [bx + bw, by], [bx, by + bh], [bx + bw, by + bh]]) blob(x, y, cell * 4, 'rgba(255,214,140,.10)');
+  }
+  function rr(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function buildStatic() {
+    const c = sg; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, stat.width, stat.height); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const bw = cols * cell, bh = rows * cell;
+    // 그림자 + 잔디
+    c.save(); c.shadowColor = 'rgba(4,6,24,.55)'; c.shadowBlur = 18; c.shadowOffsetY = 6; c.fillStyle = '#24563F'; rr(c, bx - fence, by - fence, bw + fence * 2, bh + fence * 2, fence * 1.2); c.fill(); c.restore();
+    c.fillStyle = '#2F6B4C'; c.fillRect(bx, by, bw, bh);
+    c.fillStyle = 'rgba(255,255,255,.045)'; for (let y = 0; y < rows; y++) for (let x = (y % 2); x < cols; x += 2) c.fillRect(bx + x * cell, by + y * cell, cell, cell);
+    const rnd = mulberry32(5 + cols * 31 + rows); c.strokeStyle = 'rgba(160,230,170,.18)'; c.lineWidth = 1; c.lineCap = 'round';
+    for (let i = 0; i < cols * rows * 0.5; i++) { const x = bx + rnd() * bw, y = by + rnd() * bh, l = cell * 0.12; c.beginPath(); c.moveTo(x, y); c.lineTo(x - l * 0.4, y - l); c.moveTo(x, y); c.lineTo(x + l * 0.3, y - l * 0.9); c.stroke(); }
+    // 울타리: 나무 울타리(부딪히면 끝) · Easy 는 낮은 산울타리 점선(지나가면 반대편으로)
+    if (!D.wrap) {
+      c.strokeStyle = '#C08A55'; c.lineWidth = Math.max(2, fence * 0.42); c.lineJoin = 'round';
+      c.strokeRect(bx - fence * 0.5, by - fence * 0.5, bw + fence, bh + fence);
+      c.strokeStyle = 'rgba(255,236,200,.45)'; c.lineWidth = Math.max(1, fence * 0.12); c.strokeRect(bx - fence * 0.62, by - fence * 0.62, bw + fence * 1.24, bh + fence * 1.24);
+      c.fillStyle = '#E3B47E'; const post = (x, y) => { c.beginPath(); c.arc(x, y, fence * 0.42, 0, TAU); c.fill(); };
+      for (let x = 0; x <= cols; x += 2) { post(bx + x * cell, by - fence * 0.5); post(bx + x * cell, by + bh + fence * 0.5); }
+      for (let y = 0; y <= rows; y += 2) { post(bx - fence * 0.5, by + y * cell); post(bx + bw + fence * 0.5, by + y * cell); }
+    } else {
+      c.strokeStyle = 'rgba(150,230,170,.75)'; c.lineWidth = Math.max(2, fence * 0.32); c.setLineDash([cell * 0.35, cell * 0.3]); c.lineCap = 'round';
+      c.strokeRect(bx - fence * 0.5, by - fence * 0.5, bw + fence, bh + fence); c.setLineDash([]);
+    }
+    for (const s of shapes) drawShape(c, s);
+  }
+  function drawShape(c, s) {
+    const x = bx + s.x * cell, y = by + s.y * cell, w = s.w * cell, h = s.h * cell, p = cell * 0.08;
+    c.save(); c.fillStyle = 'rgba(0,0,0,.25)'; rr(c, x + p, y + p * 2, w - p * 2, h - p * 2, cell * 0.25); c.fill(); c.restore();
+    if (s.kind === 'bench') {
+      const hz = s.w >= s.h;
+      c.fillStyle = '#5A3A22'; rr(c, x + p, y + p, w - p * 2, h - p * 2, cell * 0.14); c.fill();
+      c.fillStyle = '#C98B55';
+      for (let i = 0; i < 3; i++) {
+        if (hz) rr(c, x + p * 1.6, y + p * 1.6 + i * (h - p * 3.2) / 3, w - p * 3.2, (h - p * 3.2) / 3 - p * 0.6, cell * 0.06);
+        else rr(c, x + p * 1.6 + i * (w - p * 3.2) / 3, y + p * 1.6, (w - p * 3.2) / 3 - p * 0.6, h - p * 3.2, cell * 0.06);
+        c.fill();
+      }
+      c.fillStyle = 'rgba(255,240,210,.35)'; if (hz) c.fillRect(x + p * 2, y + p * 1.9, w - p * 4, p * 0.5); else c.fillRect(x + p * 1.9, y + p * 2, p * 0.5, h - p * 4);
+    } else if (s.kind === 'bush') {
+      const cx = x + w / 2, cy = y + h / 2, r = Math.min(w, h) * 0.44;
+      c.fillStyle = '#1F4D33'; c.beginPath(); c.arc(cx, cy, r, 0, TAU); c.fill();
+      c.fillStyle = '#3E8A5A'; for (const [dx, dy, k] of [[-0.35, -0.2, 0.55], [0.3, -0.25, 0.55], [0, 0.25, 0.6]]) { c.beginPath(); c.arc(cx + dx * r, cy + dy * r, r * k, 0, TAU); c.fill(); }
+      c.fillStyle = '#FF8FA8'; for (const [dx, dy] of [[-0.3, 0.1], [0.35, 0.2], [0.05, -0.4]]) { c.beginPath(); c.arc(cx + dx * r, cy + dy * r, r * 0.13, 0, TAU); c.fill(); }
+    } else {   // 화단: 흙 + 꽃
+      c.fillStyle = '#5E3D27'; rr(c, x + p, y + p, w - p * 2, h - p * 2, cell * 0.3); c.fill();
+      c.fillStyle = '#7A5236'; rr(c, x + p * 2, y + p * 2, w - p * 4, h - p * 4, cell * 0.24); c.fill();
+      const rnd = mulberry32(s.seed), n = Math.round(s.w * s.h * 3.2), cols2 = ['#FF9EB5', '#FFD66B', '#FFFFFF', '#B9A4FF'];
+      for (let i = 0; i < n; i++) {
+        const fx2 = x + p * 3 + rnd() * (w - p * 6), fy2 = y + p * 3 + rnd() * (h - p * 6), r = cell * (0.09 + rnd() * 0.04);
+        c.fillStyle = '#4FA36A'; c.beginPath(); c.ellipse(fx2 + r, fy2 + r * 0.6, r * 0.9, r * 0.45, 0.5, 0, TAU); c.fill();
+        c.fillStyle = cols2[Math.floor(rnd() * cols2.length)]; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; c.beginPath(); c.arc(fx2 + Math.cos(a) * r, fy2 + Math.sin(a) * r, r * 0.7, 0, TAU); c.fill(); }
+        c.fillStyle = '#FFC24A'; c.beginPath(); c.arc(fx2, fy2, r * 0.5, 0, TAU); c.fill();
+      }
+    }
+  }
+
+  // ═══════ 판 만들기: 장애물은 울타리·서로에게서 한 칸씩 떨어뜨린다 (그래서 막힌 골목·갇힌 칸이 생기지 않는다). 출발 줄과 그 위아래 줄은 비운다 ═══════
+  const idx = (x, y) => y * cols + x;
+  function makeObstacles() {
+    obs = new Set(); shapes = [];
+    if (!D.obs) return;
+    const target = Math.round(cols * rows * D.obs), st = START(), near = new Set();
+    let placed = 0, tries = 0;
+    const KINDS = diffId === 'vhard' ? [['bench', 2, 1], ['bench', 1, 2], ['bed', 2, 2], ['bed', 3, 1], ['bed', 1, 3], ['bush', 1, 1]] : [['bench', 2, 1], ['bench', 1, 2], ['bed', 2, 2], ['bush', 1, 1]];
+    while (placed < target && tries++ < 600) {
+      const [kind, w, h] = KINDS[Math.floor(Math.random() * KINDS.length)];
+      const x = 1 + Math.floor(Math.random() * (cols - 1 - w)), y = 1 + Math.floor(Math.random() * (rows - 1 - h));
+      if (x + w > cols - 1 || y + h > rows - 1) continue;
+      let ok = true;
+      for (let yy = y; yy < y + h && ok; yy++) for (let xx = x; xx < x + w && ok; xx++) {
+        if (Math.abs(yy - st.y) <= 1) ok = false;                                   // 출발 줄 ±1
+        else if (Math.abs(xx - st.x) + Math.abs(yy - st.y) <= 4) ok = false;         // 출발 자리 둘레
+        for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1 && ok; dx++) if (near.has(idx(xx + dx, yy + dy))) ok = false;
+      }
+      if (!ok) continue;
+      for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) { obs.add(idx(xx, yy)); near.add(idx(xx, yy)); }
+      shapes.push({ kind, x, y, w, h, seed: Math.floor(Math.random() * 1e9) }); placed += w * h;
+    }
+  }
+  const PAL = [
+    { b: '#F4E6CC', e: '#D2B488' }, { b: '#9A6440', e: '#6A412A' }, { b: '#3C3F4C', e: '#22242E' }, { b: '#FFFFFF', e: '#C9CDD8' },
+    { b: '#B8BFCB', e: '#7E8696' }, { b: '#E8B24E', e: '#B9822A' }, { b: '#E6DCCB', e: '#6E5B45' }
+  ];
+  const EARS = ['flop', 'point', 'round'], COLLAR = ['#5BC0EB', '#FF7A9C', '#7FD3A8', '#FFC861', '#B39DFF', '#FF9F5A'];
+  function newPup(i) {
+    const lastP = pups[pups.length - 1];
+    let p; do { p = { pal: PAL[Math.floor(Math.random() * PAL.length)], ear: EARS[Math.floor(Math.random() * EARS.length)], spot: Math.random() < 0.4, collar: COLLAR[i % COLLAR.length], ph: rand(0, TAU), sz: rand(1.06, 1.18) }; }
+    while (lastP && lastP.pal === p.pal && lastP.ear === p.ear);
+    return p;
+  }
+  function resetBoard() {
+    const st = START();
+    body = [{ x: st.x, y: st.y }]; prev = [{ x: st.x, y: st.y }]; pups = [null]; dir = { x: 1, y: 0 }; queue = []; grow = 0; face = 1;
+    gold = null; food = null; floats = []; crumbs = [];
+    makeObstacles(); spawnFood(true); buildStatic();
+  }
+  function occupied(x, y) { if (obs.has(idx(x, y))) return true; for (const b of body) if (b.x === x && b.y === y) return true; return false; }
+  function freeCells(minDist, avoid) {
+    const out = [], h = body[0];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      if (occupied(x, y) || (avoid && avoid.x === x && avoid.y === y)) continue;
+      if (minDist && Math.abs(x - h.x) + Math.abs(y - h.y) < minDist) continue;
+      out.push({ x, y });
+    }
+    return out;
+  }
+  function spawnFood(first) {
+    let c;
+    if (first) { const st = START(); c = { x: Math.min(cols - 2, st.x + 4), y: st.y }; if (occupied(c.x, c.y)) c = null; }   // 첫 간식은 바로 앞 줄에 (출발하면 먹기 쉽게)
+    if (!c) { let list = freeCells(3, gold); if (!list.length) list = freeCells(0, gold); if (!list.length) { food = null; return false; } c = list[Math.floor(Math.random() * list.length)]; }
+    food = { x: c.x, y: c.y, t: 0, ph: rand(0, TAU) };
+    return true;
+  }
+  function spawnGold() {
+    const list = freeCells(4, food).filter(c => !D.wrap ? (c.x > 0 && c.y > 0 && c.x < cols - 1 && c.y < rows - 1) : true);
+    if (!list.length) return;
+    const c = list[Math.floor(Math.random() * list.length)];
+    gold = { x: c.x, y: c.y, life: D.goldT, max: D.goldT, t: 0 };
+    tone(1175, 0.12, 'triangle', 0.05); tone(1568, 0.18, 'triangle', 0.05, 0.1);
+    const p = cellC(c.x, c.y); addFloat(p.x, p.y - cell * 0.8, '황금 간식!', '#FFE08A');
+  }
+  const schedGold = () => { nextGold = count + D.gold[0] + Math.floor(Math.random() * (D.gold[1] - D.gold[0] + 1)); };
+  const cellC = (x, y) => ({ x: bx + (x + 0.5) * cell, y: by + (y + 0.5) * cell });
+  const speedNow = () => Math.min(D.vmax, D.v0 + D.inc * count);
+
+  // ═══════ 한 칸 걸음 ═══════
+  //   뒤로 꺾기 판정은 방향값이 아니라 실제 몸 자리로 한다: 「머리 + d」 가 바로 뒤 친구 칸이면 금지 (Easy 는 반대편 통과까지 셈)
+  function headTo(d) { const h = body[0]; let x = h.x + d.x, y = h.y + d.y; if (D.wrap) { x = (x + cols) % cols; y = (y + rows) % rows; } return { x, y }; }
+  function backToBody(d) { if (body.length < 2) return false; const n = headTo(d); return n.x === body[1].x && n.y === body[1].y; }
+  function step() {
+    while (queue.length) { const q = queue.shift(); if (!backToBody(q)) { dir = q; break; } }   // 혹시라도 뒤로 꺾는 값이면 버린다
+    if (dir.x) face = dir.x;
+    const h = body[0];
+    let nx = h.x + dir.x, ny = h.y + dir.y;
+    if (D.wrap) { nx = (nx + cols) % cols; ny = (ny + rows) % rows; }
+    else if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) return die('wall');
+    if (obs.has(idx(nx, ny))) return die(shapes.find(s => nx >= s.x && nx < s.x + s.w && ny >= s.y && ny < s.y + s.h).kind);
+    const tailMoves = grow === 0;
+    for (let i = 0; i < body.length - (tailMoves ? 1 : 0); i++) if (body[i].x === nx && body[i].y === ny) return die('self');
+    for (let i = 0; i < body.length; i++) prev[i] = { x: body[i].x, y: body[i].y };
+    const oldTail = { x: body[body.length - 1].x, y: body[body.length - 1].y };
+    for (let i = body.length - 1; i > 0; i--) body[i] = { x: body[i - 1].x, y: body[i - 1].y };
+    body[0] = { x: nx, y: ny };
+    if (grow > 0) { grow--; body.push(oldTail); prev.push({ x: oldTail.x, y: oldTail.y }); pups.push(newPup(pups.length)); pupPop(body.length - 1); }
+    if (food && nx === food.x && ny === food.y) eat(false);
+    else if (gold && nx === gold.x && ny === gold.y) eat(true);
+    else if (!reduceMotion && Math.random() < 0.18) tone(rand(300, 360), 0.03, 'sine', 0.012);   // 사뿐사뿐
+  }
+  function pupPop(i) { const p = pups[i]; if (p) p.pop = 0.35; }
+  function eat(isGold) {
+    const pt = cellC(body[0].x, body[0].y), add = isGold ? GOLD_ADD : 1;
+    count += add; grow += add; eatT = 0.4;
+    if (isGold) { goldN++; gold = null; schedGold(); sfx('power'); addFloat(pt.x, pt.y - cell * 0.7, '친구 ' + add + '마리!', '#FFE08A', true); burst(pt.x, pt.y, '#FFD34D', 14); if (!food && !spawnFood(false)) return finish('full'); }   // 판이 거의 차서 일반 간식이 비어 있었으면 다시 놓는다
+    else { eatN++; sfx('munch'); tone(880 + Math.min(count, 30) * 12, 0.08, 'triangle', 0.05, 0.03); addFloat(pt.x, pt.y - cell * 0.7, '+1', '#fff'); burst(pt.x, pt.y, '#F6E2BE', 7); if (!spawnFood(false) && !gold) return finish('full'); }
+    if (!gold && count >= nextGold) spawnGold();
+    sps = speedNow(); stepT = 1 / sps;
+    const e = $('hudSc'); if (!reduceMotion) { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
+    paintHud();
+    if (count > 0 && count % 10 === 0) { sfx('match'); const c = cellC(body[0].x, body[0].y); addFloat(c.x, c.y - cell * 1.4, count + '마리 행렬!', '#BFF3D2', true); }
+  }
+  function burst(x, y, col, n) { if (reduceMotion) return; for (let i = 0; i < n; i++) { const a = rand(0, TAU), v = rand(40, 120); crumbs.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 30, life: rand(0.35, 0.6), col, r: rand(1.5, 3) }); } }
+  const WHY = { wall: '울타리에 쿵!', self: '행렬에 걸려 넘어졌어요', bench: '벤치에 쿵!', bed: '화단에 쿵!', bush: '덤불에 쿵!' };
+  function die(why) {
+    phase = 'dead'; deadWhy = why; deadDir = { x: dir.x, y: dir.y }; deadT = 0; queue = [];
+    for (let i = 0; i < body.length; i++) prev[i] = { x: body[i].x, y: body[i].y };
+    sfx('hit'); setTimeout(() => sfx('lose'), 260); voice('growl', 0.35, 0.7);
+    const p = cellC(body[0].x, body[0].y); addFloat(p.x, p.y - cell, WHY[why] || '앗!', '#FFD2D6', true);
+    finish(why);
+  }
+  function finish(why) {
+    if (state !== 'play') return;
+    state = 'over'; overT = why === 'quit' ? 0.3 : 1.5; btnPause.hidden = true; swipe.on = false;
+    if (why === 'full') { sfx('win'); const p = cellC(body[0].x, body[0].y); addFloat(p.x, p.y - cell, '공원이 꽉 찼어요!', '#FFE08A', true); }
+    deadWhy = why;
+  }
+
+  // ═══════ 그리기 ═══════
+  function rpos(i, t) {   // i 번째(0 = 콩이)의 칸 사이 보간 자리 (화면 px). 반대편으로 넘어간 칸은 반은 나가고 반은 들어온다
+    const a = prev[i] || body[i], b = body[i]; let dx = b.x - a.x, dy = b.y - a.y, wrapped = false;
+    if (Math.abs(dx) > 1) { dx = -Math.sign(dx); wrapped = true; } if (Math.abs(dy) > 1) { dy = -Math.sign(dy); wrapped = true; }
+    let x, y; if (wrapped && t >= 0.5) { x = b.x - dx * (1 - t); y = b.y - dy * (1 - t); } else { x = a.x + dx * t; y = a.y + dy * t; }
+    return { x: bx + (x + 0.5) * cell, y: by + (y + 0.5) * cell, dx, dy, wrapped };
+  }
+  function drawBone(c, x, y, s, isGold, ph) {
+    const bob = reduceMotion ? 0 : Math.sin(tAnim * 3 + ph) * s * 0.05;
+    c.save(); c.translate(x, y + bob); c.rotate(-0.55);
+    if (isGold) { const rg = c.createRadialGradient(0, 0, 0, 0, 0, s * 0.85); rg.addColorStop(0, 'rgba(255,220,100,.55)'); rg.addColorStop(1, 'rgba(255,220,100,0)'); c.fillStyle = rg; c.beginPath(); c.arc(0, 0, s * 0.85, 0, TAU); c.fill(); }
+    c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(s * 0.05, s * 0.28, s * 0.32, s * 0.09, 0.55, 0, TAU); c.fill();
+    const L = s * 0.26, r = s * 0.12, wd = s * 0.15;
+    c.fillStyle = isGold ? '#FFD34D' : '#FFF3DD'; c.strokeStyle = isGold ? '#A9740B' : '#B89268'; c.lineWidth = Math.max(1, s * 0.04);
+    c.beginPath(); c.rect(-L, -wd / 2, L * 2, wd);
+    for (const [ex, ey] of [[-L, -r * 0.75], [-L, r * 0.75], [L, -r * 0.75], [L, r * 0.75]]) { c.moveTo(ex + r, ey); c.arc(ex, ey, r, 0, TAU); }
+    c.stroke(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(-L * 0.8, -wd * 0.32, L * 1.6, wd * 0.22);
+    if (isGold && !reduceMotion) { const k = (Math.sin(tAnim * 6) + 1) / 2; c.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * k).toFixed(2) + ')'; star(c, L * 0.9, -s * 0.28, s * 0.09); }
+    c.restore();
+  }
+  function star(c, x, y, r) { c.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, q = i % 2 ? r * 0.35 : r; c.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } c.closePath(); c.fill(); }
+  function drawPup(c, x, y, s, p, ph, fx2, fy2, sad) {
+    const sz = s * p.sz * (p.pop > 0 ? 1 + Math.sin((1 - p.pop / 0.35) * Math.PI) * 0.25 : 1), r = sz * 0.33;
+    const bob = reduceMotion ? 0 : -Math.abs(Math.sin(ph)) * s * 0.07;
+    c.save(); c.translate(x, y);
+    c.fillStyle = 'rgba(0,0,0,.24)'; c.beginPath(); c.ellipse(0, s * 0.34, r * 0.95, r * 0.3, 0, 0, TAU); c.fill();
+    c.translate(0, bob);
+    const hy = -s * 0.05;
+    c.fillStyle = p.pal.b; c.beginPath(); c.ellipse(-fx2 * r * 0.45, s * 0.15 - fy2 * r * 0.25, r * 0.82, r * 0.66, 0, 0, TAU); c.fill();   // 몸
+    c.fillStyle = p.pal.e;
+    if (p.ear === 'point') for (const sx of [-1, 1]) { c.beginPath(); c.moveTo(sx * r * 0.28, hy - r * 0.78); c.lineTo(sx * r * 0.9, hy - r * 1.28); c.lineTo(sx * r * 0.92, hy - r * 0.32); c.closePath(); c.fill(); }
+    if (p.ear === 'round') for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * r * 0.72, hy - r * 0.72, r * 0.36, 0, TAU); c.fill(); }
+    c.fillStyle = p.pal.b; c.strokeStyle = 'rgba(20,20,40,.28)'; c.lineWidth = Math.max(1, s * 0.03); c.beginPath(); c.arc(0, hy, r, 0, TAU); c.fill(); c.stroke();   // 얼굴
+    if (p.spot) { c.save(); c.beginPath(); c.arc(0, hy, r, 0, TAU); c.clip(); c.fillStyle = p.pal.e; c.beginPath(); c.ellipse(r * 0.42, hy - r * 0.2, r * 0.42, r * 0.36, 0.3, 0, TAU); c.fill(); c.restore(); }
+    if (p.ear === 'flop') { c.fillStyle = p.pal.e; for (const sx of [-1, 1]) { c.save(); c.translate(sx * r * 0.88, hy + r * 0.05); c.rotate(sx * 0.22); c.beginPath(); c.ellipse(0, 0, r * 0.3, r * 0.6, 0, 0, TAU); c.fill(); c.restore(); } }
+    c.strokeStyle = p.collar; c.lineWidth = Math.max(1.5, s * 0.075); c.lineCap = 'round'; c.beginPath(); c.arc(0, hy, r * 0.96, Math.PI * 0.28, Math.PI * 0.72); c.stroke();
+    const ex = fx2 * r * 0.13, ey = fy2 * r * 0.1;
+    c.fillStyle = '#1B1E2B'; c.strokeStyle = '#1B1E2B';
+    if (sad) { c.lineWidth = Math.max(1, s * 0.04); for (const sx of [-1, 1]) { c.beginPath(); c.moveTo(sx * r * 0.36 + ex - r * 0.12, hy - r * 0.1 + ey); c.lineTo(sx * r * 0.36 + ex + r * 0.12, hy - r * 0.1 + ey); c.stroke(); } }
+    else for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * r * 0.36 + ex, hy - r * 0.12 + ey, r * 0.12, 0, TAU); c.fill(); }
+    c.fillStyle = p.pal.b === '#3C3F4C' ? 'rgba(255,255,255,.28)' : 'rgba(255,248,236,.75)'; c.beginPath(); c.ellipse(ex * 0.6, hy + r * 0.32 + ey, r * 0.36, r * 0.26, 0, 0, TAU); c.fill();
+    c.fillStyle = '#2A2230'; c.beginPath(); c.ellipse(ex * 0.6, hy + r * 0.2 + ey, r * 0.13, r * 0.1, 0, 0, TAU); c.fill();
+    c.restore();
+  }
+  function draw() {
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.drawImage(stat, 0, 0);
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const t = phase === 'run' && state === 'play' ? clamp(acc / stepT, 0, 1) : state === 'pause' && phase === 'run' ? clamp(acc / stepT, 0, 1) : 1;
+    g.save(); g.beginPath(); g.rect(bx, by, cols * cell, rows * cell); g.clip();
+    if (food) { const p = cellC(food.x, food.y); drawBone(g, p.x, p.y, cell, false, food.ph); }
+    if (gold) {
+      const p = cellC(gold.x, gold.y), k = gold.life / gold.max, blink = k < 0.3 && !reduceMotion && Math.sin(tAnim * 14) < 0;
+      if (!blink) drawBone(g, p.x, p.y, cell * 1.1, true, 0);
+      g.strokeStyle = 'rgba(255,224,138,.85)'; g.lineWidth = Math.max(2, cell * 0.08); g.lineCap = 'round'; g.beginPath(); g.arc(p.x, p.y, cell * 0.56, -Math.PI / 2, -Math.PI / 2 + TAU * k); g.stroke();
+    }
+    // 목줄: 콩이에서 마지막 친구까지 이어진 줄
+    const pos = []; for (let i = 0; i < body.length; i++) pos.push(rpos(i, t));
+    if (phase === 'dead' && !reduceMotion) { const k = Math.sin(Math.min(1, deadT / 0.16) * Math.PI) * 0.28; pos[0] = { x: pos[0].x + deadDir.x * cell * k, y: pos[0].y + deadDir.y * cell * k }; }
+    if (pos.length > 1) {
+      g.strokeStyle = 'rgba(255,200,97,.8)'; g.lineWidth = Math.max(1.5, cell * 0.07); g.lineCap = 'round'; g.lineJoin = 'round';
+      g.beginPath(); g.moveTo(pos[0].x, pos[0].y + cell * 0.08);
+      for (let i = 1; i < pos.length; i++) { const a = pos[i - 1], b = pos[i]; if (Math.abs(a.x - b.x) > cell * 1.5 || Math.abs(a.y - b.y) > cell * 1.5) g.moveTo(b.x, b.y + cell * 0.08); else g.lineTo(b.x, b.y + cell * 0.08); }
+      g.stroke();
+    }
+    // 친구들 (꼬리부터 그려 앞 친구가 위로)
+    const sad = phase === 'dead' || (state === 'over' || state === 'result') && deadWhy !== 'full' && deadWhy !== 'quit';
+    for (let i = body.length - 1; i >= 1; i--) {
+      const p = pups[i]; if (!p) continue; const q = pos[i];
+      const ph = walkPh + p.ph, ahead = pos[i - 1], fdx = clamp((ahead.x - q.x) / cell, -1, 1), fdy = clamp((ahead.y - q.y) / cell, -1, 1);
+      const shake = sad && !reduceMotion && deadT < 0.5 ? Math.sin(deadT * 50 + i) * cell * 0.04 : 0;
+      drawPup(g, q.x + shake, q.y, cell, p, phase === 'run' && state === 'play' ? ph : 0, Math.abs(fdx) > 1.2 ? 0 : fdx, Math.abs(fdy) > 1.2 ? 0 : fdy, sad);
+      // 반대편으로 넘어가는 중이면 반대쪽에도 살짝 (Easy)
+    }
+    g.restore();
+    for (const cr of crumbs) { g.globalAlpha = clamp(cr.life / 0.3, 0, 1); g.fillStyle = cr.col; g.beginPath(); g.arc(cr.x, cr.y, cr.r, 0, TAU); g.fill(); }
+    g.globalAlpha = 1;
+    drawKong(pos[0], t);
+    // 위 덮개: 안내·글자
+    const c = fg; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, fx.width, fx.height); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    if (state === 'play' && phase === 'wait') drawWaitHint(c, pos[0]);
+    for (const f of floats) {
+      c.font = '700 ' + (f.big ? 17 : 14) + 'px ' + FONT; c.globalAlpha = Math.min(1, f.life / 0.35);
+      const tw = c.measureText(f.text).width / 2 + 6, x = clamp(f.x, tw + SAF.l + 4, W - tw - SAF.r - 4), y = clamp(f.y, 20, H - 20);
+      c.strokeStyle = 'rgba(12,16,48,.75)'; c.lineWidth = 3.5; c.strokeText(f.text, x, y); c.fillStyle = f.col; c.fillText(f.text, x, y);
+    }
+    c.globalAlpha = 1;
+  }
+  function pill(c, txt, x, y, size) {
+    c.font = '600 ' + (size || 13) + 'px ' + FONT; const tw = c.measureText(txt).width + 22, h = (size || 13) + 13;
+    x = clamp(x, tw / 2 + 6 + SAF.l, W - tw / 2 - 6 - SAF.r); y = clamp(y, h / 2 + 4, H - h / 2 - 4 - SAF.b);
+    c.fillStyle = 'rgba(18,22,52,.78)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, x, y + 0.5);
+    return { x, y, w: tw, h };
+  }
+  function drawWaitHint(c, hp) {
+    // 콩이 앞에 가는 방향 화살표 + 「밀면 출발」
+    const u = reduceMotion ? 0.5 : (tAnim % 1.2) / 1.2, al = u < 0.8 ? 1 : 1 - (u - 0.8) / 0.2;
+    c.globalAlpha = 0.9 * al; c.fillStyle = '#FFE08A';
+    for (let k = 1; k <= 3; k++) {
+      const d = cell * (1.1 + k * 0.55 + u * 0.4), x = hp.x + dir.x * d, y = hp.y + dir.y * d, s = cell * 0.2;
+      c.globalAlpha = 0.9 * al * (1 - (k - 1) * 0.28);
+      c.beginPath(); c.moveTo(x + dir.x * s, y + dir.y * s); c.lineTo(x - dir.x * s - dir.y * s, y - dir.y * s + dir.x * s); c.lineTo(x - dir.x * s + dir.y * s, y - dir.y * s - dir.x * s); c.closePath(); c.fill();
+    }
+    c.globalAlpha = 1;
+    // 안내 알약은 장애물·간식·행렬이 없는 줄에 (콩이 줄과 그 위아래 줄은 피하고, 가까운 줄부터 찾는다)
+    const txt = count || body.length > 1 ? '화면을 밀면 다시 출발해요' : '화면을 밀거나 누르면 출발해요';
+    c.font = '600 14px ' + FONT;
+    const pw = c.measureText(txt).width + 22, ph = 27, cx = bx + cols * cell / 2;
+    const x0 = Math.max(0, Math.floor((cx - pw / 2 - bx) / cell)), x1 = Math.min(cols - 1, Math.floor((cx + pw / 2 - bx) / cell));
+    const span = Math.max(1, Math.ceil(ph / cell)), hy = body[0].y, kongTop = hy - Math.ceil(2.2);   // 콩이 그림은 발밑 위로 약 2칸
+    const rowFree = y => {
+      if (y < 0 || y + span > rows) return false;
+      if (y + span - 1 >= kongTop && y <= hy + 1) return false;
+      for (let yy = y; yy < y + span; yy++) for (let xx = x0; xx <= x1; xx++) {
+        if (obs.has(idx(xx, yy))) return false;
+        if (food && food.x === xx && food.y === yy) return false;
+        if (gold && gold.x === xx && gold.y === yy) return false;
+        for (const b of body) if (b.x === xx && b.y === yy) return false;
+      }
+      return true;
+    };
+    let ty = null;
+    for (let k = 1; k < rows && ty === null; k++) for (const y of [hy + 1 + k, kongTop - span - k + 1]) if (ty === null && rowFree(y)) ty = by + (y + span / 2) * cell;
+    if (ty === null) ty = by + rows * cell + fence + ph / 2 + 4 <= H - SAF.b - ph / 2 ? by + rows * cell + fence + ph / 2 + 4 : (hp.y < by + rows * cell * 0.5 ? hp.y + cell * 2.2 : hp.y - cell * 2.2);   // 빈 줄이 없으면 판 아래, 그것도 안 되면 예전 자리
+    pill(c, txt, cx, ty, 14);
+  }
+  function drawKong(hp, t) {
+    const dead = phase === 'dead' || state === 'over' && deadWhy !== 'full' && deadWhy !== 'quit' || state === 'result' && deadWhy !== 'full' && deadWhy !== 'quit';
+    const won = (state === 'over' || state === 'result') && !dead;
+    const moving = phase === 'run' && state === 'play';
+    let pose = 'stand';
+    if (dead || won || state === 'ready') pose = 'sit';
+    else if (dir.y < 0 && HAS_REAR) pose = 'rear';
+    if (K.rig.pose !== pose) K.setPose(pose);
+    // 위·아래로 갈 때는 콩이를 조금 작게 그려 바로 뒤 친구가 가려지지 않게 한다
+    const vert = dir.y !== 0 && body.length > 1 && state !== 'ready', down = vert && dir.y > 0, ksz = Math.round(cell * (down ? 1.45 : vert ? 1.6 : 2.1));   // 아래로 갈 때는 친구가 콩이 바로 뒤(위)에 서니 더 작게
+    if (K.size !== ksz) K.setSize(ksz);
+    K.render({ t: tAnim, facing: face, walk: moving ? 1 : 0, phase: walkPh, frame: moving ? undefined : 'idle', eyes: dead ? 'closed' : eatT > 0 || won ? 'happy' : 'open', mouth: dead ? 'closed' : 'open',
+      tilt: dead ? -10 : 0, earLift: dead ? -8 : eatT > 0 ? 6 : 0, tailAmp: dead ? 3 : moving ? 20 : 12, tailRate: moving ? 3.2 : 2, blush: eatT > 0 || won ? 1 : 0,
+      hop: reduceMotion || !moving ? 0 : Math.abs(Math.sin(walkPh)) * 6 });
+    // 반대편으로 넘어가는 중(Easy)엔 판 밖으로 나간 만큼 흐리게
+    const out = Math.max(bx - hp.x, hp.x - (bx + cols * cell), by - hp.y, hp.y - (by + rows * cell), 0) / (cell * 0.5);
+    K.el.style.opacity = String(clamp(1 - out, 0, 1));
+    // 반대편으로 넘어가는 동안은 넘어가는 쪽 울타리 선에서 잘라 판 밖으로 삐져나오지 않게 (다른 쪽은 자르지 않는다: 맨 윗줄에서 머리가 잘리지 않게)
+    let clip = '';
+    //   (콩이 발밑 가운데는 넘어가는 순간 딱 울타리 선에 닿을 뿐이라, 넘어가는 걸음 전체 동안 그쪽을 자른다)
+    if (D.wrap && hp.wrapped) {
+      const bw = cols * cell, bh = rows * cell, sx = t < 0.5 ? hp.dx : -hp.dx, sy = t < 0.5 ? hp.dy : -hp.dy;   // 앞 반은 나가는 쪽, 뒤 반은 들어오는 쪽
+      if (sx < 0) clip = 'inset(0 0 0 ' + bx + 'px)';
+      else if (sx > 0) clip = 'inset(0 ' + (W - bx - bw) + 'px 0 0)';
+      else if (sy > 0) clip = 'inset(0 0 ' + (H - by - bh) + 'px 0)';
+      else if (sy < 0) clip = 'inset(' + by + 'px 0 0 0)';
+    }
+    if (kClip !== clip) { kClip = clip; stage.style.clipPath = clip; }
+    K.place(hp.x, hp.y + cell * (down ? 0.55 : 0.42), 1);   // 아래로 갈 때는 발밑을 조금 내려 뒤 친구 얼굴이 보이게
+  }
+  function addFloat(x, y, text, col, big) { floats.push({ x, y, text, col: col || '#fff', life: 1.1, big: !!big }); }
+
+  function update(dt) {
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; if (!reduceMotion) f.y -= dt * 24; if (f.life <= 0) floats.splice(i, 1); }
+    for (let i = crumbs.length - 1; i >= 0; i--) { const c = crumbs[i]; c.life -= dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 260 * dt; if (c.life <= 0) crumbs.splice(i, 1); }
+    for (const p of pups) if (p && p.pop > 0) p.pop = Math.max(0, p.pop - dt);
+    if (eatT > 0) eatT -= dt;
+    if (phase === 'dead') deadT += dt;
+    if (state === 'over') { overT -= dt; if (overT <= 0) showResult(); return; }
+    if (state !== 'play' || phase !== 'run') return;
+    walkPh += dt * sps * Math.PI * 0.5;
+    if (gold) { gold.life -= dt; if (gold.life <= 0) { const p = cellC(gold.x, gold.y); addFloat(p.x, p.y - cell * 0.6, '사라졌어요', '#C9D1F2'); gold = null; schedGold(); if (!food && !spawnFood(false)) { finish('full'); return; } } }
+    acc += dt; let n = 0;
+    while (acc >= stepT && n < 4 && phase === 'run' && state === 'play') { acc -= stepT; step(); n++; }
+    if (n >= 4) acc = 0;
+  }
+  let last = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    if (state !== 'pause') { tAnim += dt; update(dt); }
+    draw();
+  }
+
+  // ═══════ 점수판 ═══════
+  function paintHud() {
+    $('hudN').textContent = count;
+    const b = best(KG.dkey(KEY, diffId));
+    $('hudBest').textContent = Math.max(b, 0); $('hudBs').hidden = !(b > 0);
+    $('hudSc').classList.toggle('gold', b > 0 && count > b);
+  }
+
+  // ═══════ 흐름 ═══════
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    gridFixed = false; layout(); gridFixed = true;
+    count = 0; eatN = 0; goldN = 0; acc = 0; quit = false; isNew = false; deadT = 0; deadWhy = ''; walkPh = 0; eatT = 0;
+    resetBoard(); schedGold(); sps = speedNow(); stepT = 1 / sps;
+    state = 'play'; phase = 'wait'; hud.hidden = false;
+    showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    paintHud(); KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+
+  }
+  function go(d) {   // 기다리다가 출발 (d 가 없으면 지금 방향 그대로)
+    if (state !== 'play' || phase !== 'wait') return;
+    if (d && backToBody(d)) {   // 바로 뒤 친구 쪽으로 밀었으면 출발하지 않고 알려 준다 (손가락과 다른 쪽으로 달려 나가지 않게)
+      if (tAnim - backHintAt > 0.8) { backHintAt = tAnim; const p = cellC(body[0].x, body[0].y); addFloat(p.x, p.y - cell * 1.6, '옆으로 밀어 출발해요', '#FFE08A'); tone(330, 0.06, 'sine', 0.03); }
+      return;
+    }
+    if (d) { dir = d; if (d.x) face = d.x; }
+    queue = []; phase = 'run'; acc = stepT * 0.4; tone(523, 0.06, 'sine', 0.04);
+  }
+  function pause() {
+    if (state !== 'play') return; state = 'pause'; swipe.on = false;
+    $('psText').textContent = count ? '친구 ' + count + '마리와 산책하다 쉬는 중이에요. 계속하면 밀어서 다시 출발해요.' : J(name, '이/가') + ' 기다리고 있어요.';
+    showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
+  }
+  function resume() {   // 다시 할 때는 기다림(밀면 출발)으로 — 손가락을 올리기 전에 부딪히지 않게
+    if (state !== 'play' && state !== 'pause') return; state = 'play'; showCard(null); last = performance.now();
+    if (phase === 'run') { phase = 'wait'; for (let i = 0; i < body.length; i++) prev[i] = { x: body[i].x, y: body[i].y }; acc = 0;
+      // 대기열의 첫 값만 지금 몸 기준으로 다시 확인해 쓴다 (마지막 값은 지금 방향의 반대일 수 있어 즉사로 이어졌다)
+      if (queue.length && !backToBody(queue[0])) { dir = queue[0]; if (dir.x) face = dir.x; }
+      queue = []; }
+  }
+  function end() {   // 「그만하기」: 지금 친구 수로 끝낸다
+    if (state === 'pause') { state = 'play'; showCard(null); }
+    if (state !== 'play') return;
+    quit = true; finish('quit');
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now();
+    isNew = count > 0 && setBest(KG.dkey(KEY, diffId), count);
+    $('edN').textContent = count; $('edEat').textContent = eatN + '개'; $('edGold').textContent = goldN + '개';
+    $('edTitle').textContent = deadWhy === 'full' ? '공원이 친구들로 꽉 찼어요!' : quit ? '여기까지 산책했어요' : count >= 30 ? '동네 최고 산책 대장!' : count > 0 ? '산책 끝!' : '앗, 금방 넘어졌어요';
+    $('edText').textContent = deadWhy === 'full' || quit ? '친구 ' + count + '마리와 함께 걸었어요.' : (WHY[deadWhy] || '') + ' ' + (count > 0 ? '친구 ' + count + '마리와 함께 걸었어요.' : '다음엔 간식을 먹어 친구를 모아 봐요.');
+    paintBest(); paintHud(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    if (isNew) sfx('win');   // 짖는 소리는 공통이 「이전 기록을 넘었을 때」 한 번만 낸다
+  }
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { swipe.on = false; });
+
+  // ═══════ 입력: 화면 어디서든 밀면 그쪽으로 (손가락을 떼기 전에도 일정 거리를 넘으면 바로 꺾고, 계속 밀면 또 꺾는다) ═══════
+  //   바로 뒤로 꺾기는 무시, 빠른 연속 입력은 두 개까지 기다렸다가 칸마다 하나씩
+  const UP = { x: 0, y: -1 }, DOWN = { x: 0, y: 1 }, LEFT = { x: -1, y: 0 }, RIGHT = { x: 1, y: 0 };
+  function pushDir(d) {
+    if (state !== 'play') return false;
+    if (phase === 'wait') { go(d); return true; }
+    if (phase !== 'run') return false;
+    const lastD = queue.length ? queue[queue.length - 1] : dir;
+    if (d.x === lastD.x && d.y === lastD.y) return false;
+    if (d.x === -lastD.x && d.y === -lastD.y) return false;   // 바로 뒤로는 못 꺾는다 (친구가 없어도 같은 규칙)
+    if (queue.length >= 2) return false;
+    queue.push(d); return true;
+  }
+  const swipe = { on: false, id: null, sx: 0, sy: 0, used: false };
+  const swipeTh = () => clamp(cell * 0.7, 16, 28);
+  fx.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    e.preventDefault();
+    try { fx.setPointerCapture(e.pointerId); } catch (err) {}
+    swipe.on = true; swipe.id = e.pointerId; swipe.sx = e.clientX; swipe.sy = e.clientY; swipe.used = false;
+  });
+  fx.addEventListener('pointermove', e => {
+    if (!swipe.on || e.pointerId !== swipe.id) return;
+    const dx = e.clientX - swipe.sx, dy = e.clientY - swipe.sy, th = swipeTh();
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < th) return;
+    const d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? RIGHT : LEFT) : (dy > 0 ? DOWN : UP);
+    pushDir(d); swipe.used = true; swipe.sx = e.clientX; swipe.sy = e.clientY;
+  });
+  fx.addEventListener('pointerup', e => { if (!swipe.on || e.pointerId !== swipe.id) return; swipe.on = false; if (!swipe.used && state === 'play' && phase === 'wait') go(null); });
+  fx.addEventListener('pointercancel', e => { if (e.pointerId === swipe.id) swipe.on = false; });
+  const KEYDIR = { ArrowUp: UP, ArrowDown: DOWN, ArrowLeft: LEFT, ArrowRight: RIGHT, KeyW: UP, KeyS: DOWN, KeyA: LEFT, KeyD: RIGHT };
+  document.addEventListener('keydown', e => {
+    const k = e.key, d = KEYDIR[e.code] || KEYDIR[k];
+    if (d) {
+      if (state !== 'play') { if (state === 'pause' && k.startsWith('Arrow')) e.preventDefault(); return; }
+      e.preventDefault(); if (e.repeat || KG.rulesOpen) return; pushDir(d);
+    } else if (k === ' ' || k === 'Enter') {
+      if (e.repeat) { e.preventDefault(); return; }
+      if (state === 'play') { e.preventDefault(); if (!KG.rulesOpen && phase === 'wait') go(null); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault(); if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    } else if (k === 'Escape' || e.code === 'KeyP') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = b + '마리';
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = e + '마리';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+  }
+  function onDiff() { paintBest(); if (state === 'ready') { diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal; resetBoard(); paintHud(); } }
+  $('stRec').before(KG.diffPicker(null, onDiff));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);   // 결과 카드 바로 아래(가로 낮은 화면은 오른쪽) 가족 순위 — 방금 판 난이도
+  KG.startRank($('cardStart'), KEY);   // 시작 카드 아래에 고른 난이도의 가족 순위
+  diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+  layout(); resetBoard(); paintBest(); paintHud(); hud.hidden = true;
+  const RULES = { key: KEY, title: TITLE, lead: J(name, '이/가') + ' 앞장서고 친구 강아지들이 줄줄이 따라오는 산책 놀이예요.', items: [
+    ['👆', '화면을 위·아래·왼쪽·오른쪽으로 밀면 ' + J(name, '이/가') + ' 그쪽으로 꺾어요' + (KEYS_OK ? ' (방향키·WASD 도 돼요).' : '.')],
+    ['🦴', '간식을 먹을 때마다 친구가 한 마리씩 뒤에 붙어요. 잠깐 나오는 황금 간식은 친구 2마리!'],
+    ['💥', '울타리나 내 행렬에 부딪히면 산책 끝. 행렬이 길어질수록 조금씩 빨라져요. 기록은 끝날 때 친구 수예요.'],
+    ['🌷', 'Easy 는 울타리를 지나 반대편으로 나와요. Hard 부터 화단·벤치가 길을 막고, Very Hard 는 더 빠르고 많아요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  window.GAME = {
+    DIFF, get state() { return state; }, get phase() { return phase; }, get count() { return count; }, get diff() { return diffId; }, get D() { return D; },
+    get dir() { return dir; }, get queue() { return queue.slice(); }, get food() { return food; }, get gold() { return gold; }, get sps() { return sps; }, get deadWhy() { return deadWhy; },
+    body: () => body.map(b => [b.x, b.y]), obs: () => [...obs], shapes: () => shapes.slice(),
+    field: () => ({ W, H, cell, cols, rows, bx, by, bw: cols * cell, bh: rows * cell, fence, wide, hud: hud.getBoundingClientRect().toJSON() }),
+    cellC, start, end, pause, resume, pushDir, go, over: showResult,
+    setFood: (x, y) => { food = x == null ? null : { x, y, t: 0, ph: 0 }; }, setGold: (x, y) => { gold = { x, y, life: D.goldT, max: D.goldT, t: 0 }; },
+    step: dt => { tAnim += dt; update(dt); }
+  };
+})();
+</script>
+</body>
+</html>

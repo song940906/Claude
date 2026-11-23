@@ -667,6 +667,28 @@ var M3E = (function () {
     if (n + 1 > stageOf(g, d)) lsSet(g + '.stage.' + d, String(n + 1));
     let s = starsOf(g, d); while (s.length < n) s += '0'; if (+s[n - 1] < stars) lsSet(g + '.stars.' + d, s.slice(0, n - 1) + stars + s.slice(n));
   }
+  // ── 가족 순위 기록 (11-23): 그 난이도에서 깬 가장 높은 단계 수 (= stageOf - 1, 클수록 좋음). 열쇠는 KG.dkey('m3stage'|'pairstage', 난이도)
+  //   옛 기록(간식 3개 맞추기 점수 match3·카드 짝 맞추기 1단계 뒤집은 횟수 pairs.<난이도>)은 순위에 쓰지 않고 이 폰의 개인 기록으로만 남긴다
+  const REC = { match3: 'm3stage', pairs: 'pairstage' };
+  const recKeyOf = (g, d) => KG.dkey(REC[g], d);
+  const recStage = (g, d) => best(recKeyOf(g, d));
+  //   단계를 깬 뒤에 부른다 → 새로 오른 단계면 true. setBest 를 쓰지 않는다: setBest 는 '새 기록' 표시(recFlag)를 바로 세우는데,
+  //   결과 카드가 뜨기 전에 나가면(다른 퍼즐·뒤로) 그 표시가 남아 다음 결과 카드(진 판 포함)에 신기록 사진이 떴다 (11-23 검토).
+  //   그래서 여기서는 값만 올리고 저장소로 보내며, 사진 표시는 결과 카드를 실제로 그릴 때 KG.markNew() 로 세운다 (rbShow)
+  function stageRec(g, d) {
+    const v = stageOf(g, d) - 1; if (!(v > 0) || recStage(g, d) >= v) return false;
+    const prev = recStage(g, d); lsSet(recKeyOf(g, d), String(v)); rankUp(); return prev > 0 ? 2 : 1;   // 2 = 이전 기록을 넘음(결과 카드에서 짖음), 1 = 첫 기록
+  }
+  function rankUp() { try { if (!localStorage.getItem('kongstar.rank.cfg')) return; localStorage.setItem('kongstar.rank.dirty', '1'); } catch (e) { return; } try { KG.rank.flush(); } catch (e) {} }
+  //   개인 기록(순위와 무관): setBest 를 쓰지 않는다 — setBest 는 저장소로 올리고 새 기록 사진 표시를 세우는데, 이 열쇠들은 순위에서 빠졌다
+  function keepBest(k, v, lower) { const cur = best(k); if (cur > 0 && !(lower ? v < cur : v > cur)) return false; lsSet(k, String(v)); return true; }
+  //   이미 단계를 진행해 둔 사람도 순위에 나오게, 열 때 4개 난이도 모두 진행값으로 채운다 (더 클 때만).
+  //   setBest 를 쓰지 않는다: 열자마자 '새 기록' 표시가 서서 첫 결과 카드에 엉뚱한 신기록 사진이 뜨지 않게. 대신 저장소 올리기 표시만 세운다
+  (function migrateStageRecs() {
+    let put = false;
+    for (const d of KG.DIFFS) for (const g of ['match3', 'pairs']) { const v = stageOf(g, d.id) - 1; if (v > 0 && recStage(g, d.id) < v) { lsSet(recKeyOf(g, d.id), String(v)); put = true; } }
+    try { if (put && localStorage.getItem('kongstar.rank.cfg')) localStorage.setItem('kongstar.rank.dirty', '1'); } catch (e) {}   // 공통이 열고 1.5초 뒤·앱이 다시 보일 때 올린다
+  })();
 
   // ── 콩이
   const kong = KG.kong($('spotMenu'), 170); kong.setPose('sit'); kong.place(0, 0);
@@ -711,9 +733,10 @@ var M3E = (function () {
   //   cardKind: 'pause'(멈춤·그만할까요) 일 때만 Esc·계속하기로 닫힌다. 'end'(결과)는 뜨고 450ms 동안의 누름을 넘긴다 (판을 두던 손이 단추를 잘못 누르지 않게)
   let cardAct = null, cardKind = '', cardAt = 0;
   //   결과 카드의 가족 순위표: 게임마다 하나씩 만들어 두고, 결과 카드를 새로 그릴 때마다 카드 끝에 다시 넣는다 (rbShow). 다른 카드·카드 닫기에서는 숨긴다
-  const rbs = { match3: KG.rankBox(null, 'match3'), pairs: KG.rankBox(null, 'pairs') };
+  const rbs = { match3: KG.rankBox(null, REC.match3), pairs: KG.rankBox(null, REC.pairs) };   // 순위는 깬 단계 (「N단계」)
   function rbHide() { rbs.match3.hide(); rbs.pairs.hide(); scrim.classList.remove('kg-rbwrap', 'kg-rbmid'); }   // 같은 #scrim 을 다른 카드에도 쓰므로 쌓기 클래스도 떼야 멈춤·단계 카드가 가운데에 온다
-  function rbShow(k, d, note) { const c = scrim.querySelector('.kg-card'); if (!c) return; c.appendChild(rbs[k].el); rbs[k].show(d, note ? { note } : undefined); }
+  //   rec: 이 판에 새 단계를 깼다 → 지금 그리는 결과 카드에서만 신기록 사진 표시를 세운다 (show 가 바로 소비한다)
+  function rbShow(k, d, rec, note) { const c = scrim.querySelector('.kg-card'); if (!c) return; c.appendChild(rbs[k].el); if (rec) KG.markNew(rec === 2); rbs[k].show(d, note ? { note } : undefined); }
   function showCard(html, onAct, kind) {
     rbHide();
     scrim.innerHTML = '<div class="kg-card" role="dialog" aria-modal="true">' + html + '</div>'; scrim.hidden = false; cardAct = onAct; cardKind = kind || ''; cardDiff = null; cardAt = performance.now();
@@ -757,12 +780,13 @@ var M3E = (function () {
       ["👆", "이웃한 간식 둘을 밀거나 차례로 눌러 바꿔요. 같은 간식이 3개 이어지면 " + nameGa + " 먹어요."],
       ["🎯", "위에 보이는 목표를 이동 횟수 안에 이루면 다음 단계가 열려요. 이동이 남으면 보너스 점수!"],
       ["✨", "4개를 맞추면 줄을 치우는 간식, ㄱ·T 모양이면 주변을 터뜨리는 간식, 5개면 무지개 간식이 생겨요."],
-      ["🧊", "단계가 오르면 냉동 간식·상자 같은 방해 요소가 나와요. 처음 나올 때 알려 드려요."]] },
+      ["🧊", "단계가 오르면 냉동 간식·상자 같은 방해 요소가 나와요. 처음 나올 때 알려 드려요."],
+      ["🏆", "가족 순위는 깬 단계로 겨뤄요 (난이도마다 따로). 점수는 내 기록으로만 남아요."]] },
     pairs: { key: "pairs", title: "카드 짝 맞추기", lead: "뒤집어 본 카드의 자리를 기억해 같은 그림을 찾아요.", items: [
       ["👆", "카드를 눌러 두 장씩 뒤집어요. 같은 그림이면 열려 있고, 다르면 다시 덮여요."],
       ["🏁", "짝을 모두 찾으면 단계 완료! 다음 단계가 열려요."],
       ["🧊", "단계가 오르면 카드가 늘고 뒤집기 제한·장난꾸러기 카드·세 장 짝·냉동 카드가 나와요."],
-      ["⭐", "기록(뒤집은 횟수, 적을수록 좋아요)은 판이 같은 1단계에서만 남아요."]] }
+      ["🏆", "가족 순위는 깬 단계로 겨뤄요 (난이도마다 따로). 1단계 뒤집은 횟수는 내 기록으로만 남아요."]] }
   };
   // 안내를 닫으면 초점을 시작 카드의 「시작」 단추로 돌린다 (force: 봤어도 다시 보여 준다)
   function showRules(which, force) {
@@ -779,10 +803,10 @@ var M3E = (function () {
 
   // ── 고르는 화면
   function paintMenu() {
-    // 지금 고른 난이도의 기록과 단계만 보여 준다
-    const d = KG.diff(), b = best(KG.dkey('match3')), s3 = stageOf('match3', d), sp = stageOf('pairs', d);
-    $('recM3').innerHTML = (b > 0 ? '최고<strong>' + fmt(b) + '점</strong>' : '') + (s3 > 1 ? (s3 - 1) + '단계까지' : '');
-    const p = best('pairs.' + d); $('recPairs').innerHTML = (p > 0 ? '최고<strong>' + fmt(p) + '번</strong>' : '') + (sp > 1 ? (sp - 1) + '단계까지' : '');
+    // 지금 고른 난이도의 기록만 보여 준다: 크게 = 깬 단계(가족 순위 기준), 작게 = 내 점수·1단계 뒤집은 횟수(개인 기록)
+    const d = KG.diff(), b = best(KG.dkey('match3')), s3 = stageOf('match3', d) - 1, sp = stageOf('pairs', d) - 1, p = best('pairs.' + d);
+    $('recM3').innerHTML = (s3 > 0 ? '<strong>' + s3 + '단계까지</strong>' : '') + (b > 0 ? '내 점수<br>' + fmt(b) + '점' : '');   // 좁은 화면에서 제목을 밀지 않게 두 줄로
+    $('recPairs').innerHTML = (sp > 0 ? '<strong>' + sp + '단계까지</strong>' : '') + (p > 0 ? '1단계 최소<br>' + fmt(p) + '번' : '');
   }
   function goMenu() {
     saveIfDone(); gen++; prepTok++; mode = 'menu'; S.playing = false; S.paused = false; M = null; P = null; cur.on = false;
@@ -934,7 +958,7 @@ var M3E = (function () {
     const d = KG.diff(), top = stageOf('match3', d); m3New(n);
     const b = best(M.key);
     showCard('<div class="ico-lg emo" style="background:#FFF1E3">🍠</div><h2>간식 3개 맞추기</h2><p class="lead">같은 간식을 3개 이어 맞추면 ' + nameGaH + ' 냠냠!</p>' +
-      '<div class="tip"><b>' + n + '단계</b> · ' + goalText(M.st) + ' · 이동 ' + M.B.max + '번<small>' + KG.diffLabel(d) + (b > 0 ? ' 최고 ' + fmt(b) + '점' : '') + ' · ' + (top > 1 ? (top - 1) + '단계까지 깼어요' : '1단계부터 시작해요') + '</small></div>' +
+      '<div class="tip"><b>' + n + '단계</b> · ' + goalText(M.st) + ' · 이동 ' + M.B.max + '번<small>' + KG.diffLabel(d) + ' · ' + (top > 1 ? (top - 1) + '단계까지 깼어요' : '1단계부터 시작해요') + (b > 0 ? ' · 내 점수 ' + fmt(b) + '점' : '') + '</small></div>' +
       '<div class="dslot"></div><div class="row"><button class="kg-btn pri" data-act="start">' + (n === top ? '이어서 하기 (' + n + '단계)' : n + '단계 하기') + '</button></div>' + stagesHtml('match3', d, n) + startLinks,
       a => { if (a === 'start') m3Begin(); else if (a === 'rules') showRules('m3', true); else if (a.slice(0, 3) === 'st:') openM3(+a.slice(3)); else goMenu(); }, 'start');
     cardDiff = () => openM3();   // 시작 전에 난이도를 바꾸면 그 난이도에서 열린 단계로 다시 깐다
@@ -1043,19 +1067,21 @@ var M3E = (function () {
     B.cells.forEach((c, i) => { if (!c.p) return; const el = M.els.get(c.p.id); if (el) { paintTile(c.p); setPos(el, Math.floor(i / C), i % C, 0.4); } });
     paintM3(); await sleep(460);
   }
-  // 판의 끝을 정한다: 목표를 이뤘으면 남은 이동이 보너스 점수와 별이 된다. 기록(그 판의 점수)과 단계 진행은 바로 남긴다
+  // 판의 끝을 정한다: 목표를 이뤘으면 남은 이동이 보너스 점수와 별이 된다. 단계 진행·순위 기록(깬 단계)과 개인 기록(그 판의 점수)은 바로 남긴다
   function m3Final() {
     if (M.saved) return; M.saved = true; const B = M.B, id = M.diff + ':' + M.n;
-    M.win = E.goalInfo(B).done; M.left = Math.max(0, B.moves); M.bonus = 0; M.stars = 0;
-    if (M.win) { M.bonus = M.left * 50; B.score += M.bonus; M.stars = M.left >= B.max * 0.3 ? 3 : M.left >= B.max * 0.12 ? 2 : 1; saveStage('match3', M.diff, M.n, M.stars); fail = { key: '', n: 0 }; }
+    M.win = E.goalInfo(B).done; M.left = Math.max(0, B.moves); M.bonus = 0; M.stars = 0; M.rec = false;
+    if (M.win) { M.bonus = M.left * 50; B.score += M.bonus; M.stars = M.left >= B.max * 0.3 ? 3 : M.left >= B.max * 0.12 ? 2 : 1; saveStage('match3', M.diff, M.n, M.stars); M.rec = stageRec('match3', M.diff); fail = { key: '', n: 0 }; }
     else fail = { key: id, n: fail.key === id ? fail.n + 1 : 1 };
-    M.prev = best(M.key); M.rec = B.score > 0 && setBest(M.key, B.score);
+    M.prevScore = best(M.key); M.scoreRec = B.score > 0 && keepBest(M.key, B.score);
   }
   async function m3End(g) {
     M.over = true; M.busy = true; S.playing = false; S.paused = false; if (cardKind === 'pause') hideCard(); setSel(null); clearHint();
     m3Final(); const B = M.B;
     await sleep(650); if (g !== gen) return;
-    const recLine = KG.diffLabel(M.diff) + ' · ' + (M.rec ? (M.prev > 0 ? '지난 최고 ' + fmt(M.prev) + '점을 넘었어요' : '첫 기록을 남겼어요') : '최고 기록 ' + fmt(best(M.key)) + '점');
+    const top = recStage('match3', M.diff), sb = best(M.key);
+    const recLine = KG.diffLabel(M.diff) + ' · ' + (M.rec ? top + '단계까지 깼어요' : top > 0 ? '최고 ' + top + '단계까지' : '아직 깬 단계가 없어요') +
+      '<small class="note" style="display:block">' + (M.scoreRec && M.prevScore > 0 ? '내 최고 점수를 넘었어요 (' + fmt(sb) + '점)' : sb > 0 ? '내 최고 점수 ' + fmt(sb) + '점' : '') + '</small>';
     const act = a => { if (a === 'next') startM3(M.n + 1); else if (a === 'again') startM3(M.n); else if (a === 'pick') openM3(M.n); else goMenu(); };
     if (M.win) {
       sfx('win'); kongHappy(3); kongHop(70); hearts(4); if (M.stars >= 3) voice('bark', 0.5, 1.2);
@@ -1064,7 +1090,7 @@ var M3E = (function () {
       sfx('lose'); kongWrong();
       showCard('<h2>아쉬워요, 조금만 더!</h2><p>이동을 다 썼어요. 남은 목표</p><div class="goalrow">' + goalHtml(B) + '</div><div class="big">' + fmt(B.score) + '<small>점</small></div><p>' + recLine + '</p><p class="tip">다시 하면 ' + nameGaH + ' 응원해서 이동을 ' + Math.min(6, fail.n * 2) + '번 더 줘요.</p>' + failRow, act, 'end');
     }
-    if (B.score > 0) rbShow('match3', M.diff);   // 기록(setBest)이 남는 결과에서만
+    rbShow('match3', M.diff, M.win && M.rec);   // 순위는 깬 단계 — 값은 m3Final 에서 이미 남겼고, 신기록 사진은 이 카드에서만
     cardDiff = () => openM3();
   }
   // 입력: 밀기 또는 차례로 누르기
@@ -1196,27 +1222,28 @@ var M3E = (function () {
       P.over = true; P.win = false; S.playing = false; pairsSave(); setTimeout(() => { if (g === gen) pairsEnd(); }, 1000);
     }
   }
-  // 끝이 정해진 순간 남긴다 (결과 카드가 뜨기 전에 나가도 남게). 기록(뒤집은 횟수)은 판이 같은 1단계에서만
+  // 끝이 정해진 순간 남긴다 (결과 카드가 뜨기 전에 나가도 남게). 순위 기록 = 깬 단계, 개인 기록(뒤집은 횟수)은 판이 같은 1단계에서만
   function pairsSave() {
-    if (P.saved) return; P.saved = true; const k = 'pairs.' + P.diff; P.prev = best(k); P.rec = false; P.stars = 0; if (!P.win) return;
+    if (P.saved) return; P.saved = true; const k = 'pairs.' + P.diff; P.prev = best(k); P.rec = false; P.flipRec = false; P.stars = 0; if (!P.win) return;
     const k3 = P.set === 3 ? [2.6, 3.4] : [1.5, 2.2];
     P.stars = P.tries <= Math.ceil(P.sets * k3[0]) + P.st.frozen ? 3 : P.tries <= Math.ceil(P.sets * k3[1]) + P.st.frozen ? 2 : 1;
-    if (P.n === 1) P.rec = setBest(k, P.tries, true);
-    saveStage('pairs', P.diff, P.n, P.stars);
+    if (P.n === 1) P.flipRec = keepBest(k, P.tries, true);
+    saveStage('pairs', P.diff, P.n, P.stars); P.rec = stageRec('pairs', P.diff);
   }
   function pairsEnd() {
     pairsSave(); S.paused = false; if (cardKind === 'pause') hideCard();
-    const k = 'pairs.' + P.diff, prev = P.prev, rec = P.rec, b = best(k);
+    const k = 'pairs.' + P.diff, prev = P.prev, rec = P.rec, b = best(k), top = recStage('pairs', P.diff);
+    const flipLine = P.n === 1 ? (P.flipRec ? (prev > 0 ? '1단계 내 기록 ' + fmt(prev) + '번보다 적게 뒤집었어요' : '1단계 내 기록을 남겼어요') : '1단계 내 기록 ' + fmt(b) + '번') : (b > 0 ? '1단계 내 기록 ' + fmt(b) + '번' : '');
     const act = a => { if (a === 'next') startPairs(P.n + 1); else if (a === 'again') startPairs(P.n); else if (a === 'pick') openPairs(P.n); else goMenu(); };
     if (P.win) {
       sfx('win'); kongHappy(3); kongHop(70); hearts(4); voice('bark', 0.5, 1.2);
       showCard((rec ? '<div class="newrec">새 기록이에요!</div>' : '') + '<h2>' + P.n + '단계 완료!</h2>' + starsHtml(P.stars) + '<div class="big">' + P.tries + '<small>번</small></div><p>' + KG.diffLabel(P.diff) + ' · 걸린 시간 ' + mmss(P.time) + '</p><p>' +
-        (P.n === 1 ? (rec ? (prev > 0 ? '지난 최고 ' + fmt(prev) + '번보다 적게 뒤집었어요' : '첫 기록을 남겼어요') : '최고 기록 ' + fmt(b) + '번') : (b > 0 ? '1단계 최고 기록 ' + fmt(b) + '번' : '')) + '</p><p class="note">기록은 판이 같은 1단계에서만 남아요</p>' + winRow, act, 'end');
+        (rec ? top + '단계까지 깼어요' : '최고 ' + top + '단계까지') + '</p>' + (flipLine ? '<p class="note">' + flipLine + '</p>' : '') + winRow, act, 'end');
     } else {
       sfx('lose'); kongWrong();
-      showCard('<h2>아쉬워요, 조금만 더!</h2><p>뒤집기 ' + P.st.limit + '번을 다 썼어요.</p><div class="big">' + P.found + '<small>/' + P.sets + (P.set === 3 ? '묶음' : '쌍') + '</small></div><p>' + KG.diffLabel(P.diff) + ' · ' + P.n + '단계</p>' + failRow, act, 'end');
+      showCard('<h2>아쉬워요, 조금만 더!</h2><p>뒤집기 ' + P.st.limit + '번을 다 썼어요.</p><div class="big">' + P.found + '<small>/' + P.sets + (P.set === 3 ? '묶음' : '쌍') + '</small></div><p>' + KG.diffLabel(P.diff) + ' · ' + P.n + '단계 · ' + (top > 0 ? '최고 ' + top + '단계까지' : '아직 깬 단계가 없어요') + '</p>' + failRow, act, 'end');
     }
-    if (P.win) rbShow('pairs', P.diff, P.n === 1 ? '' : '가족 순위는 1단계 기록으로 겨뤄요');   // 순위는 기록이 남는 1단계 뒤집은 횟수로
+    rbShow('pairs', P.diff, P.win && rec);   // 순위는 깬 단계 — 값은 pairsSave 에서 이미 남겼고, 신기록 사진은 이 카드에서만
     cardDiff = () => openPairs();
   }
   function openPairs(n) {
@@ -1224,7 +1251,7 @@ var M3E = (function () {
     const d = KG.diff(), top = stageOf('pairs', d); n = clamp(Math.floor(+n) || top, 1, top); pairsNew(n);
     const b = best('pairs.' + d);
     showCard('<div class="ico-lg emo" style="background:#E9ECFB">🐾</div><h2>카드 짝 맞추기</h2><p class="lead">' + (P.set === 3 ? '세 장씩' : '두 장씩') + ' 뒤집어 같은 그림을 찾아요.</p>' +
-      '<div class="tip"><b>' + n + '단계</b> · ' + pDesc(P.st) + '<small>' + KG.diffLabel(d) + (b > 0 ? ' 1단계 최고 ' + fmt(b) + '번' : '') + ' · ' + (top > 1 ? (top - 1) + '단계까지 깼어요' : '기록은 1단계에서만 남아요') + '</small></div>' +
+      '<div class="tip"><b>' + n + '단계</b> · ' + pDesc(P.st) + '<small>' + KG.diffLabel(d) + ' · ' + (top > 1 ? (top - 1) + '단계까지 깼어요' : '1단계부터 시작해요') + (b > 0 ? ' · 1단계 ' + fmt(b) + '번' : '') + '</small></div>' +
       '<div class="dslot"></div><div class="row"><button class="kg-btn pri" data-act="start">' + (n === top ? '이어서 하기 (' + n + '단계)' : n + '단계 하기') + '</button></div>' + stagesHtml('pairs', d, n) + startLinks,
       a => { if (a === 'start') pairsBegin(); else if (a === 'rules') showRules('pairs', true); else if (a.slice(0, 3) === 'st:') openPairs(+a.slice(3)); else goMenu(); }, 'start');
     cardDiff = () => openPairs();   // 시작 전에 난이도를 바꾸면 그 난이도에서 열린 단계로 다시 깐다

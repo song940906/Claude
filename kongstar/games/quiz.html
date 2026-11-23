@@ -690,7 +690,7 @@ body .kg-top { z-index: 26; }
   let modeId = modeSel;                                                                     // 이 판의 종류 (시작할 때 한 번 읽어 그 판 동안 그대로)
   const inMode = q => modeId === 'all' || (modeId === 'ns') === (q.type === 'ns');
   const recOf = (m, d) => { if (m === 'all') return best(KG.dkey('quiz', d)); const v = parseFloat(lsGet('kongstar.game.quiz.' + m + '.' + d)); return isFinite(v) && v > 0 ? v : 0; };
-  function putRec(m, d, v) { if (!(v > 0)) return false; if (m === 'all') return setBest(KG.dkey('quiz', d), v); if (v > recOf(m, d)) { lsSet('kongstar.game.quiz.' + m + '.' + d, String(Math.round(v))); KG.markNew(); return true; } return false; }
+  function putRec(m, d, v) { if (!(v > 0)) return false; if (m === 'all') return setBest(KG.dkey('quiz', d), v); if (v > recOf(m, d)) { const had = recOf(m, d) > 0; lsSet('kongstar.game.quiz.' + m + '.' + d, String(Math.round(v))); KG.markNew(had); return true; } return false; }
   const modePickers = [];
   const paintMode = () => { for (const el of modePickers) for (const b of el.children) { const on = b.dataset.m === modeSel; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); } };
   function setMode(id) { if (!MODES.some(m => m.id === id) || id === modeSel) return false; modeSel = id; lsSet(MODE_KEY, id); paintMode(); paintBest(); return true; }

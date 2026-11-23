@@ -172,12 +172,13 @@ body .kg-top { z-index: 26; }
   const complete = (t, cap) => t.length === cap && uniform(t);
   const topRun = t => { let k = 0; for (let i = t.length - 1; i >= 0 && t[i] === t[t.length - 1]; i--) k++; return k; };
   const solved = (T, cap) => T.every(t => t.length === 0 || complete(t, cap));
-  // i → j 로 옮겨지는 알갱이 층 수 (못 옮기면 0): 맨 위 층만, 받는 통이 비었거나 맨 위가 같은 색이고 자리가 있어야
+  // i → j 로 옮겨지는 알갱이 층 수 (못 옮기면 0): 맨 위 같은 색 묶음을 통째로만 — 받는 통이 비었거나 맨 위가 같은 색이고,
+  // 묶음이 다 들어갈 자리가 있어야 한다 (자리가 모자라 일부만 넘어가는 붓기는 없다)
   function movable(T, cap, i, j) {
     if (i === j || !T[i] || !T[j]) return 0; const s = T[i], d = T[j];
     if (!s.length || d.length >= cap) return 0;
     if (d.length && d[d.length - 1] !== s[s.length - 1]) return 0;
-    return Math.min(topRun(s), cap - d.length);
+    const k = topRun(s); return k <= cap - d.length ? k : 0;
   }
   // 뜻이 있는 수만: 다 찬 통에서 꺼내기, 한 색뿐인 통을 빈 통으로 통째 옮기기(제자리걸음)는 뺀다. 빈 통은 하나만 본다. 좋은 수부터.
   function genMoves(T, cap) {
@@ -189,7 +190,7 @@ body .kg-top { z-index: 26; }
       for (let j = 0; j < T.length; j++) {
         if (j === i) continue; const d = T[j]; if (d.length >= cap) continue;
         if (!d.length) { if (uni || emptySeen) continue; emptySeen = true; out.push([i, j, k, 1]); }
-        else if (d[d.length - 1] === s[s.length - 1]) { const c = Math.min(k, cap - d.length); out.push([i, j, c, (c === k ? 4 : 0) + (uniform(d) ? 3 : 0) + (uni ? 0 : 2) + (d.length + c === cap ? 1 : 0)]); }
+        else if (d[d.length - 1] === s[s.length - 1] && k <= cap - d.length) out.push([i, j, k, 4 + (uniform(d) ? 3 : 0) + (uni ? 0 : 2) + (d.length + k === cap ? 1 : 0)]);   // 묶음이 통째로 들어갈 때만
       }
     }
     return out.sort((a, b) => b[3] - a[3]);
@@ -439,17 +440,21 @@ body .kg-top { z-index: 26; }
     if (solved(tubes, cap)) { paintHud(); stageClear(); return true; }
     checkStuck(); paintHud(); return true;
   }
+  function stuckMsg() {
+    const tip = hist.length && undoLeft > 0 ? '한 수 되돌려 볼까요?' : extraLeft > 0 ? '빈 통을 하나 더 놓아 볼까요?' : '처음부터 해 볼까요?';
+    return (stuck === 'none' ? '막혔어요… ' : '이 길은 막혔어요. ') + tip;
+  }
   function checkStuck() {
     const was = stuck; stuck = '';
     if (!genMoves(tubes, cap).length) stuck = 'none';
     else if (D.warn) { const r = solve(tubes, cap, WARN_LIMIT); if (!r.moves && !r.hit) stuck = 'dead'; }
     if (stuck && stuck !== was) {
       // 안내는 말풍선 한 곳에만 (토스트는 점수판과 통 윗부분을 가려서 뺐다) — 단추는 금테(nudge)로 알려 준다
-      const tip = hist.length && undoLeft > 0 ? '한 수 되돌려 볼까요?' : extraLeft > 0 ? '빈 통을 하나 더 놓아 볼까요?' : '처음부터 해 볼까요?';
-      say((stuck === 'none' ? '막혔어요… ' : '이 길은 막혔어요. ') + tip, 0);
+      say(stuckMsg(), 0);
       sfx('wrong'); setMood('sad');
     } else if (!stuck && was) { say(''); if (mood === 'sad') setMood('idle'); }
   }
+  let shortT = 0;
   function tapTube(i) {
     if (state !== 'play' || i < 0 || i >= tubes.length) return;
     cur = i;
@@ -461,7 +466,12 @@ body .kg-top { z-index: 26; }
       if (sel >= 0) { V[sel].shake = 0.3; if (t.length >= cap) say('이 통은 가득 찼어요', 1300); }
       return;
     }
-    if (sel >= 0) { V[i].shake = 0.3; tone(210, 0.08, 'sine', 0.04); if (!stuck) say(tubes[i].length >= cap ? '이 통은 가득 찼어요' : '맨 위 색이 같아야 해요', 1300); }
+    if (sel >= 0) { V[i].shake = 0.3; tone(210, 0.08, 'sine', 0.04); const s = tubes[sel], short = t.length < cap && t[t.length - 1] === s[s.length - 1];
+      if (!stuck) say(t.length >= cap ? '이 통은 가득 찼어요' : !short ? '맨 위 색이 같아야 해요' : '자리가 모자라요 — 같은 색은 한꺼번에 옮겨야 해요', 1600);
+      else if (short) {   // 일부 붓기만 남아 막힌 판에서도 왜 못 붓는지는 알려 주고, 잠시 뒤 막힘 안내로 돌아간다
+        say('자리가 모자라요 — 같은 색은 한꺼번에 옮겨야 해요', 0); clearTimeout(shortT);
+        shortT = setTimeout(() => { if (stuck) say(stuckMsg(), 0); }, 1600);
+      } }
     else sfx('tap');
     sel = i;
   }
@@ -641,7 +651,7 @@ body .kg-top { z-index: 26; }
   preview();
   const RULES = { key: 'bowl', title: TITLE, lead: '뒤섞인 사료를 색깔별로 모아 ' + J(name, '에게') + ' 주세요.', items: [
     ['🥣', '통을 누른 다음 다른 통을 누르면, 맨 위 사료가 그 통으로 옮겨져요.'],
-    ['🎨', '빈 통이나, 맨 위가 같은 색인 통에만 부을 수 있어요.'],
+    ['🎨', '빈 통이나 맨 위가 같은 색인 통에만 부어요. 맨 위 같은 색은 한꺼번에 옮겨지고, 다 들어갈 자리가 없으면 못 부어요.'],
     ['🐶', '통마다 한 가지 색으로 가득 채우면 ' + J(name, '이/가') + ' 달려와 맛있게 먹어요.'],
     ['↩️', '막히면 되돌리기나 처음부터를 눌러요. 시간 제한은 없어요.']
   ] };

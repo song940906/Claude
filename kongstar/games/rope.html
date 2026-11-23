@@ -35,6 +35,8 @@
 /* 예고 알림(천천히·빠르게·쌩쌩이·반대로) */
 #note { position: fixed; z-index: 10; left: 50%; top: calc(var(--sat) + 134px); transform: translate(-50%, -6px); padding: 8px 16px; border-radius: 18px; background: rgba(255,255,255,.94); color: #191F28; font-size: 14.5px; font-weight: 700; letter-spacing: -.2px; white-space: nowrap; opacity: 0; transition: opacity .22s, transform .22s; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
 #note.show { opacity: 1; transform: translate(-50%, 0); }
+/* 세로 화면: 안내 글은 콩이 발밑 아래 잔디에 (위쪽은 하늘의 큰 숫자·말풍선 자리) — top 은 layout() 이 --noteTop 으로 준다 */
+@media (orientation: portrait) { #note { top: var(--noteTop, calc(var(--sat) + 134px)); } }
 /* 카드 안 */
 .kg-card .tip { margin: 12px 0 0; padding: 12px 14px; background: var(--soft); border-radius: 14px; font-size: 14px; line-height: 1.55; color: #3A4552; text-align: left; }
 .kg-card .tip b { color: var(--pri); font-weight: 700; }
@@ -392,6 +394,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     KX = Math.round(W / 2);
     HX = clamp((W / 2 - Math.max(sf.l, sf.r)) / SZ - 0.5, 1.0, 1.5);
     YH = Math.round(GY - SZ * 0.4);
+    document.documentElement.style.setProperty('--noteTop', Math.round(Math.min(GY + SZ * 0.36, H - sf.b - 52)) + 'px');   // 세로 화면 안내 글 자리: 콩이 그림자 바로 아래
     bigNum = GY - (HY + R) * SZ - (sf.t + 150) > SZ * 0.9;   // 하늘에 큰 숫자를 띄울 자리가 있나 (세로 화면)
     FONT = getComputedStyle(document.body).fontFamily;
     k.setSize(SZ);
