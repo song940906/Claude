@@ -176,6 +176,16 @@ body .kg-top { z-index: 26; }
   for (let i = 0; i < N; i++) { const e = document.createElement('i'); if (i % 2) e.className = 'j'; $('hudTr').appendChild(e); }
 
   // ═══════ 상태 ═══════
+  // 절전(11-25): 놀이 중이 아니면(카드가 떠 있을 때) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임 그리고, 그 뒤로는 0.2초에 한 번만 그린다
+  let lzKey = '', lzAt = 0, lzLast = 0;
+  function lzWake() { lzAt = performance.now(); }
+  function lzDraw(now, key) {   // key: 놀이 중이면 '' (늘 그림), 아니면 상태 이름
+    if (key !== lzKey) { lzKey = key; lzAt = now; }
+    if (!key || now - lzAt < 1000 || now - lzLast >= 200) { lzLast = now; return true; }
+    return false;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) lzWake(); });
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.kg-diff')) lzWake(); }, true);   // 카드에서 난이도를 바꾸면 카드 뒤 장면도 바로 매 프레임 그린다
   let state = 'ready', phase = 'aim';     // state: ready · play · pause · over · result   phase: aim · roll · next · done
   let pucks = [], cur = null, cups = [], anims = [], floats = [];
   let score = 0, thrown = 0, eaten = 0, acc = 0, rollT = 0, nextT = 0, overT = 0, shortDone = false, tAnim = 0, overAt = 0, isNew = false, quit = false;
@@ -210,6 +220,7 @@ body .kg-top { z-index: 26; }
     c.fillStyle = 'rgba(255,214,170,.07)'; c.beginPath(); c.ellipse(cx, cy, rw, rh, 0, 0, TAU); c.fill();
   }
   function layout() {
+    lzWake();
     W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
     wide = W > H * 1.1;
     const titled = wide && W >= 760, top = SAF.t + 62 + (titled ? 46 : 0);   // 넓은 가로 화면: 위 줄 가운데에 제목을 두고 점수판은 그 아래로
@@ -608,12 +619,12 @@ body .kg-top { z-index: 26; }
       tailAmp: sad ? 3 : happy || won || eating ? 22 : 12, tailRate: happy || won || eating ? 3.4 : 2.2, blush: happy || won || eating ? 1 : 0 });
     K.place(kx, ky, 1);
   }
-  let last = 0, dtFrame = 0;
+  let last = 0, dtFrame = 0, kDt = 0;   // kDt: 건너뛴 프레임의 시간을 모아 콩이 그릴 때 넘긴다
   function frame(now) {
     requestAnimationFrame(frame);
-    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; dtFrame = dt;
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; kDt += dt;
     if (state !== 'pause') { tAnim += dt; update(dt); }
-    draw();
+    if (lzDraw(now, state === 'play' || state === 'over' ? '' : state)) { dtFrame = kDt; kDt = 0; draw(); }
   }
 
   // ═══════ 점수판 ═══════

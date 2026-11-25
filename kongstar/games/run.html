@@ -647,6 +647,22 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     }
   };
 
+  // 콩이(SVG) — 절전으로 바탕을 솎는 프레임에도 따로 부른다
+  function drawKong(t) {
+    const blink = S.inv > 0 && S.power <= 0 && S.mode === 'play';
+    k.el.style.opacity = blink ? (reduceMotion ? 0.7 : (Math.floor(t * 11) % 2 ? 0.45 : 0.95)) : 1;
+    if (S.sat) {
+      k.place(KX, GY + SZ * 0.03);
+      k.render({ t, eyes: 'happy', mouth: 'open', blush: true, tailAmp: 24, tailRate: 4.2, breath: 2.6, breathRate: 2.4, earLift: 5 });
+    } else {
+      k.place(KX, GY + SZ * 0.03);
+      const moving = S.v > 0.15;
+      k.render({ t, facing: 1, walk: moving && !S.air ? 1 : 0, phase: S.phase, hop: S.y * 400,
+        frame: S.air ? 'jump' : S.landT > 0 ? 'land' : undefined, squash: S.landT > 0 ? S.landT * 5 : 0,
+        roll: S.wob > 0 ? Math.sin(t * 22) * (reduceMotion ? 2 : 7) * S.wob : 0, rollPivot: [200, 380],
+        mouth: S.mode === 'play' ? 'open' : 'closed', eyes: S.power > 0 ? 'happy' : 'open', earLift: 4 + S.v * 2, tailAmp: 14, tailRate: 4 + S.v });
+    }
+  }
   function draw() {
     if (!geo) return;
     const sk = skyAt(S.mode === 'ready' ? 0 : S.dist), yh = geo.yh, t = S.t;
@@ -682,19 +698,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       c.save(); c.translate(x, GY - (it.h + (reduceMotion ? 0 : 0.025 * Math.sin(t * 4 + it.seed * 0.9))) * SZ); c.scale(SZ, SZ); if (it.fade) c.globalAlpha = 1 - it.fade; ITEM[it.type](c, it, t); c.restore();
     }
     // 콩이
-    const blink = S.inv > 0 && S.power <= 0 && S.mode === 'play';
-    k.el.style.opacity = blink ? (reduceMotion ? 0.7 : (Math.floor(t * 11) % 2 ? 0.45 : 0.95)) : 1;
-    if (S.sat) {
-      k.place(KX, GY + SZ * 0.03);
-      k.render({ t, eyes: 'happy', mouth: 'open', blush: true, tailAmp: 24, tailRate: 4.2, breath: 2.6, breathRate: 2.4, earLift: 5 });
-    } else {
-      k.place(KX, GY + SZ * 0.03);
-      const moving = S.v > 0.15;
-      k.render({ t, facing: 1, walk: moving && !S.air ? 1 : 0, phase: S.phase, hop: S.y * 400,
-        frame: S.air ? 'jump' : S.landT > 0 ? 'land' : undefined, squash: S.landT > 0 ? S.landT * 5 : 0,
-        roll: S.wob > 0 ? Math.sin(t * 22) * (reduceMotion ? 2 : 7) * S.wob : 0, rollPivot: [200, 380],
-        mouth: S.mode === 'play' ? 'open' : 'closed', eyes: S.power > 0 ? 'happy' : 'open', earLift: 4 + S.v * 2, tailAmp: 14, tailRate: 4 + S.v });
-    }
+    drawKong(t);
     stage.style.transform = S.shake > 0 ? 'translate(' + (Math.sin(t * 70) * 4 * S.shake / 0.28).toFixed(1) + 'px,' + (Math.cos(t * 55) * 3 * S.shake / 0.28).toFixed(1) + 'px)' : '';
 
     // 효과
@@ -816,15 +820,23 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   addEventListener('orientationchange', () => setTimeout(layout, 200));
 
   // ── 돌리기
+  // 절전: 시작·결과 카드가 떠 있으면 상태가 바뀐 뒤 1초만 매 프레임, 그 뒤엔 0.2초에 한 번만 그린다 (움직임 계산은 그대로)
+  let pwKey = '', pwAt = 0, pwLast = 0;
+  function pwSkip(now, key, active) {
+    if (key !== pwKey) { pwKey = key; pwAt = now; }
+    if (active || now - pwAt < 1000 || now - pwLast >= 200) { pwLast = now; return false; }
+    return true;
+  }
+  addEventListener('resize', () => { pwAt = performance.now(); });   // 화면이 바뀌면 다시 1초 동안 매 프레임
   let last = 0;
   function frame(ms) {
     requestAnimationFrame(frame);
     const dt = last ? Math.min(0.05, (ms - last) / 1000) : 0.016; last = ms;
     if (dt <= 0) return;
     if (S.mode === 'pause') return;
-    if (S.mode === 'over') { S.t += dt; draw(); return; }
+    if (S.mode === 'over') { S.t += dt; if (!pwSkip(ms, 'over', false)) draw(); else if (geo) drawKong(S.t); return; }
     if (S.freeze > 0) { S.freeze -= dt; S.t += dt; draw(); return; }
-    step(dt); draw();
+    step(dt); if (!pwSkip(ms, S.mode, S.mode !== 'ready')) draw(); else if (geo) drawKong(S.t);   // 솎는 프레임에도 콩이는 매 프레임
   }
   layout(); paintHearts();
   requestAnimationFrame(frame);

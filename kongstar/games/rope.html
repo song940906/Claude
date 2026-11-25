@@ -584,15 +584,26 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   addEventListener('orientationchange', () => setTimeout(layout, 200));
 
   // ── 돌리기
+  // 절전: 카드가 떠 있을 때(놀이 중 아님)는 상태가 바뀐 뒤 1초만 매 프레임 그리고, 그 뒤로는 0.2초에 한 번만 그린다
+  const lazy = { k: null, at: 0, dr: 0 };
+  function lazySkip(ms, key) {
+    if (key == null) { lazy.k = null; return false; }
+    if (key !== lazy.k) { lazy.k = key; lazy.at = lazy.dr = ms; return false; }
+    if (ms - lazy.at < 1000 || ms - lazy.dr >= 200) { lazy.dr = ms; return false; }
+    return true;
+  }
+  const lazyWake = () => { lazy.k = null; };   // 화면 크기·방향이 바뀌거나 다시 보이면 1초 동안 다시 매 프레임
+  addEventListener('resize', lazyWake); addEventListener('orientationchange', lazyWake); document.addEventListener('visibilitychange', lazyWake);
   let last = 0;
   function frame(ms) {
     requestAnimationFrame(frame);
     const dt = last ? Math.min(0.05, (ms - last) / 1000) : 0.016; last = ms;
     if (dt <= 0) return;
     if (S.mode === 'pause') return;
-    if (S.mode === 'over') { S.t += dt; draw(); return; }
-    if (S.freeze > 0) { S.freeze -= dt; S.t += dt; draw(); return; }
-    step(dt); draw();
+    if (S.mode === 'over') { S.t += dt; if (!lazySkip(ms, 'over')) draw(); return; }
+    const lz = S.mode === 'ready' ? 'ready' : null;
+    if (S.freeze > 0) { S.freeze -= dt; S.t += dt; if (!lazySkip(ms, lz)) draw(); return; }
+    step(dt); if (!lazySkip(ms, lz)) draw();
   }
   layout();
   requestAnimationFrame(frame);

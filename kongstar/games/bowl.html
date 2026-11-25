@@ -594,10 +594,20 @@ body .kg-top { z-index: 26; }
     drawKong();
   }
   let last = 0;
+  // 절전: 카드가 떠 있으면(card = 그 상태 이름) 바뀐 뒤 1초만 매 프레임, 그 뒤엔 0.2초에 한 번만 그린다. 놀이 중(null)이면 늘 그린다
+  //   화면 크기가 바뀌거나 손을 대면 다시 1초 동안 매 프레임 (카드 뒤 장면·난이도 미리보기가 바로 바뀌게)
+  let lzK = null, lzAt = 0, lzLast = 0;
+  function drawNow(now, card) {
+    if (card == null) { lzK = null; return true; }
+    if (card !== lzK) { lzK = card; lzAt = now; }
+    if (now - lzAt < 1000 || now - lzLast >= 200) { lzLast = now; return true; }
+    return false;
+  }
+  for (const ev of ['resize', 'pointerdown', 'keydown']) addEventListener(ev, () => { lzK = null; }, true);
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-    tAnim += dt; update(dt); draw();
+    tAnim += dt; update(dt); if (drawNow(now, state === 'ready' || state === 'pause' || state === 'result' ? state : null)) draw();
   }
 
   // ═══════ 입력 ═══════

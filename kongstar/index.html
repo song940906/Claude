@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '484271d332';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = 'e1052e40a8';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -985,6 +985,7 @@ function layout() {
   W = window.innerWidth; H = window.innerHeight;
   DPR = Math.min(2, window.devicePixelRatio || 1);
   for (const c of [sky, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  lastDraw = -Infinity;   // 캔버스가 지워졌으니 박자를 기다리지 않고 다음 프레임에 바로 다시 그린다
   const land = W > H;
   R = Math.max(260, Math.min(W, H * 1.1) * 0.9);
   const dockTop = document.querySelector('.dock').getBoundingClientRect().top || H;
@@ -1219,7 +1220,8 @@ function updateMeteors(dt) {
   if (slot !== meteorSlot) {
     meteorSlot = slot;
     const r = mulberry32(Math.imul(slot | 0, 0x9E3779B1) ^ 0x5BD1E995);
-    if (rate > 0 && r() < rate * (reduceMotion ? 0.3 : 1)) spawnMeteor(r);
+    if (indoor()) {}   // 방·차 안·산책 길에서는 별똥별을 그리지 않으므로 만들지도 않는다 (가만히 있는 화면을 깨우지 않게)
+    else if (rate > 0 && r() < rate * (reduceMotion ? 0.3 : 1)) spawnMeteor(r);
     else if (rate === 0 && r() < 0.012) spawnMeteor(r);   // 평소에도 아주 가끔
   }
   for (let i = METEORS.length - 1; i >= 0; i--) {
@@ -1718,6 +1720,8 @@ function carTraffic(dt) {
   } else if (CAR.vT === 0 && now > CAR.goAt) { CAR.vT = 1; CAR.nextStop = now + rand(30, 55); }
   CAR.v += (CAR.vT - CAR.v) * (1 - Math.exp(-dt * 1.3));
 }
+// 이번 프레임에 생길 개수 — 기대값이 1 미만이면 예전 그대로 한 번 뽑고, 느린 박자(dt 큼)에서는 모자라지 않게 여러 번
+function spawnCount(e) { let n = 0; for (; e > 0; e--) if (Math.random() < Math.min(1, e)) n++; return n; }
 function drawCarWindow(c, t, dt) {
   const G = CARG; if (!CAR.layers) return;
   const sp = dt / 1.6;   // 창문은 1.6초에 끝까지
@@ -1736,7 +1740,7 @@ function drawCarWindow(c, t, dt) {
   if (CAR.sign) drawRestSign(c);   // 휴게소 표지판
   // 벚꽃길: 꽃잎이 흩날린다 (달리면 오른쪽으로 쓸려 가고, 서 있으면 천천히 떨어진다)
   if (carRoute() === 'blossom' && !reduceMotion) {
-    if (CAR.petals.length < 40 && Math.random() < dt * 9) CAR.petals.push({ x: G.xFb + Math.random() * (G.xR - G.xFb), y: G.yt - 6, vx: 0, ph: Math.random() * TAU, s: 2 + Math.random() * 2 });
+    for (let n = spawnCount(dt * 9); n > 0 && CAR.petals.length < 40; n--) CAR.petals.push({ x: G.xFb + Math.random() * (G.xR - G.xFb), y: G.yt - 6, vx: 0, ph: Math.random() * TAU, s: 2 + Math.random() * 2 });
     c.fillStyle = 'rgba(250,200,218,.9)';
     for (let i = CAR.petals.length - 1; i >= 0; i--) {
       const p = CAR.petals[i]; p.ph += dt * 3; p.x += (CAR.v * 260 + Math.sin(p.ph) * 20) * dt; p.y += 28 * dt;
@@ -1745,7 +1749,7 @@ function drawCarWindow(c, t, dt) {
     }
   }
   // 창을 내리면 바람: 흰 줄이 빠르게 스친다 (서 있으면 거의 없다)
-  if (CAR.win > 0.05 && !reduceMotion && Math.random() < CAR.win * CAR.v * dt * 14) CAR.wind.push({ x: G.xFb - 40, y: G.yt + Math.random() * G.wh * 0.8, v: 600 + Math.random() * 400, l: 24 + Math.random() * 40 });
+  if (CAR.win > 0.05 && !reduceMotion) for (let n = spawnCount(CAR.win * CAR.v * dt * 14); n > 0; n--) CAR.wind.push({ x: G.xFb - 40, y: G.yt + Math.random() * G.wh * 0.8, v: 600 + Math.random() * 400, l: 24 + Math.random() * 40 });
   c.lineWidth = 1.5; c.lineCap = 'round';
   for (let i = CAR.wind.length - 1; i >= 0; i--) {
     const w = CAR.wind[i]; w.x += w.v * dt;
@@ -3261,22 +3265,27 @@ function petZoneMove(x, y, d) {   // petMove 가 부른다 — 그 부위에 맞
 }
 
 // ── 6) 폰 기울이기: 공이 기운 쪽으로 굴러가고 콩이가 따라 달린다 ──
-const TILT = { g: 0, at: 0, want: false };
-window.addEventListener('deviceorientation', e => {
+const TILT = { g: 0, at: 0, want: false, on: false };
+function onTilt(e) {
   if (e.gamma == null && e.beta == null) return;
   const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
   const v = ang === 90 ? e.beta : ang === -90 || ang === 270 ? -e.beta : ang === 180 ? -e.gamma : e.gamma;
   TILT.g = clamp(v || 0, -45, 45); TILT.at = performance.now();
-});
+}
+// 기울이기를 켰을 때만 센서를 듣는다 (꺼져 있으면 센서 이벤트로 배터리를 쓰지 않게)
+function syncTiltListener() {
+  if (S.tilt && !TILT.on) { window.addEventListener('deviceorientation', onTilt); TILT.on = true; }
+  else if (!S.tilt && TILT.on) { window.removeEventListener('deviceorientation', onTilt); TILT.on = false; }
+}
 const tiltLive = () => S.tilt && performance.now() - TILT.at < 600 && Math.abs(TILT.g) > 5;
 async function toggleTilt() {
-  if (S.tilt) { S.tilt = false; saveSettings(); renderToys(); toast('기울이기를 껐어요'); return; }
+  if (S.tilt) { S.tilt = false; syncTiltListener(); saveSettings(); renderToys(); toast('기울이기를 껐어요'); return; }
   const DOE = window.DeviceOrientationEvent;
   if (!DOE || !('ontouchstart' in window || navigator.maxTouchPoints > 0)) { toast('기울기 센서가 있는 폰에서만 돼요', 2600); return; }
   if (typeof DOE.requestPermission === 'function') {   // 아이폰: 처음 한 번 허락
     try { if ((await DOE.requestPermission()) !== 'granted') { toast('동작 접근을 허락해야 쓸 수 있어요', 2800); return; } } catch (e) { toast('동작 접근을 허락해야 쓸 수 있어요', 2800); return; }
   }
-  S.tilt = true; saveSettings();
+  S.tilt = true; syncTiltListener(); saveSettings();
   if (S.toy !== 'ball' && S.toy !== 'doll') S.toy = 'ball';
   startToy(S.toy); toast('폰을 옆으로 기울여 보세요. 공이 굴러가요', 2800);
 }
@@ -4700,27 +4709,51 @@ $('btnSound').addEventListener('click', () => {
 });
 
 // ═══════════════ 매 프레임 ═══════════════
-let lastT = performance.now(), lastDraw = 0;
+let lastT = performance.now(), lastDraw = 0, lastGap = 0, rafPrev = 0, rafIv = 1000 / 60;   // rafIv: 화면 주사율 간격(ms) 추정값
+// 그리기 간격(ms) — 배터리 아끼기: 손댄 직후·놀이 60fps, 혼자 움직임·보통 30fps, 오래 가만히 10fps, 시트·사진 보기에 가리면 5fps
+const GAP_ACT = 1000 / 60, GAP_IDLE = 1000 / 30, GAP_DEEP = 100, GAP_COVER = 200;
+function frameGap() {
+  if (paperFlight || flying.length || BUBBLES.length || GAME || HIDE || CATCH.treats.length || SIMON.on || (mode === 'ball' && ball.out && tiltLive()) || K.shakeUntil) return GAP_ACT;
+  if (openStack.length > 0 || !$('viewer').hidden) return GAP_COVER;   // 가린 장면(그 안을 만져도)
+  const since = performance.now() / 1000 - K.lastTouch;
+  if (pointer.down || since <= 10 || ball.st === 'air' || ball.st === 'roll' || ball.st === 'lift') return GAP_ACT;
+  if (K.move || (METEORS.length && !indoor())) return GAP_IDLE;   // 혼자 걷기·산책 걷기·별똥별은 30fps 로만
+  // 깊이 가만히: 60초 손대지 않았고, 깨어 하는 행동·움직이는 것(점프·돌기·산책 길·차창 풍경·별빛 등)이 없을 때
+  if (since > 60 && (!K.busy || K.sleeping) && !K.jump && !K.hopY && !K.hopV && K.turnA == null && !treadmill() && !LANTERNS.length
+    && !(S.scene === 'walk' && WALK.v > 0.01) && !inCar()) return GAP_DEEP;   // 차 안은 신호 대기에도 꽃잎·글자가 움직인다
+  return GAP_IDLE;
+}
 function frame(nowMs) {
   requestAnimationFrame(frame);
+  { const d = nowMs - rafPrev; rafPrev = nowMs; if (d > 3 && d < 40) rafIv += (d - rafIv) * 0.1; }
   // 처음 열릴 때 창 크기가 0 이었다가 나중에 잡히는 경우(미리보기·백그라운드 탭)
   if (window.innerWidth !== W || window.innerHeight !== H) { if (window.innerWidth > 1 && window.innerHeight > 1) layout(); else return; }
-  // 가만히: 시트·사진 보기에 가린 장면(그 안을 만져도), 또는 25초 손대지 않았고 움직이는 것(별똥별 포함)이 없을 때
-  const covered = openStack.length > 0 || !$('viewer').hidden;
-  const idle = !paperFlight && !flying.length && !BUBBLES.length && !GAME && !HIDE && !CATCH.treats.length && !SIMON.on && !(mode === 'ball' && ball.out && tiltLive()) && !K.shakeUntil && (covered || (performance.now() / 1000 - K.lastTouch > 25 && !K.move && !METEORS.length && ball.st !== 'air' && ball.st !== 'roll' && ball.st !== 'lift'));
-  // 주사율과 상관없이 가만히 있을 때는 약 30fps, 움직일 때는 최대 60~90fps (120Hz 폰에서 배터리 아끼기)
-  if (nowMs - lastDraw < (idle ? 30 : 10)) return;
-  lastDraw = nowMs;
-  const dt = Math.min(0.05, (nowMs - lastT) / 1000); lastT = nowMs;
+  // 주사율과 상관없이 간격을 지킨다 — 정해진 박자로 쌓아 가므로 90Hz 폰에서도 60fps 가 45fps 로 떨어지지 않는다
+  const gap = frameGap(), since = nowMs - lastDraw;
+  if (gap === GAP_ACT && rafIv < GAP_ACT - 2) {
+    // 90·144Hz 화면의 활성 상태: 간격이 들쭉날쭉하지 않게 화면 n번째 프레임마다 (90Hz 는 매번, 120·144Hz 는 2번에 1번)
+    const n = Math.max(1, Math.floor(GAP_ACT / rafIv + 0.05));
+    if (since < (n - 0.5) * rafIv) return;
+    lastDraw = nowMs;
+  } else {
+    if (since < gap - 2) return;
+    lastDraw = since - gap > gap ? nowMs : nowMs - (since - gap);
+  }
+  // 느린 박자(10·5fps)에서는 시간을 버리지 않고 0.05초씩 나눠 움직인다 (움직임 속도는 그대로)
+  const slow = gap > GAP_IDLE + 1 || lastGap > GAP_IDLE + 1; lastGap = gap;
+  const dt = Math.min(slow ? 0.25 : 0.05, (nowMs - lastT) / 1000); lastT = nowMs;
   const t = nowMs / 1000;
   if (petting && petting.belly && performance.now() - (petting.moveAt || 0) > 150) K.rollT = 0;   // 배 긁던 손가락이 멈추면 버둥도 멈춘다
-  updateKong(dt, t);
-  updateBall(dt);
-  if (BUBBLES.length) updateBubbles(dt);
-  if (CATCH.treats.length) updateCatch(dt);
+  const nSub = Math.max(1, Math.ceil(dt / 0.05 - 1e-6)), sdt = dt / nSub;
+  for (let i = 0; i < nSub; i++) {
+    updateKong(sdt, t);
+    updateBall(sdt);
+    if (BUBBLES.length) updateBubbles(sdt);
+    if (CATCH.treats.length) updateCatch(sdt);
+    updateMeteors(sdt);
+    updateLanterns(sdt);
+  }
   if (mode === 'catch' && !pointer.down && !CATCH.treats.length && performance.now() - CATCH.lastAt > 40000) setMode(null);   // 40초 동안 안 던지면 놀이를 끈다
-  updateMeteors(dt);
-  updateLanterns(dt);
   if (mode === 'brush' && !pointer.down && performance.now() - brushIdleAt > 25000) setMode(null);
   drawSkyFrame(t, dt);
   placeKong(t);
@@ -4895,6 +4928,7 @@ async function boot() {
     PHOTOS = ((await DB.all('photos')) || []).sort((a, b) => a.at - b.at);
     const dr = await DB.get('draft'); if (dr) { $('lText').value = dr; updateLetterBtn(); }   // 쓰던 편지
   } catch (e) { storeOk = false; }
+  syncTiltListener();   // 저장된 설정에서 기울이기가 켜져 있으면 센서를 듣기 시작
   layout();
   refreshDay(); paintSoundBtn(); refreshBadge(); refreshLetterCount();
   $('verLine').textContent = S.name + '별 · ' + (window.KONG_VER || '개발판');

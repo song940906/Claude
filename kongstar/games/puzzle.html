@@ -659,6 +659,15 @@ var M3E = (function () {
   tb.right(btnPause);
 
   // ── 상태
+  // 절전(11-25): 놀이 중이 아니면(카드가 떠 있을 때) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임 그리고, 그 뒤로는 0.2초에 한 번만 그린다
+  let lzKey = '', lzAt = 0, lzLast = 0;
+  function lzWake() { lzAt = performance.now(); }
+  function lzDraw(now, key) {   // key: 놀이 중이면 '' (늘 그림), 아니면 상태 이름
+    if (key !== lzKey) { lzKey = key; lzAt = now; }
+    if (!key || now - lzAt < 1000 || now - lzLast >= 200) { lzLast = now; return true; }
+    return false;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) lzWake(); });
   let mode = 'menu';            // 'menu' | 'm3' | 'pairs'
   let gen = 0;                  // 판이 바뀌면 올라간다 — 기다리던 비동기 흐름이 스스로 그만두게
   const S = { playing: false, paused: false };
@@ -1331,6 +1340,7 @@ var M3E = (function () {
     P.cards.forEach(cd => { const st = cd.el.style; st.width = pCw + 'px'; st.height = ch + 'px'; const r0 = Math.floor(cd.slot / pa), c0 = cd.slot % pa, cc = flipRC ? r0 : c0, rr = flipRC ? c0 : r0; st.left = cc * (pCw + pGap) + 'px'; st.top = rr * (ch + pGap) + 'px'; cd.el.querySelector('.front').style.fontSize = Math.round(pCw * 0.5) + 'px'; });
   }
   function layout() {
+    lzWake();
     W = innerWidth; H = innerHeight; land = W > H * 1.1; document.body.classList.toggle('land', land);
     const s = KG.safe(), top = s.t + 62, bot = s.b + 10, L = s.l + 12, R = s.r + 12;
     drawSky(); fitTitle();
@@ -1398,7 +1408,9 @@ var M3E = (function () {
     if (K.hop >= 0) { K.hop += dt / 0.48; if (K.hop >= 1) K.hop = -1; else { hop = Math.sin(K.hop * Math.PI) * K.hopH; squash = K.hop < 0.12 ? -0.3 : K.hop > 0.9 ? -0.25 : 0.15; } }
     const tiltTo = K.wrong > 0.25 ? 15 : K.happy > 0 ? Math.sin(T * 9) * 4 : Math.sin(T * 0.7) * 4;
     tiltNow += (tiltTo - tiltNow) * Math.min(1, dt * 11);
-    acc += dt; if (K.hop < 0 && acc < 1 / 31) return; acc = 0;
+    acc += dt; if (K.hop < 0 && acc < 1 / 31) return;
+    if (!lzDraw(ms, scrim.hidden ? '' : 'card:' + cardKind)) return;   // 카드(단계 시작·안내·멈춤·결과)가 떠 있으면 솎는다
+    acc = 0;
     let look;
     if (K.lookT > 0 && K.lookAt) { const h = headPt(); look = [clamp((K.lookAt.x - h.x) / 160, -1, 1), clamp((K.lookAt.y - h.y) / 160, -1, 1)]; }
     else look = mode === 'menu' ? [Math.sin(T * 0.5) * 0.4, 0.1] : land ? [0.7, 0.15] : [Math.sin(T * 0.4) * 0.3, 0.7];

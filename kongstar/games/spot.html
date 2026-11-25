@@ -572,6 +572,16 @@ body .kg-top { z-index: 26; }
   }
 
   // ═══════ 상태 ═══════
+  // 절전(11-25): 놀이 중이 아니면(카드가 떠 있을 때) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임 그리고, 그 뒤로는 0.2초에 한 번만 그린다
+  let lzKey = '', lzAt = 0, lzLast = 0;
+  function lzWake() { lzAt = performance.now(); }
+  function lzDraw(now, key) {   // key: 놀이 중이면 '' (늘 그림), 아니면 상태 이름
+    if (key !== lzKey) { lzKey = key; lzAt = now; }
+    if (!key || now - lzAt < 1000 || now - lzLast >= 200) { lzLast = now; return true; }
+    return false;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) lzWake(); });
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.kg-diff')) lzWake(); }, true);   // 카드에서 난이도를 바꾸면 카드 뒤 장면도 바로 매 프레임 그린다
   let state = 'ready';            // ready · play · pause · clear(다 찾고 넘어가는 중) · reveal(시간 끝, 남은 곳 보여 주기) · result
   let S = null, round = 0, score = 0, tLeft = 0, tMax = 60, phaseT = 0, lockT = 0, hintUsed = false, tAnim = 0, endAt = 0, lastTick = 99, wrongTimes = [];
   let stats = { rounds: 0, found: 0, wrong: 0, hints: 0 };
@@ -590,6 +600,7 @@ body .kg-top { z-index: 26; }
     g.globalAlpha = 1;
   }
   function layout() {
+    lzWake();
     W = window.innerWidth; H = window.innerHeight; const sa = safe();
     low = H <= 430 && W > H;
     const footH = 56, gap = 10;
@@ -743,13 +754,14 @@ body .kg-top { z-index: 26; }
     K.render({ t: tAnim, eyes: sad ? 'closed' : happy || won ? 'happy' : 'open', mouth: sad ? 'closed' : 'open', look: sad ? [0, 0.6] : [lx, ly], tilt: sad ? -9 : Math.sin(tAnim * 1.1) * 4,
       hop: reduceMotion ? 0 : Math.sin(hopT * Math.PI) * 30, earLift: sad ? -8 : happy ? 6 : 0, tailAmp: sad ? 3 : happy || won ? 22 : 10, tailRate: happy ? 3.4 : 2, blush: happy || won ? 1 : 0, nod: sad ? 0.5 : 0 });
   }
-  let last = 0;
+  let last = 0, kDt = 0;   // kDt: 건너뛴 프레임의 시간을 모아 콩이 그릴 때 넘긴다
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
     tAnim += dt;
     if (state === 'play' || state === 'clear' || state === 'reveal') update(dt);
-    paintHud(); drawKong(dt);
+    kDt += dt;
+    if (lzDraw(now, state === 'play' || state === 'clear' || state === 'reveal' ? '' : state)) { paintHud(); drawKong(kDt); kDt = 0; }
   }
   for (const [i, P] of PICS.entries()) P.el.addEventListener('pointerdown', e => {
     if (state !== 'play') return; e.preventDefault();

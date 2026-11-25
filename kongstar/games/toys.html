@@ -235,6 +235,16 @@ body .kg-top { z-index: 26; }
   let peekCell = null;
 
   // ═══════ 상태 ═══════
+  // 절전(11-25): 놀이 중이 아니면(카드가 떠 있을 때) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임 그리고, 그 뒤로는 0.2초에 한 번만 그린다
+  let lzKey = '', lzAt = 0, lzLast = 0;
+  function lzWake() { lzAt = performance.now(); }
+  function lzDraw(now, key) {   // key: 놀이 중이면 '' (늘 그림), 아니면 상태 이름
+    if (key !== lzKey) { lzKey = key; lzAt = now; }
+    if (!key || now - lzAt < 1000 || now - lzLast >= 200) { lzLast = now; return true; }
+    return false;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) lzWake(); });
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.kg-diff')) lzWake(); }, true);   // 카드에서 난이도를 바꾸면 카드 뒤 장면도 바로 매 프레임 그린다
   let state = 'ready';            // ready · play · pause · over · result
   let score = 0, combo = 0, elapsed = 0, spawnT = 0, overT = 0, tAnim = 0, spawned = 0, lastKong = -9, kongOwed = false, lastVoice = -99, lastTick = 99, endAt = 0;
   let stats = { caught: 0, missed: 0, bonk: 0, spared: 0, gold: 0, maxCombo: 0, empty: 0 };
@@ -255,6 +265,7 @@ body .kg-top { z-index: 26; }
     g.globalAlpha = 1;
   }
   function layout() {
+    lzWake();
     W = window.innerWidth; H = window.innerHeight; const sa = safe();
     const hud = $('hud'), top = sa.t + 62;
     let side, bx, by;
@@ -431,13 +442,14 @@ body .kg-top { z-index: 26; }
       P.render({ t: tAnim, eyes: m === 'ouch' ? 'closed' : m === 'glad' ? 'happy' : 'open', mouth: m === 'ouch' ? 'closed' : 'open', tilt: m === 'ouch' ? 10 : Math.sin(tAnim * 5) * 5, look: [0, -0.2], blush: m === 'glad' ? 1 : 0, tailAmp: 0, earLift: m === 'ouch' ? -8 : 4 });
     }
   }
-  let last = 0;
+  let last = 0, kDt = 0;   // kDt: 건너뛴 프레임의 시간을 모아 콩이 그릴 때 넘긴다
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
     tAnim += dt;
     if (state === 'play' || state === 'over') update(dt);
-    paintHud(); drawKong(dt);
+    kDt += dt;
+    if (lzDraw(now, state === 'play' || state === 'over' ? '' : state)) { paintHud(); drawKong(kDt); kDt = 0; }
   }
 
   // ═══════ 흐름 ═══════

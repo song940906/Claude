@@ -590,7 +590,12 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { key: 'brick', title: '벽돌깨기', ico: '🧱', unit: '점', lower: false, href: 'brick.html' },
     { key: 'parade', title: '산책행렬', ico: '🐕', unit: '마리', lower: false, href: 'parade.html' },
     { key: 'cross', title: '무단횡단', ico: '🚸', unit: '칸', lower: false, href: 'cross.html' },
-    { key: 'pinball', title: '핀볼', ico: '🪩', unit: '점', lower: false, href: 'pinball.html' }
+    { key: 'pinball', title: '핀볼', ico: '🪩', unit: '점', lower: false, href: 'pinball.html' },
+    { key: 'socks', title: '양말도둑', ico: '🧦', unit: '켤레', lower: false, href: 'socks.html' },
+    { key: 'rhythm', title: '리듬스타', ico: '🎵', unit: '점', lower: false, href: 'rhythm.html' },
+    { key: 'hoop', title: '훌라후프', ico: '⭕', unit: '바퀴', lower: false, href: 'hoop.html' },
+    { key: 'claw', title: '인형뽑기', ico: '🕹️', unit: '개', lower: false, href: 'claw.html' },
+    { key: 'stamp', title: '도장 쾅', ico: '💌', unit: '점', lower: false, href: 'stamp.html' },
   ];
   const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };
   const RK = { me: 'kongstar.rank.me', cfg: 'kongstar.rank.cfg', dirty: 'kongstar.rank.dirty', last: 'kongstar.rank.last', cache: 'kongstar.rank.cache', seen: 'kongstar.rank.seen' };
@@ -867,7 +872,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     const rb = rankBox(card, gameKey, true), opt = () => (o && o.note ? { note: typeof o.note === 'function' ? o.note() : o.note } : undefined);
     let on = false;
     const vis = () => !scrim.hidden && card.getClientRects().length > 0;
-    function tick() { const v = vis(); if (v && !on) { on = true; recFlag = false; recBeat = false; recBase = {}; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
+    function tick() { if (document.hidden) return; const v = vis(); if (v && !on) { on = true; recFlag = false; recBeat = false; recBase = {}; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
     diffWatch.push(id => { if (on) rb.show(id, opt()); });
     setInterval(tick, 300); requestAnimationFrame(tick);
     return { rb, refresh() { if (on) rb.show(diffId, opt()); } };

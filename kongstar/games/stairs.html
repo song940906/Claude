@@ -544,13 +544,25 @@ body .kg-top { z-index: 26; }
     }
   }
 
+  // 절전: 카드(시작·멈춤·결과)가 떠 있으면 상태가 바뀐 뒤 1초까지만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다
+  let idleSt = '', idleAt = 0, idleDrawAt = 0, idleDt = 0;
+  function idleSkip(now, playing) {
+    if (playing) { idleSt = ''; return false; }
+    if (idleSt !== state) { idleSt = state; idleAt = now; }
+    if (now - idleAt < 1000 || now - idleDrawAt >= 200) { idleDrawAt = now; return false; }
+    return true;
+  }
+  window.addEventListener('resize', () => { idleSt = ''; });   // 회전·크기 바뀜: 다시 1초 동안 매 프레임
+  document.addEventListener('visibilitychange', () => { idleSt = ''; });
+  window.addEventListener('orientationchange', () => { idleSt = ''; });   // resize 없이 회전만 오는 기기: 늦게 도는 layout 까지 1초 안에 들게
   let last = 0;
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = last ? Math.min(0.05, Math.max(0, (now - last) / 1000)) : 0; last = now;
     tAnim += dt;
     if (state === 'play' || state === 'over' || state === 'result' || state === 'ready') update(state === 'pause' ? 0 : dt);
-    paintHud(); draw(dt); drawKong();
+    if (idleSkip(now, state === 'play' || state === 'over')) { idleDt += dt; return; }
+    paintHud(); draw(dt + idleDt); idleDt = 0; drawKong();   // 건너뛴 시간만큼 떠오르는 글도 나이를 먹게
   }
 
   // ═══════ 흐름 ═══════

@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이는 양말도둑</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이는 양말도둑: 밤 거실·러그·방석·바구니·양말(cv, 누름을 받는다) → 콩이(stage) → 끄는 양말·말린 양말·문 양말·글자(fx) → 점수판 순서로 겹친다 */
+#cv, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#cv { z-index: 1; touch-action: none; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; pointer-events: none; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6px; pointer-events: none; transform: translateX(-50%); }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud svg { width: 16px; height: 16px; display: block; }
+#hud .sc.bump { animation: scBump .35s; }
+@keyframes scBump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+#hud .tm.warn { background: rgba(229,72,77,.72); }
+#hud .tm.warn.blink { animation: tmBlink .8s infinite; }
+#hud .tm.hit { animation: tmHit .45s; }
+@keyframes tmBlink { 50% { background: rgba(18,22,52,.62); } }
+@keyframes tmHit { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+#hud.tight { gap: 4px; }
+#hud.tight > div { padding: 0 8px; font-size: 13px; }
+body .kg-top .kg-title { pointer-events: none; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stKeys { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+@media (orientation: landscape) and (max-height: 360px) {
+  #cardStart, #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+  body .kg-rbwrap > .kg-card #edText { display: none; }
+  body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+}
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="양말이 흩어진 거실 러그"></canvas>
+<div id="stage"></div>
+<canvas id="fx"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="tm" id="hudTm"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8.8" r="5.6"/><path d="M8 5.8v3.2l2 1.3M6.3 1.8h3.4"/></svg><span id="hudTime">1:00</span></div>
+  <div class="sc" id="hudSc"><span id="hudScore">0</span><small>켤레</small></div>
+  <div class="lv"><small>더미</small><span id="hudDump">1</span></div>
+</div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이는 양말도둑</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>같은 양말 두 짝</b>을 차례로 누르면 돌돌 말아 바구니로!</p>
+      <p id="stThief"></p>
+      <p id="stKeys" hidden><b>방향키</b> 고르기 · <b>스페이스</b> 집기 · <b>K</b> 콩이 · <b>B</b> 방석</p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">시간이 다 됐어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>켤레</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>치운 더미<b id="edDump"></b></span><span>되찾은 양말<b id="edSave"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const KEY = 'socks', TITLE = J(name, '은/는') + ' 양말도둑';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   t0 처음 시간(초) · p0 첫 더미 켤레 수(더미마다 +1, pMax 까지) · pen 틀린 짝 벌칙(초) · bonus 더미를 다 치웠을 때 늘어나는 시간(더미마다 bdec 씩 줄어 bmin 까지 — 빨리 치워도 판은 언젠가 끝난다)
+  //   sim 비슷한 양말(점 3개↔4개·비슷한 색)이 섞일 확률 · ov 겹쳐 놓이는 비율(켤레 수에 곱함) · rot 양말이 돌아가 놓이는 정도(rad)
+  //   th 콩이가 다음에 훔치러 오기까지(초, 범위) · th0 판 시작 뒤 첫 도둑질까지 · spd 콩이 빠르기(양말 크기/초) · roam 물고 돌아다니는 시간 · back 방석 밑 양말이 저절로 나오기까지
+  const DIFF = {
+    easy:   { t0: 100, p0: 4, pMax: 6,  pen: 0, bonus: 10, bdec: 1, bmin: 3, sim: 0,    ov: 0,    rot: 0.35, th: [24, 32], th0: 20, spd: 1.4, roam: 8, back: 5, praise: [60, 25] },
+    normal: { t0: 80,  p0: 5, pMax: 8,  pen: 2, bonus: 7,  bdec: 1, bmin: 2,  sim: 0.25, ov: 0,    rot: 0.7,  th: [14, 20], th0: 12, spd: 2.2, roam: 6, back: 7, praise: [40, 15] },
+    hard:   { t0: 75,  p0: 6, pMax: 10, pen: 2, bonus: 6,  bdec: 1, bmin: 2,  sim: 0.5,  ov: 0.25, rot: 0.8,  th: [10, 14], th0: 9,  spd: 3.0, roam: 5, back: 8, praise: [32, 12] },
+    vhard:  { t0: 70,  p0: 8, pMax: 12, pen: 2, bonus: 5,  bdec: 1, bmin: 1,  sim: 0.75, ov: 0.4,  rot: 0.9,  th: [7, 10],  th0: 6,  spd: 3.8, roam: 4, back: 9, praise: [26, 10] }
+  };
+  let diffId = 'normal', D = DIFF.normal;
+  const dumpPairs = d => Math.min(D.pMax, D.p0 + d - 1);
+  const dumpBonus = d => Math.max(D.bmin, D.bonus - (d - 1) * D.bdec);
+
+  // ═══════ 양말 무늬: 색이 비슷해도 무늬(종류·개수·뒤꿈치 덧댐)로 늘 구분된다 ═══════
+  const COLS = {
+    pink:  { f: '#FFB9CB', d: '#E2557C' }, coral: { f: '#FFB4A2', d: '#DB5A38' }, rose: { f: '#F6B0DD', d: '#C24A98' },
+    peach: { f: '#FFCFA3', d: '#E07D25' }, lemon: { f: '#FFEB9E', d: '#C79400' }, mint: { f: '#B8EDD2', d: '#26975E' },
+    aqua:  { f: '#AEEAEA', d: '#17969C' }, sky:   { f: '#B9DAFF', d: '#3A7FD4' }, lilac: { f: '#D8CBFF', d: '#7957D6' },
+    cream: { f: '#F3EDE3', d: '#86735C' }
+  };
+  const COLK = Object.keys(COLS);
+  const SIMC = { pink: ['coral', 'rose'], coral: ['pink', 'peach'], rose: ['pink', 'lilac'], peach: ['coral', 'lemon'], lemon: ['peach', 'cream'], mint: ['aqua'], aqua: ['mint', 'sky'], sky: ['aqua', 'lilac'], lilac: ['sky', 'rose'], cream: ['lemon'] };
+  const PATS = { plain: [0], stripe: [2, 3, 4], dots: [3, 4, 5], heart: [1, 2, 3], star: [1, 2, 3], paw: [1, 2], check: [0], zig: [1, 2] };
+  const PATK = Object.keys(PATS);
+  const sigOf = k => k.pat + k.n + (k.heel ? 'h' : '');   // 색을 뺀 생김새 — 한 더미 안에서 겹치지 않는다
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '거실에 흩어진 양말을 짝 맞춰 정리해요. 양말도둑 ' + J(name, '을/를') + ' 조심!';
+  { const p = $('stThief'), b = document.createElement('b'); b.textContent = '톡'; p.append('양말 문 ' + J(name, '을/를') + ' ', b, ' 누르면 떨어뜨려요.'); }
+  if (KEYS_OK) $('stKeys').hidden = false;
+  const cv = $('cv'), fx = $('fx'), stage = $('stage'), hud = $('hud');
+  const g = cv.getContext('2d'), fg = fx.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const K = kong(stage, 100);
+
+  // ═══════ 상태 ═══════
+  let state = 'ready', phase = 'play';      // state: ready · play · pause · over · result   phase: play · clear(더미를 다 치우고 다음 더미를 기다림)
+  let socks = [], kinds = [], grid = { c: 3, r: 3 }, hidden = [], balls = [], floats = [], parts = [], recent = [];
+  let score = 0, dump = 1, timeLeft = 60, rescued = 0, mistakes = 0, cleared = 0, clearT = 0, overT = 0, overAt = 0, isNew = false, quit = false, zTop = 0, nid = 1, lastTick = 99;
+  let sel = null, drag = null, cursor = null, kbMode = false, hintOn = true, basketBump = 0, cushBump = 0, tAnim = 0, lastCall = -99, lastGrowl = -99;
+  let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, wide = false, F = { x: 0, y: 0, w: 1, h: 1 }, S = 60, CELL = 70, KSZ = 100;
+  let gridN = 0, hintY = 0;
+  const HUD_H = 32, HINT_GAP = 32;   // 점수판 높이, 점수판과 러그 사이 틈(안내 말풍선 자리)
+  let cush = { x: 0, y: 0, rx: 40, ry: 16 },bask = { x: 0, y: 0, w: 90, h: 60 }, home = { x: 0, y: 0 };
+  // 콩이: st = home(방석 위) · come(양말로 감) · grab(물기) · roam(물고 돌아다님) · stash(방석으로) · hide(방석 밑에 숨기는 중) · scold(혼남) · back(빈입으로 돌아감)
+  const th = { st: 'home', t: 10, target: null, sock: null, x: 0, y: 0, wx: 0, wy: 0, facing: 1, roamT: 0, stT: 0, ph: 0, mood: 'idle', moodT: 0 };
+  const sprites = {};
+  let bgCache = null;
+
+  const FALL = 0.45;
+  const px = s => F.x + s.u * F.w, py = s => F.y + s.v * F.h;
+  const byId = id => socks.find(s => s.id === id) || null;
+  const covered = s => s.under != null && socks.some(t => t.id === s.under);
+  const landed = s => s.appear >= FALL && !s.fly;
+  const selectable = s => landed(s) && !covered(s) && !(drag && drag.id === s.id && drag.moved);
+
+  // ═══════ 화면 맞추기 ═══════
+  function chooseGrid(n) {
+    let b = null;
+    for (let c = 1; c <= 10; c++) { const r = Math.ceil(n / c), cell = Math.min(F.w / c, F.h / r), sc = cell - (c * r - n) * 0.8; if (!b || sc > b.sc) b = { c, r, sc }; }
+    return { c: b.c, r: b.r };
+  }
+  function sizeSocks() { CELL = Math.min(F.w / grid.c, F.h / grid.r); S = Math.min(CELL * 0.86, 132); buildSprites(); }
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function buildBg() {
+    const cn = bgCache || (bgCache = document.createElement('canvas')); cn.width = Math.round(W * DPR); cn.height = Math.round(H * DPR);
+    const c = cn.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const lg = c.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0B1030'); lg.addColorStop(0.6, '#1B2060'); lg.addColorStop(1, '#2F2C78');
+    c.fillStyle = lg; c.fillRect(0, 0, W, H);
+    const blob = (x, y, r, col) => { const rg = c.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2); };
+    blob(W * 0.8, H * 0.1, Math.max(W, H) * 0.45, 'rgba(255,214,150,.10)'); blob(W * 0.15, H * 0.9, Math.max(W, H) * 0.5, 'rgba(140,140,255,.12)');
+    const rnd = mulberry32(53), n = Math.round(clamp(W * H / 5000, 40, 200));
+    for (let i = 0; i < n; i++) { c.globalAlpha = 0.25 + rnd() * 0.5; c.fillStyle = rnd() < 0.3 ? '#FFE9C4' : '#EAF0FF'; c.beginPath(); c.arc(rnd() * W, rnd() * H, 0.4 + rnd() * 0.8, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+    // 러그: 양말이 놓이는 곳. 둥근 모서리 + 바느질 선 + 옅은 하트 무늬
+    const m = 8, x = F.x - m, y = F.y - m, w = F.w + m * 2, h = F.h + m * 2, rad = Math.min(26, w * 0.08);
+    c.save(); c.shadowColor = 'rgba(4,6,24,.45)'; c.shadowBlur = 18; c.shadowOffsetY = 6; c.fillStyle = '#353C86'; rr(c, x, y, w, h, rad); c.fill(); c.restore();
+    const rg2 = c.createLinearGradient(0, y, 0, y + h); rg2.addColorStop(0, '#3D4594'); rg2.addColorStop(1, '#333A83'); c.fillStyle = rg2; rr(c, x, y, w, h, rad); c.fill();
+    c.save(); rr(c, x, y, w, h, rad); c.clip();
+    c.fillStyle = 'rgba(255,255,255,.045)'; const st = 34;
+    for (let yy = y + 14; yy < y + h; yy += st) for (let xx = x + 14 + ((yy - y) / st % 2 ? st / 2 : 0); xx < x + w; xx += st) heartAt(c, xx, yy, 5);
+    c.restore();
+    c.strokeStyle = 'rgba(255,255,255,.16)'; c.lineWidth = 1.5; c.setLineDash([5, 5]); rr(c, x + 6, y + 6, w - 12, h - 12, Math.max(4, rad - 6)); c.stroke(); c.setLineDash([]);
+  }
+  function heartAt(c, x, y, s) { c.beginPath(); c.moveTo(x, y + s * 0.9); c.bezierCurveTo(x - s * 1.4, y, x - s * 0.9, y - s * 1.1, x, y - s * 0.35); c.bezierCurveTo(x + s * 0.9, y - s * 1.1, x + s * 1.4, y, x, y + s * 0.9); c.fill(); }
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    wide = W > H * 1.1;
+    if (wide) {   // 가로: 가운데 러그, 왼쪽 방석(콩이), 오른쪽 바구니
+      const titled = W >= 760, side = clamp(W * 0.19, 96, 230), top = SAF.t + (titled ? 62 : 16) + HUD_H + HINT_GAP;
+      F = { x: SAF.l + side, y: top, w: W - SAF.l - SAF.r - side * 2, h: H - top - SAF.b - 12 };
+      KSZ = clamp(Math.min(side * 1.05, H * 0.42), 80, 190);
+      cush = { x: SAF.l + side / 2, y: H - SAF.b - KSZ * 0.12 - 8, rx: Math.min(side * 0.44, KSZ * 0.55), ry: 0 }; cush.ry = cush.rx * 0.4;
+      const bw = Math.min(side * 0.78, 130); bask = { x: W - SAF.r - side / 2, y: H - SAF.b - 10, w: bw, h: bw * 0.72 };
+      hud.style.top = (SAF.t + (titled ? 62 : 16)) + 'px'; hud.style.left = ((W + SAF.l - SAF.r) / 2) + 'px';
+      bar.setTitle(titled ? TITLE : '');
+    } else {      // 세로: 위 점수판, 가운데 러그, 아래 줄 왼쪽 방석(콩이)·오른쪽 바구니
+      const hb = clamp(H * 0.17, 82, 140), top = SAF.t + 62 + HUD_H + HINT_GAP;
+      F = { x: SAF.l + 12, y: top, w: W - SAF.l - SAF.r - 24, h: H - top - SAF.b - hb - 6 };
+      KSZ = clamp(hb * 1.0, 76, 140);
+      cush = { x: F.x + Math.max(KSZ * 0.55, 44), y: H - SAF.b - hb * 0.24, rx: KSZ * 0.52, ry: KSZ * 0.2 };
+      const bw = clamp(hb * 1.05, 70, 130); bask = { x: F.x + F.w - bw / 2 - 2, y: H - SAF.b - 10, w: bw, h: bw * 0.68 };
+      hud.style.top = (SAF.t + 62) + 'px'; hud.style.left = ((W + SAF.l - SAF.r) / 2) + 'px';
+      bar.setTitle(W < 350 ? '양말도둑' : TITLE);
+    }
+    home = { x: cush.x, y: cush.y - cush.ry * 0.15 };
+    hintY = F.y - HINT_GAP / 2 + 1;   // 안내 말풍선: 점수판과 러그 사이 틈 (러그 위 양말을 가리지 않게)
+    hud.classList.toggle('tight', W < 340);
+    for (const c of [cv, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    K.setSize(KSZ);
+    if (th.st === 'home' || th.st === 'hide') { th.x = home.x; th.y = home.y; } else { th.x = clamp(th.x, F.x, F.x + F.w); th.y = clamp(th.y, F.y + KSZ * 0.4, H - SAF.b - 4); }
+    regrid(); sizeSocks(); buildBg();
+  }
+  // 화면을 돌리거나 크기가 바뀌면: 이번 더미의 칸 수를 새 러그 모양에 맞게 다시 고르고, 양말은 칸 번호·칸 안 자리를 지킨 채 옮긴다
+  function regrid() {
+    if (!gridN) return;
+    const ng = chooseGrid(gridN), oc = grid.c, or = grid.r;
+    if (ng.c === oc && ng.r === or) return;
+    const cap = ng.c * ng.r, info = socks.map(s => {
+      const c = clamp(Math.floor(s.u * oc), 0, oc - 1), r = clamp(Math.floor(s.v * or), 0, or - 1);
+      return { s, i: r * oc + c, fx: s.u * oc - c, fy: s.v * or - r };
+    });
+    // 새 칸 수보다 큰 번호(끌어서 옮긴 양말 등)는 비어 있는 새 칸으로 보낸다
+    const used = new Set(info.filter(o => o.i < cap).map(o => o.i)), remap = new Map();
+    const free = []; for (let i = 0; i < cap; i++) if (!used.has(i)) free.push(i);
+    for (const o of info) if (o.i >= cap) { if (!remap.has(o.i)) remap.set(o.i, free.length ? free.shift() : o.i % cap); o.i = remap.get(o.i); }
+    for (const o of info) { o.s.u = ((o.i % ng.c) + o.fx) / ng.c; o.s.v = (Math.floor(o.i / ng.c) + o.fy) / ng.r; }
+    grid = ng;
+  }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  // ═══════ 양말 그림 (길이 1 단위, 가운데 0,0 · 발끝이 오른쪽) ═══════
+  function sockPath(c) {
+    c.beginPath(); c.moveTo(-0.37, -0.5); c.lineTo(-0.03, -0.5); c.lineTo(-0.03, 0.06); c.lineTo(0.19, 0.08);
+    c.quadraticCurveTo(0.4, 0.1, 0.4, 0.28); c.quadraticCurveTo(0.4, 0.46, 0.19, 0.46); c.lineTo(-0.17, 0.46); c.quadraticCurveTo(-0.39, 0.46, -0.38, 0.22); c.closePath();
+  }
+  const SPOTS = [[-0.27, -0.27], [-0.13, -0.12], [-0.27, 0.02], [0.13, 0.27], [-0.1, 0.29]];
+  function star(c, x, y, r) { c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r * 0.45 : r; c.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } c.closePath(); c.fill(); }
+  function paw(c, x, y, s) { c.beginPath(); c.ellipse(x, y + s * 0.25, s * 0.42, s * 0.34, 0, 0, TAU); c.fill(); for (const [a, b] of [[-0.5, -0.12], [-0.18, -0.45], [0.18, -0.45], [0.5, -0.12]]) { c.beginPath(); c.arc(x + a * s, y + b * s, s * 0.17, 0, TAU); c.fill(); } }
+  function paintSock(c, k) {
+    const col = COLS[k.col];
+    sockPath(c); c.fillStyle = col.f; c.fill();
+    c.save(); sockPath(c); c.clip();
+    c.fillStyle = col.d; c.strokeStyle = col.d;
+    if (k.heel) { c.globalAlpha = 0.9; c.beginPath(); c.arc(-0.33, 0.45, 0.17, 0, TAU); c.fill(); c.beginPath(); c.arc(0.39, 0.28, 0.16, 0, TAU); c.fill(); c.globalAlpha = 1; }
+    const n = k.n;
+    if (k.pat === 'stripe') { const h = { 2: 0.095, 3: 0.068, 4: 0.046 }[n], gap = (0.38 - n * h) / (n + 1); for (let i = 0; i < n; i++) c.fillRect(-0.5, -0.35 + gap + i * (h + gap), 1, h); }
+    else if (k.pat === 'dots') for (let i = 0; i < n; i++) { c.beginPath(); c.arc(SPOTS[i][0], SPOTS[i][1], 0.058, 0, TAU); c.fill(); }
+    else if (k.pat === 'heart') for (let i = 0; i < n; i++) heartAt(c, SPOTS[i][0], SPOTS[i][1], 0.07);
+    else if (k.pat === 'star') for (let i = 0; i < n; i++) star(c, SPOTS[i][0], SPOTS[i][1] + 0.01, 0.085);
+    else if (k.pat === 'paw') for (let i = 0; i < n; i++) paw(c, SPOTS[i * 2 + 1][0], SPOTS[i * 2 + 1][1], 0.13);
+    else if (k.pat === 'check') { c.globalAlpha = 0.32; for (let x = -0.5; x < 0.5; x += 0.14) c.fillRect(x, -0.5, 0.065, 1); for (let y = -0.5; y < 0.5; y += 0.14) c.fillRect(-0.5, y, 1, 0.065); c.globalAlpha = 1; }
+    else if (k.pat === 'zig') { c.lineWidth = 0.045; c.lineJoin = 'round'; for (const y0 of n === 1 ? [-0.15] : [-0.25, -0.04]) { c.beginPath(); for (let i = 0, x = -0.42; x <= 0.44; x += 0.085, i++) c.lineTo(x, y0 + (i % 2 ? 0.05 : -0.05)); c.stroke(); } }
+    // 발목 밴드: 밝은 골지
+    c.fillStyle = 'rgba(255,255,255,.55)'; c.fillRect(-0.4, -0.5, 0.4, 0.13);
+    c.globalAlpha = 0.35; c.lineWidth = 0.018; for (let x = -0.33; x < -0.04; x += 0.06) { c.beginPath(); c.moveTo(x, -0.5); c.lineTo(x, -0.375); c.stroke(); } c.globalAlpha = 1;
+    c.restore();
+    sockPath(c); c.strokeStyle = 'rgba(30,24,70,.5)'; c.lineWidth = 0.028; c.lineJoin = 'round'; c.stroke();
+  }
+  function buildSprites() {
+    const p = Math.max(16, Math.round(S * DPR)), size = Math.round(p * 1.12);
+    for (let i = 0; i < kinds.length; i++) {
+      const cn = sprites[i] || (sprites[i] = document.createElement('canvas')); cn.width = cn.height = size;
+      const c = cn.getContext('2d'); c.setTransform(p, 0, 0, p, size / 2, size / 2); paintSock(c, kinds[i]);
+    }
+  }
+  function drawSock(c, k, x, y, rot, mir, sc, alpha) {
+    const s = sprites[k]; if (!s) return; const w = s.width / DPR * (sc || 1);
+    c.save(); c.translate(x, y); c.rotate(rot); if (mir) c.scale(-1, 1); if (alpha != null) c.globalAlpha = alpha;
+    c.drawImage(s, -w / 2, -w / 2, w, w); c.restore();
+  }
+  function sockShadow(c, x, y, rot, mir, sz, a) { c.save(); c.globalAlpha = a; c.fillStyle = '#0A0D2A'; c.translate(x, y); c.rotate(rot); if (mir) c.scale(-1, 1); c.scale(sz, sz); sockPath(c); c.fill(); c.restore(); }
+  // 돌돌 만 양말의 생김새: 그 순간의 색·무늬를 따로 떠 둔다 (새 더미가 나와 kinds·sprites 가 바뀌어도 바구니 속 뭉치는 그대로)
+  const lookCache = new Map();
+  function ballLook(kind) {
+    const key = kind.col + sigOf(kind); let L = lookCache.get(key);
+    if (!L) { const cn = document.createElement('canvas'), p = 64, size = Math.round(p * 1.12); cn.width = cn.height = size; const c = cn.getContext('2d'); c.setTransform(p, 0, 0, p, size / 2, size / 2); paintSock(c, kind); L = { col: kind.col, spr: cn }; lookCache.set(key, L); }
+    return L;
+  }
+  function drawBall(c, look, x, y, r) {   // 돌돌 만 양말 한 켤레
+    const col = COLS[look ? look.col : 'cream'], spr = look && look.spr;
+    c.save(); c.fillStyle = 'rgba(0,0,0,.18)'; c.beginPath(); c.ellipse(x, y + r * 0.85, r * 0.9, r * 0.25, 0, 0, TAU); c.fill();
+    c.beginPath(); c.arc(x, y, r, 0, TAU); c.fillStyle = col.f; c.fill(); c.clip();
+    if (spr) { const w = r * 2.6; c.globalAlpha = 0.9; c.drawImage(spr, x - w / 2, y - w / 2 + r * 0.4, w, w); c.globalAlpha = 1; }
+    c.fillStyle = 'rgba(255,255,255,.6)'; c.fillRect(x - r, y - r * 0.38, r * 2, r * 0.32);
+    c.restore();
+    c.strokeStyle = 'rgba(30,24,70,.45)'; c.lineWidth = 1.2; c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.4; c.beginPath(); c.arc(x - r * 0.15, y - r * 0.1, r * 0.55, Math.PI * 1.1, Math.PI * 1.75); c.stroke();
+  }
+
+  // ═══════ 더미 만들기 ═══════
+  function genKinds(P) {
+    const out = [], sigs = new Set(), easy = diffId === 'easy';
+    const ok = k => !sigs.has(sigOf(k));
+    for (let i = 0; i < P; i++) {
+      let k = null;
+      if (out.length && Math.random() < D.sim) {   // 닮은꼴: 같은 색·무늬 개수만 하나 다름, 또는 비슷한 색·같은 무늬에 뒤꿈치 덧댐만 다름
+        for (let tr = 0; tr < 20 && !k; tr++) {
+          const b = pick(out), ns = PATS[b.pat];
+          let c = null;
+          if (ns.length > 1 && Math.random() < 0.6) { const j = ns.indexOf(b.n), nn = ns[clamp(j + (Math.random() < 0.5 ? -1 : 1), 0, ns.length - 1)]; if (nn !== b.n) c = { col: b.col, pat: b.pat, n: nn, heel: b.heel }; }
+          else if (b.pat !== 'plain') c = { col: pick(SIMC[b.col]), pat: b.pat, n: b.n, heel: !b.heel };
+          if (c && ok(c)) k = c;
+        }
+      }
+      for (let tr = 0; tr < 80 && !k; tr++) {
+        const usedP = new Set(out.map(o => o.pat)), usedC = new Set(out.map(o => o.col));
+        const pats = PATK.filter(p => !usedP.has(p)), cols = COLK.filter(cc => !usedC.has(cc));
+        const pat = (easy || tr < 40) && pats.length ? pick(pats) : pick(PATK);
+        const col = (easy || tr < 40) && cols.length ? pick(cols) : pick(COLK);
+        const c = { col, pat, n: pick(PATS[pat]), heel: pat === 'plain' ? true : Math.random() < 0.35 };
+        if (easy && (c.pat === 'stripe' || c.pat === 'dots')) c.n = PATS[pat][Math.floor(Math.random() * 2)];
+        if (ok(c)) k = c;
+      }
+      if (!k) k = { col: pick(COLK), pat: 'dots', n: 3 + i, heel: false };   // 오지 않는 길 (생김새 33가지 > 12켤레)
+      sigs.add(sigOf(k)); out.push(k);
+    }
+    return out;
+  }
+  function newDump(first) {
+    const P = dumpPairs(dump);
+    kinds = genKinds(P); socks = []; sel = null; cursor = null;
+    const list = [];
+    for (let i = 0; i < P; i++) for (let j = 0; j < 2; j++) list.push({ id: nid++, k: i, mir: j === 1, u: 0.5, v: 0.5, rot: 0, z: 0, under: null, shake: 0, appear: 0, fly: null, lift: 0 });
+    // 겹쳐 놓기: 위 양말의 짝은 늘 밑에 깔리지 않은 양말이다 → 맨 위부터 하나씩 치우면 언제나 다 치울 수 있다
+    const m = Math.floor(P * D.ov), stacks = [], isTop = new Set(), isBot = new Set();
+    const partner = s => list.find(o => o.k === s.k && o !== s);
+    for (let tr = 0; tr < 200 && stacks.length < m; tr++) {
+      const b = pick(list), t = pick(list);
+      if (b === t || b.k === t.k || isTop.has(b) || isBot.has(b) || isTop.has(t) || isBot.has(t)) continue;
+      if (isBot.has(partner(t)) || isTop.has(partner(b))) continue;
+      isTop.add(t); isBot.add(b); stacks.push([b, t]); t.under = null; b.under = t.id;
+    }
+    const slots = list.length - stacks.length;
+    gridN = slots; grid = chooseGrid(slots); sizeSocks();
+    const cells = []; for (let r = 0; r < grid.r; r++) for (let c = 0; c < grid.c; c++) cells.push([c, r]);
+    for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+    const singles = list.filter(s => !isTop.has(s) && !isBot.has(s));
+    let ci = 0;
+    const put = (s, c, r, ox, oy) => { s.u = (c + 0.5 + ox + rand(-0.07, 0.07)) / grid.c; s.v = (r + 0.5 + oy + rand(-0.06, 0.06)) / grid.r; s.rot = rand(-D.rot, D.rot) + (Math.random() < 0.5 ? 0 : 0); };
+    for (const [b, t] of stacks) { const [c, r] = cells[ci++]; put(b, c, r, -0.12, -0.1); put(t, c, r, 0.12, 0.1); b.rot = rand(-1, 1); }
+    for (const s of singles) { const [c, r] = cells[ci++]; put(s, c, r, 0, 0); }
+    // 겹침 순서: 밑 양말 먼저, 위 양말 나중
+    let z = 0; const order = [...list]; order.sort((a, b) => (isBot.has(b) - isBot.has(a)) || Math.random() - 0.5);
+    for (const s of order) s.z = ++z; zTop = z;
+    order.forEach((s, i) => { s.appear = reduceMotion ? FALL : -(i * 0.035 + (first ? 0.1 : 0)); });
+    socks = list; phase = 'play'; paintHud();
+    if (!first) { sfx('swap'); noise(0.4, 0.06, 1800, 700); }
+  }
+
+  // ═══════ 판 위 동작 ═══════
+  function topAt(x, y, exceptId) {   // 그 점의 맨 위 양말 (누름 판정은 양말 모양 + 작은 양말도 44px 은 되게)
+    let bestS = null;
+    for (const s of socks) {
+      if (s.id === exceptId || !landed(s)) continue;
+      const dx = x - px(s), dy = y - py(s), co = Math.cos(-s.rot), si = Math.sin(-s.rot);
+      let lx = (dx * co - dy * si) / S, ly = (dx * si + dy * co) / S; if (s.mir) lx = -lx;
+      const padN = Math.max(0, 22 / S - 0.17);
+      const inLeg = lx > -0.4 - padN * 0.3 && lx < 0 + padN * 0.3 && ly > -0.52 && ly < 0.48, inFoot = lx > -0.4 && lx < 0.42 && ly > 0.04 - padN * 0.3 && ly < 0.48 + padN * 0.3;
+      const near = Math.hypot(dx, dy) < Math.max(22, S * 0.3);
+      if ((inLeg || inFoot || near) && (!bestS || s.z > bestS.z)) bestS = s;
+    }
+    return bestS;
+  }
+  function kongHit(x, y) { const cx = th.x, cy = th.y - KSZ * 0.3; return Math.hypot(x - cx, y - cy) < Math.max(32, KSZ * 0.42); }
+  function cushHit(x, y) { const dx = (x - cush.x) / (cush.rx + 14), dy = (y - (cush.y - KSZ * 0.2)) / (cush.ry + KSZ * 0.38); return dx * dx + dy * dy < 1; }
+  const thiefActive = () => th.st === 'come' || th.st === 'grab' || th.st === 'roam' || th.st === 'stash';
+  function tapSock(s) {
+    if (!s) return;
+    if (covered(s)) { s.shake = 0.3; tone(300, 0.06, 'sine', 0.04); addFloat(px(s), py(s) - S * 0.5, '위의 양말부터!', '#FFE6A8'); return; }
+    if (sel == null) { sel = s.id; sfx('flip'); tone(660, 0.05, 'triangle', 0.04); return; }
+    if (sel === s.id) { sel = null; tone(440, 0.05, 'sine', 0.03); return; }
+    const a = byId(sel); if (!a || !selectable(a)) { sel = s.id; sfx('flip'); return; }
+    tryPair(a, s);
+  }
+  function tryPair(a, b) {
+    sel = null;
+    if (a.k === b.k) { match(a, b); return; }
+    a.shake = b.shake = 0.42; sfx('wrong'); mistakes++;
+    if (D.pen > 0) {
+      timeLeft = Math.max(0, timeLeft - D.pen);
+      addFloat((px(a) + px(b)) / 2, (py(a) + py(b)) / 2 - S * 0.4, '-' + D.pen + '초', '#FFB3B8', true);
+      const e = $('hudTm'); if (!reduceMotion) { e.classList.remove('hit'); void e.offsetWidth; e.classList.add('hit'); }
+    } else addFloat((px(a) + px(b)) / 2, (py(a) + py(b)) / 2 - S * 0.4, '짝이 아니에요', '#FFE6A8');
+    if (th.st === 'home') setMood('tilt', 0.7);
+  }
+  function match(a, b) {
+    for (const t of socks) if (t.under === a.id || t.under === b.id) t.under = null;
+    socks = socks.filter(s => s !== a && s !== b);
+    const ax = px(a), ay = py(a), bx = px(b), by = py(b);
+    balls.push({ k: a.k, look: ballLook(kinds[a.k]), a: [ax, ay, a.rot, a.mir], b: [bx, by, b.rot, b.mir], mx: (ax + bx) / 2, my: (ay + by) / 2, t: 0 });
+    score++; hintOn = false; bumpScore(); paintHud();
+    sfx('match');
+    if (th.st === 'home') setMood('happy', 0.9);
+    if (score % 5 === 0) addFloat(W / 2, F.y + F.h * 0.4, score + '켤레!', '#FFE08A', true);
+    checkClear();
+  }
+  function checkClear() {
+    if (state !== 'play' || phase !== 'play' || socks.length || th.sock || hidden.length) return;
+    phase = 'clear'; clearT = reduceMotion ? 0.9 : 1.5; cleared++;
+    const bonus = dumpBonus(dump); timeLeft += bonus;
+    addFloat(F.x + F.w / 2, F.y + F.h * 0.42, '빨래 더미 ' + dump + ' 끝!', '#FFE08A', true);
+    addFloat(F.x + F.w / 2, F.y + F.h * 0.42 + 26, '+' + bonus + '초', '#BFF3D2', true);
+    sfx('win'); setMood('cheer', 1.5); paintHud();
+  }
+  function moveTo(s, x, y) { s.u = clamp((x - F.x) / F.w, 0.04, 0.96); s.v = clamp((y - F.y) / F.h, 0.05, 0.95); }
+  function freeSpot() {   // 다른 양말과 가장 덜 겹치는 칸
+    let bestP = null;
+    for (let r = 0; r < grid.r; r++) for (let c = 0; c < grid.c; c++) {
+      const u = (c + 0.5) / grid.c, v = (r + 0.5) / grid.r, x = F.x + u * F.w, y = F.y + v * F.h;
+      let d = 1e9; for (const s of socks) d = Math.min(d, Math.hypot(px(s) - x, py(s) - y));
+      if (th.st !== 'home') d = Math.min(d, Math.hypot(th.x - x, th.y - KSZ * 0.3 - y) * 1.5);
+      const sc = Math.min(d, CELL * 1.2) + Math.random() * 4; if (!bestP || sc > bestP.sc) bestP = { u, v, sc };
+    }
+    return bestP;
+  }
+  function placeBack(sock, fromX, fromY) {   // 콩이가 떨어뜨리거나 방석에서 나온 양말: 빈 칸으로 날아가 앉는다 (겹침 고리는 없다 → 바로 집을 수 있다)
+    const p = freeSpot(); sock.u = p.u + rand(-0.03, 0.03) / grid.c; sock.v = p.v + rand(-0.03, 0.03) / grid.r; sock.rot = rand(-D.rot, D.rot);
+    sock.under = null; sock.z = ++zTop; sock.appear = FALL; sock.shake = 0;
+    sock.fly = reduceMotion ? null : { x0: fromX, y0: fromY, t: 0, dur: 0.45 };
+    socks.push(sock);
+  }
+
+  // ═══════ 콩이(양말도둑) ═══════
+  function setMood(m, t) { th.mood = m; th.moodT = t; }
+  function stealable() { return socks.filter(s => selectable(s) && s.id !== sel); }
+  function thiefStart() {
+    const c = stealable(); if (c.length < 3 || phase !== 'play') { th.t = 2; return; }
+    // 콩이와 가까운 쪽을 조금 더 좋아한다
+    c.sort((a, b) => Math.hypot(px(a) - th.x, py(a) - th.y) - Math.hypot(px(b) - th.x, py(b) - th.y));
+    const t = c[Math.floor(Math.random() * Math.min(c.length, 4))];
+    th.target = t.id; th.st = 'come'; th.ph = 0;
+    addFloat(th.x, th.y - KSZ * 0.85, '킁킁… 양말 냄새!', '#FFE6A8');
+    tone(520, 0.08, 'triangle', 0.05); tone(780, 0.1, 'triangle', 0.05, 0.08);
+  }
+  const mouthOff = () => ({ x: KSZ * 0.3 * th.facing, y: -KSZ * 0.36 });
+  function walkTo(tx, ty, spd, dt) {
+    const dx = tx - th.x, dy = ty - th.y, d = Math.hypot(dx, dy);
+    if (Math.abs(dx) > 2) th.facing = dx > 0 ? 1 : -1;
+    const stepL = spd * dt; th.ph += dt * (6 + spd / Math.max(30, S) * 2.2);
+    if (d <= stepL) { th.x = tx; th.y = ty; return true; }
+    th.x += dx / d * stepL; th.y += dy / d * stepL; return false;
+  }
+  const feetBox = (x, y) => ({ x: clamp(x, F.x + KSZ * 0.15, F.x + F.w - KSZ * 0.15), y: clamp(y, F.y + KSZ * 0.55, F.y + F.h + KSZ * 0.15) });
+  function newWaypoint() { const p = feetBox(rand(F.x, F.x + F.w), rand(F.y + KSZ * 0.6, F.y + F.h + KSZ * 0.1)); th.wx = p.x; th.wy = p.y; }
+  function updateThief(dt) {
+    const spd = D.spd * S, playing = state === 'play' && phase === 'play';
+    if (th.moodT > 0) { th.moodT -= dt; if (th.moodT <= 0) th.mood = 'idle'; }
+    switch (th.st) {
+      case 'home':
+        th.x = home.x; th.y = home.y;
+        if (playing) { th.t -= dt; if (th.t <= 0) thiefStart(); }
+        break;
+      case 'come': {
+        const s = byId(th.target);
+        if (!s || !selectable(s) || !playing) {   // 노리던 양말이 사라졌다 → 다른 양말, 없으면 돌아간다
+          const c = playing ? stealable() : [];
+          if (c.length >= 2) { th.target = pick(c).id; break; }
+          th.st = 'back'; break;
+        }
+        th.facing = px(s) >= th.x ? 1 : -1;
+        const mo = mouthOff(), p = { x: px(s) - mo.x, y: py(s) - mo.y };
+        if (walkTo(p.x, p.y, spd * 1.1, dt)) {
+          th.st = 'grab'; th.stT = 0.35;
+          for (const t of socks) if (t.under === s.id) t.under = null;
+          socks = socks.filter(o => o !== s); th.sock = s; if (sel === s.id) sel = null; if (cursor === s.id) cursor = null;
+          sfx('munch'); addFloat(px(s), py(s) - S * 0.4, '앙!', '#FFE08A', true);
+          if (tAnim - lastGrowl > 8) { lastGrowl = tAnim; voice('growl', 0.15, 0.7); }
+        }
+        break;
+      }
+      case 'grab':
+        th.stT -= dt; if (th.stT <= 0) { th.st = 'roam'; th.roamT = D.roam; newWaypoint(); }
+        break;
+      case 'roam':
+        th.roamT -= dt;
+        if (walkTo(th.wx, th.wy, spd, dt)) newWaypoint();
+        if (th.roamT <= 0) th.st = 'stash';
+        break;
+      case 'stash':
+        if (walkTo(home.x, home.y, spd * 1.15, dt)) { th.st = 'hide'; th.stT = 0.8; noise(0.3, 0.05, 900, 400); }
+        break;
+      case 'hide':
+        th.x = home.x; th.y = home.y; th.stT -= dt;
+        if (th.stT <= 0 && th.sock) {
+          hidden.push({ sock: th.sock, t: D.back }); th.sock = null; th.st = 'home'; th.t = rand(D.th[0], D.th[1]);
+          cushBump = 0.4; addFloat(cush.x, cush.y - KSZ * 0.9, '방석 밑에 쏙!', '#FFE6A8'); setMood('smug', 1.2);
+        }
+        break;
+      case 'scold':
+        th.stT -= dt; if (th.stT <= 0) th.st = 'back';
+        break;
+      case 'back':
+        if (walkTo(home.x, home.y, spd * 0.8, dt)) { th.st = 'home'; th.t = rand(D.th[0], D.th[1]); }
+        break;
+    }
+    // 방석 밑 양말: 잠시 뒤 저절로 나온다
+    if (playing) for (let i = hidden.length - 1; i >= 0; i--) { hidden[i].t -= dt; if (hidden[i].t <= 0) { const h = hidden.splice(i, 1)[0]; placeBack(h.sock, cush.x, cush.y); tone(700, 0.08, 'triangle', 0.04); cushBump = 0.3; } }
+  }
+  function tapKong() {
+    if (!thiefActive()) return false;
+        if (th.sock) { const m = K.mouth(); const s = th.sock; th.sock = null; placeBack(s, m.x, m.y); rescued++; addFloat(m.x, m.y - 16, '되찾았어요!', '#BFF3D2', true); sfx('coin'); }
+    else addFloat(th.x, th.y - KSZ * 0.8, '안 돼요!', '#FFE6A8', true);
+    th.st = 'scold'; th.stT = 1.2; th.target = null;
+    tone(700, 0.12, 'sine', 0.05, 0, 420); tone(560, 0.18, 'sine', 0.04, 0.12, 300);   // 끼잉
+    if (tAnim - lastCall > 6) { lastCall = tAnim; voice('call', 0, 1.2); }
+    return true;
+  }
+  function tapCushion() {
+    if (th.st === 'hide' && th.sock) { const s = th.sock; th.sock = null; placeBack(s, cush.x, cush.y); rescued++; th.st = 'home'; th.t = rand(D.th[0], D.th[1]); setMood('oops', 1); addFloat(cush.x, cush.y - KSZ, '들켰다!', '#BFF3D2', true); sfx('coin'); return true; }
+    if (hidden.length) {
+      const n = hidden.length; for (const h of hidden.splice(0)) placeBack(h.sock, cush.x, cush.y);
+      rescued += n; cushBump = 0.4; sfx('coin'); addFloat(cush.x, cush.y - KSZ, '찾았다! ' + n + '짝', '#BFF3D2', true);
+      if (th.st === 'home') setMood('oops', 1);
+      return true;
+    }
+    if (th.st === 'home') { setMood('happy', 1); sfx('heart'); addFloat(home.x, home.y - KSZ * 0.85, '♥', '#FFB9CB', true); return true; }
+    return false;
+  }
+
+  // ═══════ 효과 ═══════
+  function addFloat(x, y, text, col, big) { floats.push({ x, y, text, col: col || '#fff', life: 1.2, big: !!big }); }
+  function bumpScore() { const e = $('hudSc'); if (!reduceMotion) { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); } }
+  const BALL_A = 0.22, BALL_B = 0.5;
+
+  // ═══════ 흐름 ═══════
+  function update(dt) {
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= dt * 24; if (f.life <= 0) floats.splice(i, 1); }
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt; if (p.life <= 0) parts.splice(i, 1); }
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i]; b.t += dt;
+      if (b.t >= BALL_A + BALL_B) {
+        balls.splice(i, 1); basketBump = 0.3; recent.push(b.look); if (recent.length > 6) recent.shift();
+        tone(320, 0.07, 'sine', 0.06); noise(0.06, 0.05, 700, 400);
+        if (!reduceMotion) for (let j = 0; j < 5; j++) parts.push({ x: bask.x + rand(-bask.w * 0.3, bask.w * 0.3), y: bask.y - bask.h, vx: rand(-40, 40), vy: rand(-120, -50), life: rand(0.3, 0.5), col: pick(['#FFE08A', '#FFFFFF', '#BFF3D2']) });
+      }
+    }
+    for (const s of socks) {
+      if (s.shake > 0) s.shake -= dt;
+      if (s.appear < FALL) s.appear += dt;
+      if (s.fly) { s.fly.t += dt; if (s.fly.t >= s.fly.dur) s.fly = null; }
+      const want = sel === s.id ? 1 : 0; s.lift += (want - s.lift) * Math.min(1, dt * 14);
+    }
+    if (basketBump > 0) basketBump -= dt; if (cushBump > 0) cushBump -= dt;
+    if (state === 'over') { overT -= dt; updateThief(dt); if (overT <= 0) showResult(); return; }
+    if (state !== 'play') return;
+    updateThief(dt);
+    if (phase === 'play') {
+      timeLeft -= dt;
+      const sec = Math.ceil(timeLeft);
+      if (sec <= 10 && sec !== lastTick && sec > 0) { lastTick = sec; tone(sec <= 3 ? 990 : 760, 0.05, 'sine', 0.035); }
+      if (timeLeft <= 0) { timeLeft = 0; timeUp(); }
+    } else if (phase === 'clear') { clearT -= dt; if (clearT <= 0) { dump++; newDump(false); } }
+    paintTime();
+  }
+
+  // ═══════ 그리기 ═══════
+  function drawCushion(c) {
+    const b = cushBump > 0 && !reduceMotion ? Math.sin(cushBump * 30) * 0.06 : 0, rx = cush.rx * (1 + b), ry = cush.ry * (1 - b), x = cush.x, y = cush.y;
+    // 숨긴 양말 끝이 방석 밑으로 삐죽
+    // (방석 양옆으로 번갈아 내밀어, 화면 아래가 좁은 작은 화면에서도 잘리지 않게)
+    hidden.forEach((h, i) => { const side = i % 2 ? -1 : 1, row = Math.floor(i / 2); drawSock(c, h.sock.k, x + side * (rx * 0.9 + row * S * 0.08), Math.min(y + ry * 0.1 - row * ry * 0.5, H - SAF.b - S * 0.2), side * (1.35 + row * 0.25), side < 0, 0.5); });
+    c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(x, y + ry * 0.75, rx * 1.02, ry * 0.5, 0, 0, TAU); c.fill();
+    const lg = c.createLinearGradient(0, y - ry, 0, y + ry); lg.addColorStop(0, '#F8BFD0'); lg.addColorStop(1, '#D9849E');
+    c.fillStyle = lg; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(x - rx * 0.1, y - ry * 0.25, rx * 0.72, ry * 0.5, 0, 0, TAU); c.fill();
+    c.strokeStyle = 'rgba(150,60,90,.35)'; c.lineWidth = 1.2; c.setLineDash([3, 3]); c.beginPath(); c.ellipse(x, y, rx * 0.84, ry * 0.72, 0, 0, TAU); c.stroke(); c.setLineDash([]);
+    if (hidden.length) {   // 숨긴 수 + (판이 비면) 눌러 보라는 반짝임
+      const bx = x + rx * 0.85, by = y - ry * 1.3, pulse = !socks.some(selectable) ? 1 + Math.sin(tAnim * 7) * 0.12 : 1;
+      c.fillStyle = '#FFC861'; c.beginPath(); c.arc(bx, by, 11 * pulse, 0, TAU); c.fill();
+      c.fillStyle = '#3A2A00'; c.font = '700 12px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(hidden.length), bx, by + 0.5);
+    }
+  }
+  function drawBasket(c, front) {
+    const b = basketBump > 0 && !reduceMotion ? Math.sin(basketBump * 25) * 0.05 : 0, w = bask.w * (1 + b), h = bask.h * (1 - b), x = bask.x - w / 2, y = bask.y - h;
+    if (!front) {
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(bask.x, bask.y + 2, w * 0.52, h * 0.12, 0, 0, TAU); c.fill();
+      c.fillStyle = '#9C6A3C'; c.beginPath(); c.ellipse(bask.x, y + 2, w * 0.5, h * 0.14, 0, 0, TAU); c.fill();
+      const r = Math.min(w * 0.13, h * 0.24);   // 안에 담긴 양말 뭉치 (최근 것 몇 개)
+      recent.slice(-5).forEach((lk, i) => { const cx = bask.x + (i - 2) * r * 1.35, cy = y + 2 - (i % 2 ? r * 0.45 : 0); drawBall(c, lk, cx, cy, r); });
+      return;
+    }
+    const lg = c.createLinearGradient(0, y, 0, y + h); lg.addColorStop(0, '#F2C995'); lg.addColorStop(1, '#D79D62');
+    c.fillStyle = lg; c.beginPath(); c.moveTo(x, y + 2); c.lineTo(x + w, y + 2); c.lineTo(x + w * 0.9, y + h); c.lineTo(x + w * 0.1, y + h); c.closePath(); c.fill();
+    c.save(); c.clip(); c.strokeStyle = 'rgba(140,85,40,.35)'; c.lineWidth = 1.2;
+    for (let yy = y + h * 0.28; yy < y + h; yy += h * 0.22) { c.beginPath(); c.moveTo(x, yy); c.lineTo(x + w, yy); c.stroke(); }
+    for (let xx = x + w * 0.12; xx < x + w; xx += w * 0.14) { c.beginPath(); c.moveTo(xx, y); c.lineTo(xx + (xx - bask.x) * 0.1, y + h); c.stroke(); }
+    c.restore();
+    c.fillStyle = '#E9B57A'; rr(c, x - 3, y - 2, w + 6, Math.max(6, h * 0.14), 4); c.fill();
+    c.strokeStyle = 'rgba(140,85,40,.4)'; c.lineWidth = 1; rr(c, x - 3, y - 2, w + 6, Math.max(6, h * 0.14), 4); c.stroke();
+  }
+  function sockPos(s) {   // 그릴 자리 (떨어지는 중·날아오는 중·흔들림 포함)
+    let x = px(s), y = py(s), sc = 1 + s.lift * 0.1, a = 1;
+    if (s.appear < FALL) { if (s.appear < 0) return null; const u = s.appear / FALL, e = 1 - (1 - u) * (1 - u); y = lerp(F.y - S * 0.8, y, e); a = Math.min(1, u * 3); x += Math.sin(u * 6) * (1 - u) * 6; }
+    if (s.fly) { const u = clamp(s.fly.t / s.fly.dur, 0, 1), e = u * (2 - u); x = lerp(s.fly.x0, x, e); y = lerp(s.fly.y0, y, e) - Math.sin(u * Math.PI) * S * 0.9; sc *= lerp(0.6, 1, e); }
+    if (s.shake > 0 && !reduceMotion) x += Math.sin(s.shake * 50) * 5 * (s.shake / 0.42);
+    return { x, y, sc, a };
+  }
+  function draw() {
+    const c = g; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+    if (bgCache) c.drawImage(bgCache, 0, 0);
+    c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawCushion(c); drawBasket(c, false); drawBasket(c, true);
+    const order = [...socks].sort((a, b) => a.z - b.z), selS = sel != null ? byId(sel) : null;
+    for (const s of order) {
+      if (drag && drag.moved && drag.id === s.id) continue;
+      const p = sockPos(s); if (!p) continue;
+      sockShadow(c, p.x + 2, p.y + 3 + s.lift * 5, s.rot, s.mir, S * p.sc, p.a * 0.32);
+      drawSock(c, s.k, p.x, p.y - s.lift * 4, s.rot, s.mir, p.sc, p.a);
+      if (covered(s)) { c.save(); c.globalAlpha = 0.18; c.fillStyle = '#0A0D2A'; c.translate(p.x, p.y); c.rotate(s.rot); if (s.mir) c.scale(-1, 1); c.scale(S, S); sockPath(c); c.fill(); c.restore(); }
+    }
+    if (selS && !(drag && drag.moved)) {   // 고른 양말: 밝은 고리
+      const p = sockPos(selS); if (p) { c.save(); c.strokeStyle = '#FFE08A'; c.lineWidth = 3; c.shadowColor = '#FFE08A'; c.shadowBlur = 10; c.beginPath(); c.arc(p.x, p.y - 4, S * 0.56, 0, TAU); c.stroke(); c.restore(); }
+    }
+    if (kbMode && cursor != null && state === 'play') { const s = byId(cursor), p = s && sockPos(s); if (p) { c.save(); c.strokeStyle = '#fff'; c.lineWidth = 2.5; c.setLineDash([6, 5]); c.lineDashOffset = reduceMotion ? 0 : -tAnim * 20; c.beginPath(); c.arc(p.x, p.y, S * 0.62, 0, TAU); c.stroke(); c.restore(); } }
+
+    const f = fg; f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, fx.width, fx.height); f.setTransform(DPR, 0, 0, DPR, 0, 0);
+    f.textAlign = 'center'; f.textBaseline = 'middle'; f.lineJoin = 'round';
+    drawKong();
+    if (th.sock) {   // 콩이 입에 문 양말 (콩이 위에)
+      const m = K.mouth(), sw = reduceMotion ? 0 : Math.sin(tAnim * 9) * 0.25;
+      drawSock(f, th.sock.k, m.x + th.facing * S * 0.12, m.y + S * 0.18, th.facing * (1.3 + sw), th.facing < 0, 0.72);
+    }
+    if (drag && drag.moved) { const s = byId(drag.id); if (s) { sockShadow(f, drag.x + 6, drag.y + 12, s.rot, s.mir, S * 1.12, 0.3); drawSock(f, s.k, drag.x, drag.y, s.rot, s.mir, 1.12); } }
+    for (const b of balls) {
+      if (b.t < BALL_A) { const u = b.t / BALL_A, e = u * u * (3 - 2 * u); drawSock(f, b.k, lerp(b.a[0], b.mx - S * 0.12, e), lerp(b.a[1], b.my, e), lerp(b.a[2], 0, e), b.a[3], 1 - e * 0.25); drawSock(f, b.k, lerp(b.b[0], b.mx + S * 0.12, e), lerp(b.b[1], b.my, e), lerp(b.b[2], 0, e), b.b[3], 1 - e * 0.25); }
+      else { const u = clamp((b.t - BALL_A) / BALL_B, 0, 1), tx = bask.x, ty = bask.y - bask.h * 0.9, x = lerp(b.mx, tx, u), y = lerp(b.my, ty, u) - Math.sin(u * Math.PI) * Math.max(60, Math.abs(b.my - ty) * 0.5); drawBall(f, b.look, x, y, S * lerp(0.26, 0.2, u)); }
+    }
+    for (const p of parts) { f.globalAlpha = clamp(p.life / 0.3, 0, 1); f.fillStyle = p.col; f.beginPath(); f.arc(p.x, p.y, 2.5, 0, TAU); f.fill(); }
+    f.globalAlpha = 1;
+    for (const t of floats) {
+      f.font = '700 ' + (t.big ? 18 : 14) + 'px ' + FONT; f.globalAlpha = Math.min(1, t.life / 0.35);
+      const tw = f.measureText(t.text).width / 2 + 6, x = clamp(t.x, tw + SAF.l + 4, W - tw - SAF.r - 4), y = Math.max(t.y, hintY + 24);   // 점수판·안내 말풍선 아래로
+      f.strokeStyle = 'rgba(12,16,48,.75)'; f.lineWidth = 3.5; f.strokeText(t.text, x, y); f.fillStyle = t.col; f.fillText(t.text, x, y);
+    }
+    f.globalAlpha = 1;
+    if (state === 'play' && hintOn && phase === 'play' && socks.length && socks.every(landed)) pill(f, sel == null ? '같은 양말 두 짝을 차례로 눌러요' : '짝이 되는 양말을 하나 더 눌러요', F.x + F.w / 2, hintY, 13);
+    else if (state === 'play' && thiefActive() && th.sock && !reduceMotion) pill(f, J(name, '을/를') + ' 톡 누르면 양말을 놓아요!', F.x + F.w / 2, hintY, 13);
+    else if (state === 'play' && hidden.length && !socks.some(selectable)) pill(f, '방석을 눌러 숨긴 양말을 꺼내요', F.x + F.w / 2, hintY, 13);
+  }
+  function pill(c, txt, x, y, size) {
+    c.font = '600 ' + size + 'px ' + FONT; let tw = c.measureText(txt).width + 22; const h = size + 13;
+    if (tw > W - 16) { c.font = '600 ' + (size - 2) + 'px ' + FONT; tw = c.measureText(txt).width + 18; }
+    x = clamp(x, tw / 2 + 6 + SAF.l, W - tw / 2 - 6 - SAF.r);
+    c.fillStyle = 'rgba(18,22,52,.82)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, x, y + 0.5);
+  }
+  let pose = '';
+  const setPose = p => { if (!K.has(p)) p = 'sit'; if (pose !== p) { pose = p; K.setPose(p); } };
+  function drawKong() {
+    const st = th.st, t = tAnim, rm = reduceMotion;
+    if (st === 'come' || st === 'roam' || st === 'stash') {
+      setPose('stand');
+      K.render({ t, facing: th.facing, walk: 1, phase: th.ph, hop: rm ? 0 : (st === 'roam' ? 8 + Math.abs(Math.sin(th.ph * 0.5)) * 16 : 6), mouth: th.sock ? 'closed' : 'open', eyes: 'happy', blush: th.sock ? 1 : 0.5, earLift: 8, tailAmp: 30, tailRate: 6, tilt: st === 'roam' && !rm ? Math.sin(th.ph * 0.5) * 4 : 0 });
+    } else if (st === 'back') {
+      setPose('stand');
+      K.render({ t, facing: th.facing, walk: 1, phase: th.ph, hop: 0, mouth: 'closed', eyes: 'open', earLift: -12, tailAmp: 3, tailRate: 1.5, nod: 0.4 });
+    } else if (st === 'grab') {
+      setPose('stand'); K.render({ t, facing: th.facing, frame: 'crouch', mouth: 'closed', eyes: 'happy', blush: 1, earLift: 6, tailAmp: 34, tailRate: 7 });
+    } else if (st === 'scold') {
+      setPose('sit'); K.render({ t, eyes: 'closed', mouth: 'closed', earLift: -16, tailAmp: 0, nod: 0.8, squash: 0.2, tilt: rm ? -6 : Math.sin(th.stT * 10) * 5 - 4, look: [0, 0.6] });
+    } else if (st === 'hide') {
+      setPose('lie'); K.render({ t, eyes: 'happy', mouth: 'closed', blush: 1, tailAmp: 26, tailRate: 6, earLift: 4 });
+    } else {   // 방석 위
+      const won = state === 'result' && score > 0, m = th.mood, sad = state === 'over' && !quit;
+      let look = [0, -0.2];
+      const tgt = sel != null ? byId(sel) : kbMode && cursor != null ? byId(cursor) : null;
+      if (tgt) { const hd = K.head(); look = [clamp((px(tgt) - hd.x) / 160, -1, 1), clamp((py(tgt) - hd.y) / 160, -1, 1)]; }
+      if ((m === 'cheer' || won) && K.has('wave')) setPose('wave'); else setPose('sit');
+      const hop = rm ? 0 : m === 'happy' ? Math.sin(clamp(th.moodT / 0.9, 0, 1) * Math.PI) * 26 : m === 'cheer' ? Math.abs(Math.sin(th.moodT * 7)) * 30 : 0;
+      K.render({ t, hop, look: m === 'oops' || sad ? [0, 0.6] : look,
+        eyes: m === 'oops' || sad ? 'closed' : m === 'happy' || m === 'cheer' || m === 'smug' || won ? 'happy' : 'open',
+        mouth: m === 'oops' || sad ? 'closed' : 'open', blush: m === 'happy' || m === 'cheer' || m === 'smug' || won ? 1 : 0,
+        earLift: m === 'oops' || sad ? -12 : m === 'happy' || m === 'cheer' ? 7 : 0, nod: m === 'oops' ? 0.6 : 0,
+        tilt: m === 'tilt' ? 12 : m === 'smug' ? -6 : Math.sin(t * 1.2) * 3,
+        tailAmp: m === 'oops' || sad ? 3 : m === 'happy' || m === 'cheer' || m === 'smug' || won ? 26 : 10, tailRate: m === 'happy' || m === 'cheer' || won ? 4.5 : 2 });
+    }
+    K.place(th.x, th.y, 1);
+  }
+  let last = 0;
+  // 절전: 놀이 중이 아니면(시작·멈춤·결과 카드) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다
+  let calmKey = '', calmAt = 0, drawnAt = -1e9;
+  function calmSkip(now) {
+    const key = state + '|' + W + 'x' + H;
+    if (key !== calmKey) { calmKey = key; calmAt = now; }
+    if ((state !== 'ready' && state !== 'pause' && state !== 'result') || now - calmAt < 1000 || now - drawnAt >= 200) { drawnAt = now; return false; }
+    return true;
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    if (state !== 'pause') { tAnim += dt; update(dt); }
+    if (calmSkip(now)) return;
+    draw();
+  }
+
+  // ═══════ 점수판 ═══════
+  const fmtT = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function paintTime() {
+    $('hudTime').textContent = fmtT(timeLeft);
+    const e = $('hudTm'), w = state !== 'ready' && timeLeft <= 10; e.classList.toggle('warn', w); e.classList.toggle('blink', w && !reduceMotion);
+  }
+  function paintHud() { $('hudScore').textContent = score; $('hudDump').textContent = dump; paintTime(); }
+
+  // ═══════ 시작·멈춤·끝 ═══════
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function resetThief() { th.st = 'home'; th.t = D.th0; th.sock = null; th.target = null; th.x = home.x; th.y = home.y; th.mood = 'idle'; th.moodT = 0; th.facing = 1; }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    score = 0; dump = 1; rescued = 0; mistakes = 0; cleared = 0; timeLeft = D.t0; quit = false; isNew = false; lastTick = 99; hintOn = true;
+    hidden = []; balls = []; floats = []; parts = []; recent = []; sel = null; drag = null; cursor = null;
+    resetThief(); newDump(true); state = 'play'; phase = 'play'; paintHud();
+    showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+  }
+  function pause() {
+    if (state !== 'play') return; state = 'pause'; drag = null;
+    $('psText').textContent = score + '켤레 정리했어요. 남은 시간 ' + fmtT(timeLeft) + '. ' + J(name, '이/가') + ' 기다리고 있어요.';
+    showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
+  }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = performance.now(); }
+  function timeUp() {
+    if (state !== 'play') return;
+    state = 'over'; overT = 1.3; btnPause.hidden = true; drag = null; sel = null;
+    addFloat(F.x + F.w / 2, F.y + F.h * 0.45, '시간 끝!', '#FFE08A', true); sfx('lose');
+    if (th.sock) { th.st = 'stash'; }
+  }
+  function end() {
+    if (state === 'pause') { state = 'play'; showCard(null); }
+    if (state !== 'play') return;
+    quit = true; state = 'over'; overT = 0.3; btnPause.hidden = true; drag = null; sel = null;
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now();
+    if (th.sock) { hidden.push({ sock: th.sock, t: 0 }); th.sock = null; }
+    th.st = 'home'; th.x = home.x; th.y = home.y; th.mood = 'idle';
+    isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
+    $('edScore').textContent = score; $('edDump').textContent = cleared + '개'; $('edSave').textContent = rescued + '짝';
+    $('edTitle').textContent = quit ? '여기까지 했어요' : score >= D.praise[0] ? '빨래 정리 달인이에요!' : score >= D.praise[1] ? '뽀송하게 정리했어요!' : '시간이 다 됐어요';
+    $('edText').textContent = score > 0 ? '양말 ' + score + '켤레를 바구니에 담았어요.' + (rescued ? ' ' + name + '에게서 ' + rescued + '짝을 되찾았어요.' : '') : '같은 양말 두 짝을 차례로 눌러 보세요.';
+    paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    if (isNew) sfx('win');
+  }
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { drag = null; });
+
+  // ═══════ 입력: 누르기(두 짝 차례로) · 끌어 놓기(한 짝을 다른 짝 위로) · 콩이·방석 누르기 ═══════
+  function pressAt(x, y) {   // 손가락이 닿은 순간: 무엇을 눌렀는지
+    if (thiefActive() && kongHit(x, y)) return { type: 'kong' };
+    const s = topAt(x, y); if (s) return { type: 'sock', s };
+    if (cushHit(x, y) || (th.st === 'home' && kongHit(x, y)) || th.st === 'hide' && kongHit(x, y)) return { type: 'cush' };
+    return { type: 'none' };
+  }
+  function tapAt(x, y) {   // 시험용: 한 번 톡
+    if (state !== 'play') return null;
+    const p = pressAt(x, y);
+    if (p.type === 'kong') tapKong(); else if (p.type === 'sock') tapSock(p.s); else if (p.type === 'cush') tapCushion(); else if (sel != null) sel = null;
+    return p.type;
+  }
+  cv.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    let p = null;
+    if (drag) {   // 두 번째 손가락
+      if (e.pointerId === drag.pid) return;
+      e.preventDefault();
+      if (drag.moved) {   // 끄는 중에는 콩이·방석 누르기만 받는다
+        p = pressAt(e.clientX, e.clientY);
+        if (p.type === 'kong') tapKong(); else if (p.type === 'cush') tapCushion();
+        return;
+      }
+      // 아직 끌지 않은 첫 손가락은 '톡'으로 처리하고, 두 번째 손가락을 평소처럼 받는다 (두 짝을 두 손가락으로 함께 눌러도 짝이 맞는다)
+      const d = drag; drag = null; try { cv.releasePointerCapture(d.pid); } catch (err) {}
+      const s0 = byId(d.id); if (s0) tapSock(s0);
+      if (state !== 'play') return;
+    }
+    e.preventDefault(); kbMode = false;
+    p = pressAt(e.clientX, e.clientY);
+    if (p.type === 'kong') { tapKong(); return; }
+    if (p.type === 'cush') { tapCushion(); return; }
+    if (p.type === 'none') { if (sel != null) { sel = null; tone(440, 0.05, 'sine', 0.03); } return; }
+    if (covered(p.s)) { tapSock(p.s); return; }
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    drag = { id: p.s.id, pid: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, ox: px(p.s) - e.clientX, oy: py(p.s) - e.clientY };
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    if (state !== 'play') { drag = null; return; }
+    // 손가락 바로 위쪽에 양말이 보이게 (손가락이 양말을 가리지 않게)
+    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 10) { drag.moved = true; const s = byId(drag.id); if (s && sel === s.id) sel = null; sfx('flip'); }
+    drag.x = e.clientX; drag.y = e.clientY - (e.pointerType === 'touch' ? S * 0.45 : 0);
+  });
+  cv.addEventListener('pointerup', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const d = drag; drag = null;
+    const s = byId(d.id); if (!s || state !== 'play') return;
+    if (!d.moved) { tapSock(s); return; }
+    if (!landed(s)) return;
+    const tgt = topAt(d.x, d.y, s.id) || topAt(e.clientX, e.clientY, s.id);
+    if (tgt && !covered(tgt)) { sel = null; tryPair(s, tgt); return; }
+    if (tgt && covered(tgt)) { tgt.shake = 0.3; addFloat(px(tgt), py(tgt) - S * 0.5, '위의 양말부터!', '#FFE6A8'); }
+    for (const t of socks) if (t.under === s.id) t.under = null;   // 옮긴 양말 밑에 깔려 있던 양말은 이제 자유
+    moveTo(s, d.x, d.y); s.z = ++zTop; tone(380, 0.05, 'sine', 0.04);
+  });
+  cv.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.pid) drag = null; });
+  // 키보드: 방향키로 양말 고르기(흰 점선 고리), 스페이스·Enter 로 집기, K 콩이, B 방석
+  function moveCursor(dx, dy) {
+    const list = socks.filter(landed); if (!list.length) return;
+    const cur = cursor != null ? byId(cursor) : null;
+    if (!cur) { list.sort((a, b) => (py(a) + px(a) * 0.5) - (py(b) + px(b) * 0.5)); cursor = list[0].id; return; }
+    let bestS = null, bc = 1e9;
+    for (const s of list) {
+      if (s === cur) continue; const vx = px(s) - px(cur), vy = py(s) - py(cur), along = vx * dx + vy * dy; if (along <= 4) continue;
+      const cost = along + Math.abs(vx * dy - vy * dx) * 2.2; if (cost < bc) { bc = cost; bestS = s; }
+    }
+    if (bestS) { cursor = bestS.id; tone(820, 0.03, 'sine', 0.025); }
+  }
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); return; }
+    if (state === 'play') {
+      if (k.startsWith('Arrow')) { e.preventDefault(); kbMode = true; moveCursor(k === 'ArrowLeft' ? -1 : k === 'ArrowRight' ? 1 : 0, k === 'ArrowUp' ? -1 : k === 'ArrowDown' ? 1 : 0); return; }
+      if (k === ' ' || k === 'Enter') { e.preventDefault(); if (e.repeat || KG.rulesOpen) return; kbMode = true; if (cursor == null) { moveCursor(0, 0); return; } const s = byId(cursor); if (s && landed(s)) tapSock(s); else cursor = null; return; }
+      if (k === 'k' || k === 'K') { e.preventDefault(); if (!e.repeat && !tapKong()) tapCushion(); return; }
+      if (k === 'b' || k === 'B') { e.preventDefault(); if (!e.repeat) tapCushion(); return; }
+      return;
+    }
+    if (k === ' ' || k === 'Enter') {
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;
+      e.preventDefault(); if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    }
+  });
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = b + '켤레';
+    const e2 = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e2 > 0); $('edBest').textContent = e2 + '켤레';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+  }
+  function onDiff() { paintBest(); if (state === 'ready') { D = DIFF[KG.diff()] || DIFF.normal; diffId = KG.diff(); timeLeft = D.t0; newDump(true); paintHud(); } }
+  $('stRec').before(KG.diffPicker(null, onDiff));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);
+  KG.startRank($('cardStart'), KEY);
+  diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal; timeLeft = D.t0;
+  layout(); resetThief(); newDump(true); paintBest(); paintHud();
+  const RULES = { key: KEY, title: TITLE, lead: '거실에 흩어진 양말을 짝 맞춰 바구니에 담는 놀이예요.', items: [
+    ['🧦', '같은 양말 두 짝을 차례로 누르거나, 한 짝을 끌어 다른 짝 위에 놓으면 한 켤레 정리!' + (KEYS_OK ? ' (방향키·스페이스)' : '')],
+    ['⏱️', '시간 안에 많이 정리해요. 틀린 짝을 고르면 2초가 줄어요(Easy 는 그대로). 겹친 양말은 위의 것부터.'],
+    ['🐶', J(name, '이/가') + ' 양말을 물고 도망가면 톡 눌러 되찾아요. 방석 밑에 숨기면 방석을 눌러요.'],
+    ['🧺', '바닥을 다 치우면 새 빨래 더미가 쏟아지고 시간이 조금 늘어요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  window.GAME = {
+    DIFF, get state() { return state; }, get phase() { return phase; }, get score() { return score; }, get dump() { return dump; }, get timeLeft() { return timeLeft; },
+    get rescued() { return rescued; }, get mistakes() { return mistakes; }, get cleared() { return cleared; }, get diff() { return diffId; }, get sel() { return sel; },
+    get thief() { return { st: th.st, has: !!th.sock, x: th.x, y: th.y - KSZ * 0.3, t: th.t }; }, get hidden() { return hidden.length; },
+    socks: () => socks.map(s => ({ id: s.id, k: s.k, x: px(s), y: py(s), free: selectable(s), covered: covered(s), landed: landed(s), z: s.z })),
+    kinds: () => kinds.map(k => Object.assign({}, k)), sigOf,
+    field: () => ({ W, H, S, CELL, KSZ, F: Object.assign({}, F), grid: Object.assign({}, grid), cush: Object.assign({}, cush), bask: Object.assign({}, bask), home: Object.assign({}, home), hud: hud.getBoundingClientRect().toJSON() }),
+    tapAt, tapKong, tapCushion, tapSock: id => { const s = byId(id); if (s && state === 'play') tapSock(s); },
+    setTime: v => { timeLeft = v; }, forceThief: () => { th.t = 0; if (th.st === 'scold' || th.st === 'back') th.st = 'home'; },
+    start, end, pause, resume,
+    step: dt => { tAnim += dt; update(dt); }
+  };
+})();
+</script>
+</body>
+</html>

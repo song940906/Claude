@@ -579,6 +579,17 @@ body .kg-top { z-index: 26; }
     }
   }
 
+  // 절전: 카드(시작·멈춤·결과)가 떠 있으면 상태가 바뀐 뒤 1초까지만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다
+  let idleSt = '', idleAt = 0, idleDrawAt = 0;
+  function idleSkip(now, playing) {
+    if (playing) { idleSt = ''; return false; }
+    if (idleSt !== state) { idleSt = state; idleAt = now; }
+    if (now - idleAt < 1000 || now - idleDrawAt >= 200) { idleDrawAt = now; return false; }
+    return true;
+  }
+  window.addEventListener('resize', () => { idleSt = ''; });   // 회전·크기 바뀜: 다시 1초 동안 매 프레임
+  document.addEventListener('visibilitychange', () => { idleSt = ''; });
+  window.addEventListener('orientationchange', () => { idleSt = ''; });   // resize 없이 회전만 오는 기기: 늦게 도는 layout 까지 1초 안에 들게
   let last = 0;
   function frame(now) {
     requestAnimationFrame(frame);
@@ -589,6 +600,7 @@ body .kg-top { z-index: 26; }
       tapPulse = Math.max(0, tapPulse - dt * 9); slipFx = Math.max(0, slipFx - dt * 2.5);
     }
     pv += (p - pv) * (1 - Math.exp(-(state === 'intro' ? 5 : 16) * dt));
+    if (idleSkip(now, state !== 'ready' && state !== 'pause' && state !== 'result')) return;
     paintHud();
     const showRope = drawKong(dt);
     drawFg(showRope);

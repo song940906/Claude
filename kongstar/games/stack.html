@@ -168,6 +168,16 @@ body .kg-top { z-index: 26; }
   let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
 
   // ═══════ 상태 ═══════
+  // 절전(11-25): 놀이 중이 아니면(카드가 떠 있을 때) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임 그리고, 그 뒤로는 0.2초에 한 번만 그린다
+  let lzKey = '', lzAt = 0, lzLast = 0;
+  function lzWake() { lzAt = performance.now(); }
+  function lzDraw(now, key) {   // key: 놀이 중이면 '' (늘 그림), 아니면 상태 이름
+    if (key !== lzKey) { lzKey = key; lzAt = now; }
+    if (!key || now - lzAt < 1000 || now - lzLast >= 200) { lzLast = now; return true; }
+    return false;
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) lzWake(); });
+  document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.kg-diff')) lzWake(); }, true);   // 카드에서 난이도를 바꾸면 카드 뒤 장면도 바로 매 프레임 그린다
   let state = 'ready';            // ready · play · pause · over · result
   let layers = 0, points = 0, streak = 0, perfects = 0, bestStreak = 0, playT = 0;
   let tower = [], piece = null, cuts = [], bodies = [];
@@ -328,6 +338,7 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 화면 맞추기 ═══════
   function layout() {
+    lzWake();
     W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
     PW = Math.max(200, Math.min(W - SAF.l - SAF.r, 480, H * FW / 520));
     S = PW / FW; FX = Math.round((W - PW) / 2); VH = H / S;
@@ -565,7 +576,7 @@ body .kg-top { z-index: 26; }
     if (state === 'play' || state === 'over') update(dt);
     else if (state === 'ready') { if (piece) movePiece(dt); moodT += dt; }
     else if (state === 'result') { moodT += dt; stepLoose(dt); }
-    draw();
+    if (lzDraw(now, state === 'play' || state === 'over' ? '' : state)) draw();
   }
 
   // ═══════ 흐름 ═══════
