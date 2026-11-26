@@ -254,7 +254,8 @@
   let diffId = ls.get('kongstar.game.diff'); if (!DIFFS.some(d => d.id === diffId)) diffId = 'normal';
   const diffPickers = [], diffWatch = [];
   const diff = () => diffId, diffIdx = () => DIFFS.findIndex(d => d.id === diffId), diffLabel = id => (DIFFS.find(d => d.id === (id || diffId)) || DIFFS[1]).label;
-  const dkey = (k, id) => { id = id || diffId; return id === 'normal' ? k : k + '.' + id; };
+  //   규칙이 바뀌어 기록을 새로 시작한 게임은 여기서 새 열쇠로 돌린다 (11-26: 인형뽑기 개수→점수 = clawpt*, 도장 쾅 Very Hard 안개·물결 = stamp.vhard2). 옛 열쇠 값은 지우지 않고 안 읽을 뿐
+  const dkey = (k, id) => { id = id || diffId; if (k === 'claw') k = 'clawpt'; if (k === 'stamp' && id === 'vhard') return 'stamp.vhard2'; return id === 'normal' ? k : k + '.' + id; };
   const paintDiff = () => { for (const p of diffPickers) for (const b of p.el.children) { const on = b.dataset.d === diffId; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); } };
   function setDiff(id) { if (!DIFFS.some(d => d.id === id) || id === diffId) return; diffId = id; ls.set('kongstar.game.diff', id); paintDiff(); for (const p of diffPickers) if (p.cb) p.cb(id); for (const w of diffWatch) w(id); }
   function diffPicker(parent, cb) {
@@ -594,7 +595,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { key: 'socks', title: '양말도둑', ico: '🧦', unit: '켤레', lower: false, href: 'socks.html' },
     { key: 'rhythm', title: '리듬스타', ico: '🎵', unit: '점', lower: false, href: 'rhythm.html' },
     { key: 'hoop', title: '훌라후프', ico: '⭕', unit: '바퀴', lower: false, href: 'hoop.html' },
-    { key: 'claw', title: '인형뽑기', ico: '🕹️', unit: '개', lower: false, href: 'claw.html' },
+    { key: 'claw', title: '인형뽑기', ico: '🕹️', unit: '점', lower: false, href: 'claw.html' },
     { key: 'stamp', title: '도장 쾅', ico: '💌', unit: '점', lower: false, href: 'stamp.html' },
   ];
   const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };

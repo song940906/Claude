@@ -65,6 +65,7 @@ body .kg-top { z-index: 26; }
 #dexList .cell b { display: block; font-size: 12.5px; font-weight: 600; letter-spacing: -.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #dexList .cell span { display: block; font-size: 11.5px; color: var(--sub); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #dexList .cell.no b { color: #9AA3AF; }
+#dexList .cell em.pt { display: block; font-style: normal; font-size: 11.5px; font-weight: 700; color: #6B4FD8; margin-top: 2px; font-variant-numeric: tabular-nums; }
 #dexList .cell i { display: inline-block; white-space: nowrap; font-style: normal; font-size: 10.5px; font-weight: 700; border-radius: 7px; padding: 1px 6px; margin-top: 3px; }
 #dexList .r0 { background: #E9EDF3; color: #5F6B78; } #dexList .r1 { background: #DFF3E8; color: #1F8A5B; } #dexList .r2 { background: #E3E8FF; color: #3B49B8; } #dexList .r3 { background: #FFEFC9; color: #A26B00; }
 #cardDex .kg-btn { width: 100%; margin-top: 10px; flex: none; }
@@ -100,13 +101,21 @@ body .kg-top { z-index: 26; }
   #dexList .cell > div { min-width: 0; flex: 1; }
   #dexList .cell b { font-size: 12px; letter-spacing: -.5px; white-space: normal; word-break: keep-all; line-height: 1.15; }
   #dexList .cell i { margin-top: 1px; }
+  #dexList .cell { position: relative; }
+  #dexList .cell em.pt { position: absolute; left: 3px; bottom: 3px; margin: 0; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 7px; background: rgba(255,255,255,.9); }   /* 가로 화면은 칸이 좁아 점수를 그림 모서리 딱지로 */
   #cardDex .kg-btn { height: 42px; margin-top: 8px; }
 }
 /* 순위 카드와 나란히 서는 낮은 가로 화면: 카드가 위 줄(게임·소리 단추) 밑에서 시작하게, 결과 카드 높이를 줄인다 */
 @media (orientation: landscape) and (max-height: 520px) {
   #cardEnd.kg-rbwrap, #cardStart.kg-rbwrap { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
   body .kg-rbwrap > .kg-card #edText { display: none; }
-  body .kg-rbwrap > .kg-card .got { display: none; }
+  /* 점수 내역은 남긴다: 한 줄로 줄이고, 넘치면 옆으로 밀어 보게 */
+  body .kg-rbwrap > .kg-card .got { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; gap: 4px; margin-top: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  body .kg-rbwrap > .kg-card .got::-webkit-scrollbar { display: none; }
+  body .kg-rbwrap > .kg-card .got span { flex: none; font-size: 11.5px; padding: 1px 6px; white-space: nowrap; }
+  body .kg-rbwrap > .kg-card .got canvas { width: 16px; height: 16px; }
+  body .kg-rbwrap > .kg-card .got > :first-child { margin-left: auto; }   /* 적을 땐 가운데, 넘치면 왼쪽부터 */
+  body .kg-rbwrap > .kg-card .got > :last-child { margin-right: auto; }
 }
 @media (orientation: landscape) and (max-height: 360px) {
   body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
@@ -131,6 +140,7 @@ body .kg-top { z-index: 26; }
 
 <div id="hud" aria-hidden="true">
   <div class="cn" id="hudCn"><span class="ic">🪙</span><span id="hudCoin">0</span><small>동전</small></div>
+  <div class="sc" id="hudSc"><span class="ic">⭐</span><span id="hudScore">0</span><small>점</small></div>
   <div class="gt" id="hudGt"><span class="ic">🧸</span><span id="hudGot">0</span><small>개</small></div>
 </div>
 <button id="btnStop" type="button" class="wait" hidden aria-label="집게 멈추기"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2v6"/><rect x="8.5" y="8" width="9" height="4.5" rx="2"/><path d="M10 12.5L6.5 18.5l2.5 4"/><path d="M16 12.5l3.5 6-2.5 4"/></svg><span>멈춰!</span></button>
@@ -161,7 +171,7 @@ body .kg-top { z-index: 26; }
   <div class="kg-card">
     <h2 id="edTitle">동전을 다 썼어요</h2>
     <p id="edText"></p>
-    <div class="big"><span id="edScore">0</span><small>개</small></div>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
     <div id="edNew" class="new" hidden>새 기록이에요!</div>
     <div class="got" id="edGot"></div>
     <div class="rec"><span id="edGoldBox" hidden>황금 콩이<b id="edGold"></b></span><span id="edDexBox" hidden>새 도감<b id="edDex"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
@@ -205,27 +215,32 @@ body .kg-top { z-index: 26; }
   //   아무 데나 누를 때의 확률은 win 에 비례하고, 사람의 타이밍 오차(약 80ms)로 빗나가는 거리는 spd 에 비례한다.
   //   그래서 Hard·Very Hard 는 win 을 좁히되 spd 를 너무 올리지 않는다 (빠르기만 하면 정확히 누르려 해도 운에 가까워진다)
   const DIFF = {
-    easy:   { coins: 12, spd: 2.6, win: 1.20, pmax: 0.97, sway: 0.5, guide: 'glow', bonus: 0.12, gold: 0.035, n: 10, edge: 0.35, master: 13 },
-    normal: { coins: 11, spd: 3.8, win: 0.80, pmax: 0.93, sway: 0.8, guide: 'line', bonus: 0.10, gold: 0.03, n: 10, edge: 0.25, master: 12 },
-    hard:   { coins: 10, spd: 4.2, win: 0.58, pmax: 0.90, sway: 1.1, guide: 'tick', bonus: 0.08, gold: 0.028, n: 10, edge: 0.15, master: 9 },
-    vhard:  { coins: 8,  spd: 4.6, win: 0.45, pmax: 0.88, sway: 1.4, guide: 'none', bonus: 0.07, gold: 0.025, n: 10, edge: 0.08, master: 7 }
+    easy:   { coins: 12, spd: 2.6, win: 1.20, pmax: 0.97, sway: 0.5, guide: 'glow', bonus: 0.12, gold: 0.035, n: 10, edge: 0.35, master: 250 },
+    normal: { coins: 11, spd: 3.8, win: 0.80, pmax: 0.93, sway: 0.8, guide: 'line', bonus: 0.10, gold: 0.03, n: 10, edge: 0.25, master: 230 },
+    hard:   { coins: 10, spd: 4.2, win: 0.58, pmax: 0.90, sway: 1.1, guide: 'tick', bonus: 0.08, gold: 0.028, n: 10, edge: 0.15, master: 170 },
+    vhard:  { coins: 8,  spd: 4.6, win: 0.45, pmax: 0.88, sway: 1.4, guide: 'none', bonus: 0.07, gold: 0.025, n: 10, edge: 0.08, master: 130 }
   };
-  //   edge 옮기다 놓친 인형이 칸막이 바로 위에서 떨어질 확률(굴러 들어가는 「덤」이 가끔 보이게) · master 「인형뽑기 달인」 제목이 붙는 개수
+  //   edge 옮기다 놓친 인형이 칸막이 바로 위에서 떨어질 확률(굴러 들어가는 「덤」이 가끔 보이게) · master 「인형뽑기 달인」 제목이 붙는 점수
+  //   master 근거: 예전 개수 기준(Easy 13 · Normal 12 · Hard 9 · Very Hard 7개) × 인형 한 개 평균 약 19점(뽑기 확률로 낸 값).
+  //   시뮬레이션(난이도×솜씨 3종×12판)에서는 덤 포함 한 개 평균 17.5~24.3점(정확히 누를수록 높음)이었고, 달인 도달률은 옛 개수 기준과 비슷했다.
+  //     보통 인형 평균 15.5점(흔함 60% × 10 + 보통 35% × 20 + 드묾 5% × 50) × 97% + 황금 콩이 약 3% × 100 ≈ 18점, 딱 가운데 덤(+5)이 가끔 붙어 ≈ 19점.
+  //     Easy 13 × 19 ≈ 250 · Normal 12 × 19 ≈ 230 · Hard 9 × 19 ≈ 170 · Very Hard 7 × 19 ≈ 130
   //   「딱 가운데!」(빗나간 정도가 잡히는 폭의 30% 안)로 집으면 확률과 상관없이 반드시 잡힌다. 판정은 멈춘 순간의 자리로 정한다
   let diffId = 'normal', D = DIFF.normal;
-  // 인형 종류: r 반지름 · w 무게(잡힐 확률에 곱함, 무거울수록 작다) · wt 나올 비율 · e 튕김 · roll 구르기 쉬움 · rar 드문 정도(도감 딱지)
+  // 인형 종류: r 반지름 · w 무게(잡힐 확률에 곱함, 무거울수록 작다) · wt 나올 비율 · e 튕김 · roll 구르기 쉬움 · rar 드문 정도(도감 딱지) · pt 뽑으면 얻는 점수(흔함 10 · 보통 20 · 드묾 50 · 아주 드묾 100)
   const KINDS = [
-    { id: 'pup',   name: '강아지 인형',   r: 1.05, w: 0.96, wt: 22, e: 0.15, roll: 0, rar: 0 },
-    { id: 'cat',   name: '고양이 인형',   r: 1.0,  w: 0.96, wt: 20, e: 0.15, roll: 0, rar: 0 },
-    { id: 'duck',  name: '오리 인형',     r: 0.95, w: 1.0,  wt: 18, e: 0.15, roll: 0, rar: 0 },
-    { id: 'bunny', name: '토끼 인형',     r: 1.0,  w: 0.95, wt: 13, e: 0.15, roll: 0, rar: 1 },
-    { id: 'bone',  name: '뼈다귀 쿠션',   r: 1.12, w: 0.88, wt: 11, e: 0.1,  roll: 0, rar: 1 },
-    { id: 'ball',  name: '말랑 공',       r: 0.82, w: 0.92, wt: 11, e: 0.42, roll: 1, rar: 1 },
-    { id: 'star',  name: '별 쿠션',       r: 1.0,  w: 0.92, wt: 5,  e: 0.12, roll: 0, rar: 2 },
-    { id: 'gold',  name: '황금 콩이 인형', r: 1.05, w: 0.86, wt: 0,  e: 0.15, roll: 0, rar: 3 }
+    { id: 'pup',   name: '강아지 인형',   r: 1.05, w: 0.96, wt: 22, e: 0.15, roll: 0, rar: 0, pt: 10 },
+    { id: 'cat',   name: '고양이 인형',   r: 1.0,  w: 0.96, wt: 20, e: 0.15, roll: 0, rar: 0, pt: 10 },
+    { id: 'duck',  name: '오리 인형',     r: 0.95, w: 1.0,  wt: 18, e: 0.15, roll: 0, rar: 0, pt: 10 },
+    { id: 'bunny', name: '토끼 인형',     r: 1.0,  w: 0.95, wt: 13, e: 0.15, roll: 0, rar: 1, pt: 20 },
+    { id: 'bone',  name: '뼈다귀 쿠션',   r: 1.12, w: 0.88, wt: 11, e: 0.1,  roll: 0, rar: 1, pt: 20 },
+    { id: 'ball',  name: '말랑 공',       r: 0.82, w: 0.92, wt: 11, e: 0.42, roll: 1, rar: 1, pt: 20 },
+    { id: 'star',  name: '별 쿠션',       r: 1.0,  w: 0.92, wt: 5,  e: 0.12, roll: 0, rar: 2, pt: 50 },
+    { id: 'gold',  name: '황금 콩이 인형', r: 1.05, w: 0.86, wt: 0,  e: 0.15, roll: 0, rar: 3, pt: 100 }
   ];
   const KIND = Object.fromEntries(KINDS.map(k => [k.id, k]));
   const RAR = ['흔함', '보통', '드묾', '아주 드묾'];
+  const EXACT_PT = 5;   // 「딱 가운데!」로 집어 뽑으면 붙는 작은 덤 점수
 
   // ═══════ 도감 ═══════
   const DEXKEY = 'kongstar.game.claw.dex';
@@ -250,7 +265,7 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 상태 ═══════
   let state = 'ready', phase = 'idle';   // state: ready · play · pause · over · result   phase: insert · aim · drop · close · lift · carry · release · settle
-  let toys = [], coins = 0, got = 0, golds = 0, newDex = 0, tries = 0, exact = 0, gotKinds = {}, quit = false, isNew = false, overT = 0, overAt = 0;
+  let toys = [], coins = 0, got = 0, score = 0, exPts = 0, golds = 0, newDex = 0, tries = 0, exact = 0, gotKinds = {}, quit = false, isNew = false, overT = 0, overAt = 0;
   let cx = X0, cy = CY0, dir = 1, openA = 1, vxC = 0, vxPrev = 0, th = 0, om = 0, phT = 0, held = null, target = null, carryFrom = 0, spawnT = 0, lastStop = null;
   let floats = [], parts = [], outs = [], hug = null, mood = 'idle', moodT = 0, tAnim = 0, hintT = 0;
   let W = 0, H = 0, DPR = 1, S = 18, ox = 0, oy = 0, wide = false, low = false, SAF = { t: 0, b: 0, l: 0, r: 0 }, KSZ = 120, kx = 0, ky = 0;
@@ -524,7 +539,7 @@ body .kg-top { z-index: 26; }
     const same = lastStop && lastStop.toy === target;
     const { a, p } = same ? chanceA(target, lastStop.a) : chance(target, cx); stat.grabs++; stat.pSum += p;
     const q = a / D.win;   // 이 난이도의 잡히는 폭에 견준 빗나간 정도 → 판정 글 (「딱 가운데!」면 반드시 잡힌다)
-    if (q < 0.3) exact++;
+    if (q < 0.3) { exact++; target.exact = true; }   // 이 인형이 출구로 들어가면 덤 점수
     const word = q < 0.3 ? '딱 가운데!' : q < 0.6 ? '좋아요' : q < 1 ? '조금 옆이에요' : '가장자리예요';
     addFloat(sx(cx), sy(cy) - 18, word, q < 0.3 ? '#FFE08A' : q < 0.6 ? '#BFF3D2' : '#FFD2D6', q < 0.3, 'judge');
     const t = target;
@@ -551,6 +566,9 @@ body .kg-top { z-index: 26; }
   function collect(t) {
     if (state !== 'play' && state !== 'over') return;
     got++; gotKinds[t.kind] = (gotKinds[t.kind] || 0) + 1;
+    const k = KIND[t.kind] || KINDS[0], ex = t.exact && t.byClaw ? EXACT_PT : 0, pt = k.pt + ex;
+    score += pt; exPts += ex;
+    addFloat(sx(1.7), sy(12.3), '+' + pt + '점' + (ex ? ' (가운데 +' + ex + ')' : ''), k.rar >= 2 ? '#FFE08A' : '#FFFFFF', true);
     if (t.kind === 'gold') golds++;
     if (dexAdd(t.kind)) { newDex++; addFloat(sx(1.7), sy(11), '새 도감!', '#FFE08A', true); }
     const lucky = !t.byClaw; if (lucky) { stat.lucky++; if (t.dropped) stat.slipGot++; }
@@ -558,7 +576,7 @@ body .kg-top { z-index: 26; }
     if (lucky) addFloat(sx(4.5), sy(9.6), t.dropped ? '떨어졌는데 쏙!' : '굴러 들어갔어요! 덤!', '#BFF3D2', true);
     sfx('coin'); if (t.kind === 'gold') sfx('win'); else sfx('match');
     outs.push({ kind: t.kind, coin: t.coin, t: 0, r: t.r });
-    bumpHud('hudGt'); paintHud();
+    bumpHud('hudSc'); bumpHud('hudGt'); paintHud();
   }
   function stepClaw(dt) {
     phT += dt;
@@ -812,7 +830,7 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 점수판 ═══════
   function paintHud() {
-    $('hudCoin').textContent = coins; $('hudGot').textContent = got;
+    $('hudCoin').textContent = coins; $('hudScore').textContent = fmt(score); $('hudGot').textContent = got;
     $('hudCn').classList.toggle('warn', state === 'play' && coins === 0);
   }
   function paintStop() { btnStop.classList.toggle('wait', !(state === 'play' && phase === 'aim')); }
@@ -821,7 +839,7 @@ body .kg-top { z-index: 26; }
   function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
-    coins = D.coins; got = 0; golds = 0; stat = { grabs: 0, pSum: 0, lucky: 0, slipGot: 0 }; newDex = 0; tries = 0; exact = 0; gotKinds = {}; quit = false; isNew = false;
+    coins = D.coins; got = 0; score = 0; exPts = 0; golds = 0; stat = { grabs: 0, pSum: 0, lucky: 0, slipGot: 0 }; newDex = 0; tries = 0; exact = 0; gotKinds = {}; quit = false; isNew = false;
     floats = []; parts = []; outs = []; hug = null; mood = 'idle'; moodT = 0; held = null; target = null; cx = X0; cy = CY0; th = 0; om = 0; vxC = vxPrev = 0;
     fillBox(); state = 'play'; insert(); paintHud();
     showCard(null); btnPause.hidden = false; btnStop.hidden = false; paintStop();
@@ -830,11 +848,11 @@ body .kg-top { z-index: 26; }
   }
   function pause() {
     if (state !== 'play') return; state = 'pause';
-    $('psText').textContent = '뽑은 인형 ' + got + '개 · 동전 ' + coins + '개 남았어요. ' + J(name, '이/가') + ' 기다리고 있어요.';
+    $('psText').textContent = '지금 ' + fmt(score) + '점(인형 ' + got + '개) · 동전 ' + coins + '개 남았어요. ' + J(name, '이/가') + ' 기다리고 있어요.';
     showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
   }
   function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = performance.now(); }
-  function end() {   // 「그만하기」: 지금까지 뽑은 수로 끝낸다
+  function end() {   // 「그만하기」: 지금까지 모은 점수로 끝낸다
     if (state === 'pause') { state = 'play'; showCard(null); }
     if (state !== 'play') return;
     quit = true; outs = [];
@@ -847,12 +865,13 @@ body .kg-top { z-index: 26; }
   function showResult() {
     if (state !== 'over') return;
     state = 'result'; overAt = performance.now(); btnStop.hidden = true;
-    isNew = got > 0 && setBest(KG.dkey(KEY, diffId), got);
-    $('edScore').textContent = fmt(got);
-    $('edTitle').textContent = quit ? '여기까지 했어요' : got >= D.master ? '인형뽑기 달인이에요!' : got > 0 ? '동전을 다 썼어요' : '아깝게 다 놓쳤어요';
-    $('edText').textContent = got > 0 ? J(name, '이/가') + ' 인형을 ' + got + (got >= 5 ? '개나' : '개') + ' 껴안았어요.' + (exact ? ' 딱 가운데 ' + exact + '번!' : '') : '인형 몸통 가운데를 노려 봐요.';
+    isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);   // 기록·가족 순위는 점수로
+    $('edScore').textContent = fmt(score);
+    $('edTitle').textContent = quit ? '여기까지 했어요' : score >= D.master ? '인형뽑기 달인이에요!' : got > 0 ? '동전을 다 썼어요' : '아깝게 다 놓쳤어요';
+    $('edText').textContent = got > 0 ? '인형 ' + got + '개로 ' + fmt(score) + '점! ' + J(name, '이/가') + ' 꼭 껴안았어요.' + (exPts ? ' 딱 가운데 덤 +' + exPts + '점.' : '') : '드문 인형일수록 점수가 커요. 몸통 가운데를 노려 봐요.';
     const box = $('edGot'); box.textContent = '';
-    for (const k of KINDS) if (gotKinds[k.id]) { const s = document.createElement('span'); const cn = toyCanvas(k.id, 44, false); cn.setAttribute('role', 'img'); cn.setAttribute('aria-label', k.name); s.appendChild(cn); s.appendChild(document.createTextNode('×' + gotKinds[k.id])); box.appendChild(s); }
+    for (const k of KINDS) if (gotKinds[k.id]) { const s = document.createElement('span'); const cn = toyCanvas(k.id, 44, false); cn.setAttribute('role', 'img'); cn.setAttribute('aria-label', k.name); s.appendChild(cn); s.appendChild(document.createTextNode('×' + gotKinds[k.id] + ' · ' + gotKinds[k.id] * k.pt + '점')); box.appendChild(s); }
+    if (exPts) { const s = document.createElement('span'); s.textContent = '🎯 가운데 덤 +' + exPts + '점'; box.appendChild(s); }
     box.hidden = !box.childNodes.length;
     $('edGoldBox').hidden = !golds; $('edGold').textContent = golds + '개';
     $('edDexBox').hidden = !newDex; $('edDex').textContent = newDex + '종';
@@ -881,7 +900,8 @@ body .kg-top { z-index: 26; }
       const b = document.createElement('b'); b.textContent = n ? k.name : '???';
       const s = document.createElement('span'); s.textContent = n ? n + '번 뽑음' : '아직 없어요';
       const r = document.createElement('i'); r.className = 'r' + k.rar; r.textContent = RAR[k.rar];
-      const tx = document.createElement('div'); tx.appendChild(b); tx.appendChild(s); tx.appendChild(r); cell.appendChild(cn); cell.appendChild(tx); box.appendChild(cell);
+      const pt = document.createElement('em'); pt.className = 'pt'; pt.textContent = k.pt + '점';
+      const tx = document.createElement('div'); tx.appendChild(b); tx.appendChild(s); tx.appendChild(r); tx.appendChild(pt); cell.appendChild(cn); cell.appendChild(tx); box.appendChild(cell);
     }
     $('cardDex').hidden = false; box.scrollTop = 0;
     try { $('btnDexClose').focus({ preventScroll: true }); } catch (e) {}
@@ -912,9 +932,9 @@ body .kg-top { z-index: 26; }
   // ═══════ 시작 ═══════
   function paintBest() {
     const b = best(KG.dkey(KEY));
-    $('stBestBox').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '개'; $('stDex').textContent = dexCount() + ' / ' + KINDS.length;
+    $('stBestBox').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점'; $('stDex').textContent = dexCount() + ' / ' + KINDS.length;
     const e = best(KG.dkey(KEY, diffId));
-    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '개';
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
     $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
     $('edNew').hidden = !isNew;
   }
@@ -928,7 +948,8 @@ body .kg-top { z-index: 26; }
   const RULES = { key: KEY, title: TITLE, lead: '유리 상자 속 인형을 집게로 뽑아 ' + J(name, '에게') + ' 안겨 주는 놀이예요.', items: [
     ['🕹️', '집게가 좌우로 오가요. 화면이나 「멈춰!」 단추를 누르면' + (KEYS_OK ? '(스페이스) ' : ' ') + '멈추고 내려가요.'],
     ['🎯', '인형 몸통 가운데를 집을수록 잘 잡혀요. 가장자리를 집으면 옮기다 떨어뜨리기 쉬워요.'],
-    ['🕳️', '왼쪽 출구 구멍에 떨어지면 내 인형! 떨어진 인형에 밀려 굴러 들어가도 내 것이에요.'],
+    ['🕳️', '왼쪽 출구 구멍에 떨어지면 내 인형! 밀려 굴러 들어가도 내 것이에요.'],
+    ['⭐', '드문 인형일수록 점수가 커요(10~100점). 딱 가운데로 집어 뽑으면 +' + EXACT_PT + '점 덤.'],
     ['🪙', '동전을 다 쓰면 끝나요. 동전 딱지가 붙은 인형과 황금 콩이 인형은 동전을 더 줘요.']
   ] };
   const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
@@ -938,7 +959,7 @@ body .kg-top { z-index: 26; }
 
   // ═══════ 시험·디버그용 ═══════
   window.GAME = {
-    DIFF, KINDS, get D() { return D; }, get diff() { return diffId; }, get state() { return state; }, get phase() { return phase; }, get score() { return got; }, get got() { return got; },
+    DIFF, KINDS, get D() { return D; }, get diff() { return diffId; }, get state() { return state; }, get phase() { return phase; }, get score() { return score; }, get got() { return got; }, get exPts() { return exPts; }, get gotKinds() { return Object.assign({}, gotKinds); }, EXACT_PT,
     get coins() { return coins; }, get tries() { return tries; }, get exact() { return exact; }, get golds() { return golds; }, get dex() { return Object.assign({}, dex); }, get cx() { return cx; }, get stat() { return Object.assign({}, stat); }, get dir() { return dir; },
     toys: () => toys.map(t => ({ id: t.id, kind: t.kind, x: +t.x.toFixed(2), y: +t.y.toFixed(2), r: +t.r.toFixed(2), held: t.held, coin: t.coin, asleep: t.asleep, vx: +t.vx.toFixed(3), vy: +t.vy.toFixed(3) })),
     probe, contact: x => { const c = contact(x); return { toy: c.toy ? c.toy.id : null, y: c.y }; },

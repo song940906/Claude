@@ -169,11 +169,23 @@ body .kg-top { z-index: 26; }
   //   cool 한 번 찍은 뒤 다시 찍을 수 있을 때까지(초) · g0 처음 봉투 사이 빈 시간[최소, 최대](초) → g1 (점점 불규칙)
   //   dec 섞여 나오는 「찍으면 안 되는 것」 확률(처음 → 끝) · big 칸 두 개짜리 큰 봉투 확률 · heal 성공 몇 번마다 하트 하나 돌아오기(0 이면 없음) · late 봉투를 이만큼 보낸 뒤로는 heal 이 두 배(끝없이 버티기만 하는 판이 되지 않게, 0 이면 없음)
   //   hint 칸이 도장 밑에 오면 칸이 초록으로 빛난다
+  //   wave (Very Hard 만, 없으면 꺼짐) 벨트 빠르기 물결: 놀이 at 초 뒤부터, 빠르기 배율을 1 ± amp[최소, 최대] 로 번갈아(빠르게 ↔ 느리게) 바꾼다.
+  //     tr 초 동안 부드럽게 바뀌고 hold[최소, 최대] 초 머문다. 순간 빠르기는 vCap 을 넘지 않는다
+  //     (원래 곡선이 vCap 에 가까워 빠르게 쪽 여유가 amp 최대보다 작으면 빠르게·느리게 폭을 같은 비율로 줄인다 — 느려지기만 하지 않게). 안개 구간과 그 뒤 grace 초 동안은 새로 바꾸지 않는다
+  //     (안개 예고가 뜨기 전에 다 바뀌지 못할 바꿈은 안개가 걷힌 뒤로 미룬다 — 예고부터 안개가 걷힐 때까지 빠르기가 그대로)
+  //   fog  (Very Hard 만, 없으면 꺼짐) 안개 구간: 놀이 at 초 뒤 첫 구간, 그 뒤로 gap[최소, 최대] 초마다. warn 초 예고 → fade 초 동안 짙어짐 → len[최소, 최대] 초 → fade 초 동안 걷힘
+  //     안개는 도장 왼쪽 l 부터 오른쪽 r 까지(u) 그려지고 양끝 edge(u) 는 흐려진다. 판정은 보일 때와 똑같다
+  //     가리는 것은 봉투 「통째로」: 봉투의 맨 앞 칸이 l-edge → l 을 지나는 동안 봉투 전체(꼬리·모서리까지)가 흐려져 사라지고,
+  //     맨 뒤 칸이 r → r+edge 를 지나면 다시 보인다 (안개 밖으로 삐져나온 꼬리로 칸 자리를 알 수 없게)
+  //     view 세로처럼 좁은 화면에서 칸 전체가 안개 전에 보이는 최소 거리(u). 화면 왼쪽 끝에서 이만큼 + 칸 폭 + edge 를 남기도록 l 을 도장 쪽으로 당긴다
+  //     안개가 끼어 있는 동안 벨트 빠르기는 끼기 직전 값 그대로, 걷힌 뒤 ease 초 동안 원래 곡선으로 부드럽게 돌아간다
   const DIFF = {
     easy:   { v0: 1.45, v1: 2.25, vMax: 2.5, vCap: 4.0, ramp: 60, box: 1.2,  perf: 0.42, cool: 0.34, g0: [0.8, 1.3],  g1: [0.5, 1.3],  dec: [0, 0],       big: [0, 0],       heal: 10, late: 300, hint: true },
     normal: { v0: 1.85, v1: 2.9,  vMax: 3.2, vCap: 4.2, ramp: 70, box: 1.0,  perf: 0.36, cool: 0.30, g0: [0.6, 1.0],  g1: [0.3, 1.1],  dec: [0.12, 0.28], big: [0, 0],       heal: 20, late: 0, hint: false },
     hard:   { v0: 2.25, v1: 3.45, vMax: 3.85, vCap: 4.4, ramp: 80, box: 0.82, perf: 0.33, cool: 0.27, g0: [0.5, 0.85], g1: [0.22, 1.0], dec: [0.16, 0.32], big: [0.1, 0.24], heal: 30, late: 0, hint: false },
-    vhard:  { v0: 2.65, v1: 3.9,  vMax: 4.3, vCap: 5.0, ramp: 80, box: 0.7,  perf: 0.30, cool: 0.24, g0: [0.4, 0.75], g1: [0.18, 0.95], dec: [0.2, 0.35], big: [0.16, 0.3], heal: 0,  hint: false }
+    vhard:  { v0: 2.65, v1: 3.9,  vMax: 4.3, vCap: 5.0, ramp: 80, box: 0.7,  perf: 0.30, cool: 0.24, g0: [0.4, 0.75], g1: [0.18, 0.95], dec: [0.2, 0.35], big: [0.16, 0.3], heal: 0,  hint: false,
+              wave: { at: 8, hold: [2.5, 4], amp: [0.12, 0.22], tr: 0.8, grace: 0.8 },
+              fog: { at: 20, gap: [10, 16], len: [5, 7], warn: 1.6, fade: 0.4, ease: 0.8, l: -1.3, r: 0.7, edge: 0.45, view: 2.0 } }
   };
   let diffId = 'normal', D = DIFF.normal;
   const P_GOOD = 10, P_PERF = 20, P_COMBO = 2, P_PASS = 5, P_BIG = 10;
@@ -205,6 +217,11 @@ body .kg-top { z-index: 26; }
   let items = [], score = 0, hearts = MAXH, combo = 0, maxCombo = 0, perfects = 0, goods = 0, mailed = 0, misses = 0, sent = 0, healN = 0, presses = 0;
   let speed = 1.8, beltPos = 0, gapLeft = 0, decoyRun = 0, overT = 0, overAt = 0, isNew = false, quit = false, playT = 0;
   const stamp = { t: 9, judged: true, deny: 0 };
+  // Very Hard 안개·빠르기 물결 (D.fog · D.wave 가 없으면 그대로 꺼져 있다)
+  //   fogPh: none · warn(예고) · in(짙어짐) · on(가림) · out(걷힘) · fogA 가림 진하기 0~1 · holdV 안개 동안 고정한 빠르기
+  //   mul 지금 빠르기 배율 · mul0→mul1 로 mulK(0~1) 만큼 바뀌는 중 · mulAt 다음에 바꿀 시각 · cue 벨트 위 짧은 알림 글자
+  let fogPh = 'none', fogT = 0, fogLen = 0, fogAt = 1e9, fogEnd = -1e9, fogA = 0, fogN = 0, holdV = 0;
+  let mul = 1, mul0 = 1, mul1 = 1, mulK = 1, mulAt = 1e9, mulSign = 1, cue = null;
   let floats = [], parts = [], splats = [];
   let mood = 'idle', moodT = 0, tAnim = 0, shakeT = 0;
   let W = 0, H = 0, DPR = 1, U = 40, CX = 0, BY = 0, SAF = { t: 0, b: 0, l: 0, r: 0 }, wide = false, KSZ = 160, kx = 0, ky = 0, beamY = 0, btnX = 0, MX = 0;
@@ -302,10 +319,11 @@ body .kg-top { z-index: 26; }
   // ═══════ 그림 조각 ═══════
   // 콩이 발바닥 도장: 가운데 x,y · 반지름 r(큰 볼록살 기준) · 기울기 · 진하기 · 번짐
   function pawPrint(c, x, y, r, rot, col, alpha, smudge) {
-    c.save(); c.translate(x, y); c.rotate(rot || 0); c.globalAlpha = alpha; c.fillStyle = col;
+    const ga = c.globalAlpha;   // 바깥 진하기(안개로 흐려지는 봉투·우편함으로 날아가는 봉투)에 곱한다
+    c.save(); c.translate(x, y); c.rotate(rot || 0); c.globalAlpha = ga * alpha; c.fillStyle = col;
     c.beginPath(); c.ellipse(0, r * 0.32, r * 0.62, r * 0.5, 0, 0, TAU); c.fill();
     for (const [tx, ty, tr] of [[-0.62, -0.28, 0.24], [-0.22, -0.62, 0.25], [0.22, -0.62, 0.25], [0.62, -0.28, 0.24]]) { c.beginPath(); c.ellipse(tx * r, ty * r, tr * r, tr * r * 1.15, tx * 0.5, 0, TAU); c.fill(); }
-    if (smudge) { c.globalAlpha = alpha * 0.45; for (let i = 0; i < 4; i++) { const a = i * 1.7 + smudge, d = r * (0.7 + (i % 2) * 0.25); c.beginPath(); c.arc(Math.cos(a) * d, Math.sin(a) * d * 0.8, r * (0.1 + (i % 3) * 0.05), 0, TAU); c.fill(); } }
+    if (smudge) { c.globalAlpha = ga * alpha * 0.45; for (let i = 0; i < 4; i++) { const a = i * 1.7 + smudge, d = r * (0.7 + (i % 2) * 0.25); c.beginPath(); c.arc(Math.cos(a) * d, Math.sin(a) * d * 0.8, r * (0.1 + (i % 3) * 0.05), 0, TAU); c.fill(); } }
     c.restore();
   }
   function dashBox(c, x, y, w, h, col, glow) {
@@ -434,6 +452,63 @@ body .kg-top { z-index: 26; }
   function bumpScore() { const e = $('hudSc'); if (!reduceMotion) { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); } }
   function flashHp(k) { const e = $('hudHp'); e.classList.remove('hurt', 'heal'); void e.offsetWidth; e.classList.add(k); }
 
+  // ═══════ Very Hard: 안개 구간 · 빠르기 물결 ═══════
+  function setCue(txt, life, col) { cue = { txt, t: life, life, col: col || '#fff' }; }
+  function updateFog(dt) {
+    const F = D.fog; if (!F) return;
+    if (fogPh === 'none') {
+      if (playT < fogAt) return;
+      fogPh = 'warn'; fogT = 0; fogLen = rand(F.len[0], F.len[1]); fogN++;
+      setCue('☁️ 곧 안개! 박자로 찍어요', F.warn + F.fade, '#DDE3FF');
+      tone(392, 0.16, 'sine', 0.04); tone(330, 0.2, 'sine', 0.04, 0.16);
+      return;
+    }
+    fogT += dt;
+    if (fogPh === 'warn' && fogT >= F.warn) { fogPh = 'in'; fogT -= F.warn; holdV = speed; }   // 이때부터 걷힐 때까지 빠르기 고정
+    if (fogPh === 'in' && fogT >= F.fade) { fogPh = 'on'; fogT -= F.fade; }
+    if (fogPh === 'on' && fogT >= fogLen) { fogPh = 'out'; fogT -= fogLen; }
+    if (fogPh === 'out' && fogT >= F.fade) { fogPh = 'none'; fogT = 0; fogEnd = playT; fogAt = playT + rand(F.gap[0], F.gap[1]); }
+    fogA = fogPh === 'in' ? clamp(fogT / F.fade, 0, 1) : fogPh === 'on' ? 1 : fogPh === 'out' ? clamp(1 - fogT / F.fade, 0, 1) : 0;
+  }
+  const fogging = () => fogPh === 'in' || fogPh === 'on' || fogPh === 'out';
+  function updateWave(dt) {
+    const V = D.wave; if (!V) return;
+    if (mulK < 1) { mulK = Math.min(1, mulK + dt / V.tr); const e = mulK * mulK * (3 - 2 * mulK); mul = lerp(mul0, mul1, e); return; }
+    if (playT < mulAt || fogPh !== 'none' || playT < fogEnd + V.grace) return;   // 안개 예고·안개 중·걷힌 직후엔 새로 바꾸지 않는다
+    if (D.fog && fogAt - playT < V.tr) return;   // 예고가 뜨기 전에 다 바뀌지 못하면 안개 뒤로 미룬다 (예고 내내 빠르기가 그대로 — 안개 속 박자를 미리 익히게)
+    mulSign = -mulSign; mul0 = mul; mul1 = 1 + mulSign * rand(V.amp[0], V.amp[1]); mulK = 0;
+    mulAt = playT + V.tr + rand(V.hold[0], V.hold[1]);
+    if (mul1 > mul0) { setCue('⏩ 빨라져요', 1.2, '#FFD9A8'); tone(520, 0.14, 'triangle', 0.035, 0, 820); }
+    else { setCue('🐢 느려져요', 1.2, '#BFE3FF'); tone(640, 0.16, 'triangle', 0.035, 0, 360); }
+  }
+  // 이번 장면의 벨트 빠르기: 원래 곡선 × 물결 배율 (vCap 까지) · 안개 동안은 고정 · 걷힌 뒤 ease 초 동안 원래대로
+  function beltSpeed() {
+    const base = curSpeed();
+    if (!D.wave && !D.fog) return base;
+    // 물결 폭 줄이기: 빠르게 쪽 여유(vCap/base - 1)가 amp 최대보다 작으면 위아래를 같은 비율로 (평균은 원래 곡선 그대로)
+    const k = D.wave ? clamp((D.vCap / base - 1) / D.wave.amp[1], 0, 1) : 0;
+    let v = D.wave ? Math.min(D.vCap, base * (1 + (mul - 1) * k)) : base;
+    if (D.fog) {
+      if (fogging()) v = holdV;
+      else if (playT - fogEnd < D.fog.ease) v = lerp(holdV, v, clamp((playT - fogEnd) / D.fog.ease, 0, 1));
+    }
+    return v;
+  }
+  // 안개 왼쪽 끝(u): 좁은 화면에서는 칸 전체가 안개 전에 view(u) 이상 보이게 도장 쪽으로 당긴다 (가로 화면은 l 그대로)
+  function fogL() {
+    const F = D.fog; if (!F) return 0;
+    return F.view ? Math.min(-0.8, Math.max(F.l, leftU() + F.view + D.box + F.edge)) : F.l;
+  }
+  // 봉투를 얼마나 가렸나 0~1 (봉투 통째로): 맨 앞 칸이 안개 왼쪽 흐린 띠를 지나며 사라지고, 맨 뒤 칸이 오른쪽 흐린 띠를 지나며 다시 보인다
+  const smooth = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+  function veil(it) {
+    if (!D.fog || fogA <= 0 || it.mail >= 0) return 0;
+    const F = D.fog, L = fogL(), E = F.edge;
+    let lead = it.w / 2, trail = it.w / 2;
+    if (it.boxes.length) { lead = -1e9; trail = 1e9; for (const b of it.boxes) { lead = Math.max(lead, b.off); trail = Math.min(trail, b.off); } }
+    return fogA * smooth((it.x + lead - (L - E)) / E) * (1 - smooth((it.x + trail - F.r) / E));
+  }
+
   // ═══════ 흐름 ═══════
   function update(dt) {
     for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= dt * 28; if (f.life <= 0) floats.splice(i, 1); }
@@ -442,10 +517,12 @@ body .kg-top { z-index: 26; }
     if (shakeT > 0) shakeT -= dt;
     if (stamp.deny > 0) stamp.deny -= dt;
     if (moodT > 0) { moodT -= dt; if (moodT <= 0) mood = 'idle'; }
+    if (cue) { cue.t -= dt; if (cue.t <= 0) cue = null; }
     if (state === 'over') { overT -= dt; stamp.t += dt; if (overT <= 0) showResult(); return; }
     if (state !== 'play') return;
     playT += dt;
-    speed = curSpeed();
+    updateFog(dt); updateWave(dt);
+    speed = beltSpeed();
     const mv = speed * dt; beltPos += mv;
     // 띠 위 봉투 움직이기
     const mU = mailU();
@@ -494,7 +571,9 @@ body .kg-top { z-index: 26; }
     // 컨베이어 띠
     c.fillStyle = '#4A5087'; c.fillRect(-10, bt, W + 20, bb - bt);
     c.save(); c.beginPath(); c.rect(-10, bt, W + 20, bb - bt); c.clip();
-    c.fillStyle = 'rgba(255,255,255,.06)';
+    // 띠 무늬: 물결로 빨라지면 따뜻한 색, 느려지면 파란 색으로 조금 진해진다 (빠르기가 바뀌는 단서)
+    const dm = (state === 'play' || state === 'pause') ? mul - 1 : 0;
+    c.fillStyle = dm > 0.02 ? 'rgba(255,200,140,' + (0.06 + dm * 0.5).toFixed(3) + ')' : dm < -0.02 ? 'rgba(150,205,255,' + (0.06 - dm * 0.5).toFixed(3) + ')' : 'rgba(255,255,255,.06)';
     const step = 0.7 * U, off = ((beltPos * U) % step + step) % step;
     for (let x = -step + off; x < W + step; x += step) { c.beginPath(); c.moveTo(x, bt); c.lineTo(x + 0.25 * U, bt); c.lineTo(x + 0.55 * U, BY); c.lineTo(x + 0.25 * U, bb); c.lineTo(x, bb); c.lineTo(x + 0.3 * U, BY); c.closePath(); c.fill(); }
     c.restore();
@@ -512,10 +591,18 @@ body .kg-top { z-index: 26; }
         const u = clamp(it.mail, 0, 1), x0 = px(it.mx + it.w / 2), x1 = MX, y0 = BY, y1 = slotY;
         const x = lerp(x0, x1, u), y = lerp(y0, y1, u) - Math.sin(u * Math.PI) * 0.9 * U, sc = lerp(1, 0.22, u * u);
         c.globalAlpha = u > 0.85 ? (1 - u) / 0.15 : 1; drawItem(c, it, x, y, sc); c.globalAlpha = 1;
-      } else drawItem(c, it, px(it.x + it.w / 2), BY, 1);
+      } else {
+        const a = 1 - veil(it); if (a <= 0.01) continue;   // 안개에 다 묻힌 봉투는 그리지 않는다
+        c.globalAlpha = a; drawItem(c, it, px(it.x + it.w / 2), BY, 1); c.globalAlpha = 1;
+      }
     }
+    // 안개 (봉투 위, 도장 아래)
+    if (state === 'play' || state === 'pause' || state === 'over') drawFog(c, bt, bb);
     // 도장 (막대에서 내려오는 기둥 + 손잡이 + 고무판)
     drawStamp(c);
+    // 안개 예고 · 빠르기 알림 (띠 아래에 자리가 있으면 도장 밑, 없으면 띠 왼쪽 위)
+    const roomBelow = H - SAF.b - bb > 1.2 * U + 30;
+    if (cue && (state === 'play' || state === 'pause')) { c.globalAlpha = clamp(cue.t / 0.3, 0, 1) * clamp((cue.life - cue.t) / 0.12, 0, 1); pill(c, cue.txt, roomBelow ? px(0) : px(-3.3), roomBelow ? bb + 0.7 * U : bt - 0.62 * U, 13, cue.col); c.globalAlpha = 1; }
     // 시작 안내
     if (state === 'play' && presses === 0 && playT < 12) pill(c, KEYS_OK ? '칸이 도장 밑에 오면 누르세요 (스페이스)' : '칸이 도장 밑에 오면 화면을 누르세요', px(0), H - SAF.b - bb > 1.2 * U + 30 ? bb + 0.7 * U : beamY - 0.5 * U, 13);
     // 조각·글자
@@ -570,11 +657,39 @@ body .kg-top { z-index: 26; }
     c.fillStyle = lg; c.beginPath(); c.ellipse(btnX, by - 0.02 * U, r, r * 0.42, 0, Math.PI, 0); c.lineTo(btnX + r, by - 0.02 * U); c.ellipse(btnX, by - 0.02 * U, r, r * 0.42, 0, 0, Math.PI); c.fill();
     c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.ellipse(btnX - r * 0.3, by - r * 0.2, r * 0.3, r * 0.12, -0.2, 0, TAU); c.fill();
   }
-  function pill(c, txt, x, y, size) {
+  function pill(c, txt, x, y, size, col) {
     c.font = '600 ' + (size || 13) + 'px ' + FONT; let tw = c.measureText(txt).width + 22; const h = (size || 13) + 13;
     if (tw > W - 12) { c.font = '600 ' + ((size || 13) - 2) + 'px ' + FONT; tw = c.measureText(txt).width + 18; }
     x = clamp(x, tw / 2 + 6 + SAF.l, W - tw / 2 - 6 - SAF.r); y = clamp(y, h / 2 + 4, H - h / 2 - 4 - SAF.b);
-    c.fillStyle = 'rgba(18,22,52,.82)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, x, y + 0.5);
+    c.fillStyle = 'rgba(18,22,52,.82)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = col || '#fff'; c.fillText(txt, x, y + 0.5);
+  }
+  // 안개: 도장 왼쪽 l ~ 오른쪽 r 을 봉투째 가린다. 양끝 edge 는 흐려지며, 예고 중에는 자리만 옅게 깜빡인다
+  function drawFog(c, bt, bb) {
+    const F = D.fog; if (!F) return;
+    const warn = fogPh === 'warn' ? (0.26 + 0.12 * Math.sin(tAnim * 9)) * clamp(fogT / 0.3, 0, 1) : 0;
+    const a = Math.max(fogA, warn); if (a <= 0.005) return;
+    const L = px(fogL()), R = px(F.r), E = F.edge * U, top = bt - 0.3 * U, bot = bb + 0.14 * U;
+    c.save(); c.globalAlpha = a;
+    const lg = c.createLinearGradient(L - E, 0, R + E, 0), e = E / (R - L + 2 * E);
+    lg.addColorStop(0, 'rgba(204,208,240,0)'); lg.addColorStop(e, 'rgba(204,208,240,1)'); lg.addColorStop(1 - e, 'rgba(204,208,240,1)'); lg.addColorStop(1, 'rgba(204,208,240,0)');
+    c.fillStyle = lg; c.fillRect(L - E, top, R - L + 2 * E, bot - top);
+    // 위·아래 뭉게구름 테두리 (가운데 짙은 곳에만 — 겹쳐도 얼룩지지 않게 불투명 색)
+    c.fillStyle = '#CCD0F0';
+    const n = Math.max(3, Math.round((R - L) / (0.42 * U)));
+    for (let i = 0; i <= n; i++) {
+      const x = L + (R - L) * i / n, w = Math.sin(tAnim * 1.3 + i * 1.9);
+      c.beginPath(); c.arc(x, top + 0.04 * U * w, (0.26 + 0.05 * (i % 2)) * U, 0, TAU); c.fill();
+      c.beginPath(); c.arc(x + 0.2 * U, bot - 0.02 * U * w, 0.18 * U, 0, TAU); c.fill();
+    }
+    // 안에서 천천히 흐르는 옅은 김
+    c.beginPath(); c.rect(L, top - 0.3 * U, R - L, bot - top + 0.6 * U); c.clip();
+    c.fillStyle = 'rgba(255,255,255,.38)';
+    for (let i = 0; i < 4; i++) {
+      const span = R - L + 1.6 * U, x = L - 0.8 * U + (((tAnim * 0.35 * U + i * span / 4) % span) + span) % span, y = BY + (i % 2 ? 0.35 : -0.3) * U;
+      c.beginPath(); c.ellipse(x, y, 0.55 * U, 0.16 * U, 0, 0, TAU); c.fill();
+    }
+    c.fillStyle = 'rgba(120,126,180,.18)'; c.fillRect(L - E, bb - 0.25 * U, R - L + 2 * E, 0.4 * U);
+    c.restore();
   }
   function drawKong() {
     const playing = state === 'play' || state === 'pause' || state === 'over';
@@ -583,7 +698,14 @@ body .kg-top { z-index: 26; }
     if (K.rig.pose !== pose) K.setPose(pose);
     // 다음에 찍을 칸 쪽을 본다
     let tgt = null;
-    if (playing) { const n = items.filter(i => i.mail < 0 && i.target && i.boxes.some(b => !b.stamped && !b.gone)).sort((a, b) => b.x - a.x)[0]; if (n) tgt = { x: px(n.x + n.w / 2), y: BY }; }
+    // 안개 속 봉투는 쳐다보지 않는다 (눈길로 자리를 알려 주지 않게) — 안개를 보거나 다음에 들어오는 봉투를 본다
+    const veiled = i => veil(i) > 0.3;
+    if (playing) {
+      const n = items.filter(i => i.mail < 0 && i.target && i.boxes.some(b => !b.stamped && !b.gone)).sort((a, b) => b.x - a.x);
+      const v = n.find(i => !veiled(i));
+      if (n.length && v === n[0]) tgt = { x: px(v.x + v.w / 2), y: BY };
+      else if (n.length) tgt = { x: px((fogL() + D.fog.r) / 2), y: BY };
+    }
     const hd = K.head(); let lx = -0.5, ly = 0.4;
     if (tgt) { lx = clamp((tgt.x - hd.x) / 160, -1, 1); ly = clamp((tgt.y - hd.y) / 160, -1, 1); }
     const sad = mood === 'sad' || (state === 'over' && !quit), joy = mood === 'joy', happy = mood === 'happy' || joy;
@@ -624,6 +746,8 @@ body .kg-top { z-index: 26; }
   function reset() {
     items = []; score = 0; hearts = MAXH; combo = 0; maxCombo = 0; perfects = 0; goods = 0; mailed = 0; misses = 0; sent = 0; healN = 0; presses = 0;
     beltPos = 0; decoyRun = 0; playT = 0; quit = false; isNew = false; floats = []; parts = []; splats = []; mood = 'idle'; moodT = 0;
+    fogPh = 'none'; fogT = 0; fogA = 0; fogN = 0; fogEnd = -1e9; holdV = 0; fogAt = D.fog ? D.fog.at : 1e9;
+    mul = mul0 = mul1 = 1; mulK = 1; mulAt = D.wave ? D.wave.at : 1e9; mulSign = Math.random() < 0.5 ? 1 : -1; cue = null;
     stamp.t = 9; stamp.judged = true; stamp.deny = 0; speed = curSpeed(); gapLeft = 0;
   }
   function start() {
@@ -712,7 +836,8 @@ body .kg-top { z-index: 26; }
     ['👆', '화면 아무 데나 누르면 도장이 쾅! 봉투의 점선 칸 안에 찍어요' + (KEYS_OK ? ' (스페이스).' : '.')],
     ['🎯', '칸 한가운데일수록 퍼펙트! 퍼펙트를 이어 가면 콤보 점수가 붙어요.'],
     ['🚫', '빨간 「찍지 마세요」 소포와 이미 찍힌 봉투는 그냥 보내요(Normal부터). 칸이 두 개인 큰 봉투는 두 번(Hard부터)!'],
-    ['❤️', '칸 밖·허공에 찍거나 봉투를 그냥 보내면 하트가 줄어요(봉투 한 장에 한 번만). 잘 찍으면 가끔 하트가 돌아와요(Very Hard 빼고).']
+    ['❤️', '칸 밖·허공에 찍거나 봉투를 그냥 보내면 하트가 줄어요(봉투 한 장에 한 번만). 잘 찍으면 가끔 하트가 돌아와요(Very Hard 빼고).'],
+    ['☁️', 'Very Hard 는 벨트가 빨라졌다 느려졌다 하고, 가끔 안개가 껴서 도장 밑이 안 보여요. 안개 속에선 빠르기가 그대로니 박자로 찍어요!']
   ] };
   const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
   $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
@@ -730,8 +855,13 @@ body .kg-top { z-index: 26; }
     DIFF, get state() { return state; }, get score() { return score; }, get hearts() { return hearts; }, get combo() { return combo; }, get maxCombo() { return maxCombo; },
     get perfects() { return perfects; }, get goods() { return goods; }, get mailed() { return mailed; }, get misses() { return misses; }, get sent() { return sent; }, get speed() { return speed; }, get diff() { return diffId; },
     get ready() { return state === 'play' && stamp.t >= D.cool; }, get playT() { return playT; }, get cool() { return D.cool; }, DROP,
-    items: () => items.map(i => ({ kind: i.kind, x: i.x, w: i.w, target: i.target, mail: i.mail, boxes: i.boxes.map(b => ({ c: i.x + b.off, s: b.s, stamped: b.stamped, gone: b.gone })) })),
-    field: () => ({ W, H, U, CX, BY, kx, ky, KSZ, beamY, btnX, MX, hud: hud.getBoundingClientRect().toJSON() }),
+    // alpha 봉투가 그려지는 진하기(1 = 다 보임) · hidden 안개에 통째로 묻혀 안 보이나 (칸마다 같은 값)
+    items: () => items.map(i => { const a = 1 - veil(i); return { id: i.id, kind: i.kind, x: i.x, w: i.w, target: i.target, mail: i.mail, alpha: a, hidden: a <= 0.01, boxes: i.boxes.map(b => ({ c: i.x + b.off, s: b.s, stamped: b.stamped, gone: b.gone, hidden: a <= 0.01 })) }; }),
+    // Very Hard 안개·물결: ph 단계 · a 가림 진하기 · hidden 안개가 다 꼈나 · n 몇 번째 안개 · at 다음 안개 시각(놀이 초) · l 이 화면에서 쓰는 안개 왼쪽 끝(좁은 화면은 당겨짐) · l0 표의 l · r 오른쪽 끝(u)
+    fog: () => ({ ph: fogPh, a: fogA, hidden: fogA >= 0.99, n: fogN, at: fogAt, l: D.fog ? fogL() : null, l0: D.fog ? D.fog.l : null, r: D.fog ? D.fog.r : null }),
+    // speedMul 물결 배율(표 그대로) · speedMulEff 실제 벨트 빠르기 ÷ 원래 곡선 (vCap 근처에서 줄인 폭·안개 고정까지 들어간 값)
+    get speedMul() { return mul; }, get speedMulEff() { return speed / curSpeed(); }, get baseSpeed() { return curSpeed(); }, get cue() { return cue ? cue.txt : null; },
+    field: () => ({ W, H, U, CX, BY, kx, ky, KSZ, beamY, btnX, MX, leftU: leftU(), hud: hud.getBoundingClientRect().toJSON() }),
     nextIn, press, start, end, pause, resume,
     step: dt => { tAnim += dt; update(dt); }
   };
