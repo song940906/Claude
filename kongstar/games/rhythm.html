@@ -746,6 +746,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edScore').textContent = fmt(score); $('edCombo').textContent = fmt(maxCombo); $('edSec').textContent = (secIdx + 1) + '구간'; $('edPf').textContent = fmt(nPf) + '번';
     $('edTitle').textContent = quit ? '여기까지 했어요' : secIdx >= 5 ? '리듬스타 달인이에요!' : '기운이 다 떨어졌어요';
+    if (!quit && secIdx >= 5 && KG.master) KG.master('rhythm');   // 업적 「게임 달인」 (11-27)
     const tot = nPf + nGd + nMs;
     $('edText').textContent = score > 0 ? '맞힌 노트 ' + fmt(nPf + nGd) + '개 중 딱 맞음 ' + Math.round(nPf / Math.max(1, nPf + nGd) * 100) + '%' + (tot ? ' · 놓침 ' + fmt(nMs) + '개' : '') + '.' : '발자국이 선에 닿을 때 그 줄을 눌러 봐요.';
     paintBest(); paintHud(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);

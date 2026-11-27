@@ -868,6 +868,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);   // 기록·가족 순위는 점수로
     $('edScore').textContent = fmt(score);
     $('edTitle').textContent = quit ? '여기까지 했어요' : score >= D.master ? '인형뽑기 달인이에요!' : got > 0 ? '동전을 다 썼어요' : '아깝게 다 놓쳤어요';
+    if (!quit && score >= D.master && KG.master) KG.master('claw');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = got > 0 ? '인형 ' + got + '개로 ' + fmt(score) + '점! ' + J(name, '이/가') + ' 꼭 껴안았어요.' + (exPts ? ' 딱 가운데 덤 +' + exPts + '점.' : '') : '드문 인형일수록 점수가 커요. 몸통 가운데를 노려 봐요.';
     const box = $('edGot'); box.textContent = '';
     for (const k of KINDS) if (gotKinds[k.id]) { const s = document.createElement('span'); const cn = toyCanvas(k.id, 44, false); cn.setAttribute('role', 'img'); cn.setAttribute('aria-label', k.name); s.appendChild(cn); s.appendChild(document.createTextNode('×' + gotKinds[k.id] + ' · ' + gotKinds[k.id] * k.pt + '점')); box.appendChild(s); }

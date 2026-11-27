@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이는 계량천재</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이는 계량천재: 밤하늘·탁자(bg) → 콩이(stage) → 발판·그릇·우유(cv) → 병·우유 줄기·눈금·글자(fx) 순서로 겹친다.
+   그릇은 유리라 콩이 앞에 서도 비쳐 보인다 */
+#bg, #cv, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#stage { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+#cv { z-index: 2; pointer-events: none; }
+#fx { z-index: 3; touch-action: none; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6px; pointer-events: none; transform: translateX(-50%); }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud .hp { gap: 3px; }
+#hud .hp i { font-style: normal; font-size: 15px; line-height: 1; color: #FF8FA3; transition: opacity .2s, transform .2s; }
+#hud .hp i.off { opacity: .22; transform: scale(.8); }
+#hud .sc.bump, #hud .hp.bump { animation: scBump .35s; }
+@keyframes scBump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+#goal { position: fixed; z-index: 10; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 24px - var(--sal) - var(--sar)); box-sizing: border-box; height: 34px; border-radius: 17px; padding: 0 14px; background: rgba(255,255,255,.94); color: var(--ink); display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; letter-spacing: -.3px; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.22); font-variant-numeric: tabular-nums; }
+#goal b { font-weight: 800; color: #1F8F5F; }
+#goal .now b { color: var(--pri); }
+#goal .bt { color: var(--sub); font-weight: 500; font-size: 13px; }
+#goal .sep { width: 1px; height: 14px; background: var(--line); flex: none; }
+#goal.res b { color: var(--ink); }
+#goal.res.ok b.v { color: #1F8F5F; }
+#goal.res.bad b.v { color: #D9480F; }
+#goal span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } #goal { padding: 0 11px; gap: 6px; font-size: 13px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stKeys, #stDiffNote { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면: 카드가 위 줄(게임·소리 단추) 밑에서 시작하게, 결과 카드 높이를 줄인다 */
+@media (orientation: landscape) and (max-height: 360px) {
+  #cardStart, #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+  body .kg-rbwrap > .kg-card #edText { display: none; }
+  body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="stage"></div>
+<canvas id="cv"></canvas>
+<canvas id="fx" aria-label="누르고 있으면 우유가 따라지는 그릇"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div class="sc" id="hudSc"><span id="hudScore">0</span><small>잔</small></div>
+  <div class="hp" id="hudHp"><i>♥</i><i>♥</i><i>♥</i></div>
+  <div class="lv"><span id="hudLv">1</span><small>단계</small></div>
+</div>
+<div id="goal" aria-live="polite" hidden></div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이는 계량천재</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b>화면을 꾹 누르고 있으면</b> 우유가 나오고, <b>떼면</b> 멈춰요.</p>
+      <p id="stDiffNote">Hard 는 목표선이 잠깐만, Very Hard 는 눈금 숫자로만 보여요.</p>
+      <p id="stKeys" hidden><b>스페이스</b>를 누르고 있어도 돼요.</p>
+    </div>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">우유를 다 따랐어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>잔</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>계량천재<b id="edPerf"></b></span><span>최고 콤보<b id="edCombo"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const KEY = 'pour', TITLE = J(name, '은/는') + ' 계량천재';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 흐름 상수 ═══════
+  const HEARTS = 3, LV_EVERY = 4, PERF = 0.3;             // 하트 수 · 몇 잔마다 한 단계 · 허용 띠의 몇 % 안이면 「계량천재!」
+  const RAMP = 0.28, TAIL_T = 0.28, TAP_MIN = 0.08;       // 병을 다 기울이는 시간 · 뗀 뒤 흘러내린 우유가 다 떨어지는 시간 · 이보다 짧게 누르면 없던 일
+  const ENTER_T = 0.55, JUDGE_OK = 1.25, JUDGE_BAD = 1.75; // 그릇이 들어오는 시간 · 판정 보여 주는 시간(성공·실패)
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   q 1단계 흐름(ml/초) · tol 허용 띠 반폭(그릇 용량의 비율) · tolMin 단계가 올라도 이 아래로는 안 좁아짐 · win 띠를 지나는 데 걸리는 시간이 이보다 짧아지지 않게(초, 가장 빠른 흐름 기준)
+  //   tail 뗀 뒤 흘러내리는 양(뗄 때 흐름 × 초, 병마다 배율이 붙는다) · wob0/wobL/wobMax 흐름 출렁임(1단계·단계마다 더함·최대, 흐름의 비율)
+  //   band 목표선: 'on' 늘 보임 · 'flash' 잔마다 flash 초만 보였다 사라짐 · 'none' 눈금 숫자로만 · live 따르는 동안 지금 양(ml)을 보여 줌 · step Very Hard 목표는 눈금 칸 단위
+  //   qUp/qMax 단계마다 흐름이 빨라지는 비율·최대 배율 · late 12단계 뒤로도 아주 천천히 계속 좁아짐(언젠가는 끝나는 판, 이 배율까지 — Normal 은 Hard·Very Hard 보다 빡빡해지지 않게)
+  const DIFF = {
+    easy:   { q: 55,  tol: 0.075, tolMin: 0.042, win: 0.4,  tail: 0.012, wob0: 0,    wobL: 0,    wobMax: 0,    band: 'on',    live: true,  qUp: 0.04, qMax: 1.4, late: 0.6 },
+    normal: { q: 80,  tol: 0.05,  tolMin: 0.024, win: 0.15, tail: 0.055, wob0: 0,    wobL: 0.03, wobMax: 0.15, band: 'on',    live: true,  qUp: 0.05, qMax: 1.7, late: 0.85 },
+    hard:   { q: 100, tol: 0.038, tolMin: 0.024, win: 0.15, tail: 0.085, wob0: 0.06, wobL: 0.03, wobMax: 0.22, band: 'flash', live: false, qUp: 0.05, qMax: 1.4, flash: 1.8 },
+    vhard:  { q: 115, tol: 0.03,  tolMin: 0.02,  win: 0.11, tail: 0.10,  wob0: 0.1,  wobL: 0.03, wobMax: 0.28, band: 'none',  live: false, qUp: 0.05, qMax: 1.4, step: true }
+  };
+  const TOL_PX = 5;   // 그릇이 작은 화면(가로 휴대폰)에서도 허용 띠가 위아래 이 px 보다 얇아지지 않게
+  let diffId = 'normal', D = DIFF.normal;
+  const lvLate = L => D.late && L > 12 ? Math.max(D.late, Math.pow(0.97, L - 12)) : 1;
+  const lvTol = L => Math.max(D.tolMin * lvLate(L), D.tol * Math.pow(0.93, L - 1));
+  const lvQ = L => D.q * Math.min(D.qMax, 1 + D.qUp * (L - 1));
+  const lvWob = L => L === 1 && !D.wob0 ? 0 : Math.min(D.wobMax, D.wob0 + D.wobL * (L - 1));
+  const lvFlash = L => Math.max(0.8, (D.flash || 0) - 0.1 * (L - 1));
+
+  // ═══════ 병: rate 흐름 배율 · tail 흘러내림 배율 · size 그림 크기 ═══════
+  const BOTTLES = [
+    { id: 'baby', name: '아기 젖병', rate: 0.85, tail: 0.7,  size: 0.9,  col: '#FFB8C6', drops: 1 },
+    { id: 'milk', name: '우유병',    rate: 1.0,  tail: 1.0,  size: 1.0,  col: '#A9D8FF', drops: 2 },
+    { id: 'big',  name: '큰 우유병', rate: 1.15, tail: 1.35, size: 1.08, col: '#FFD98A', drops: 3 }
+  ];
+  // ═══════ 그릇: 옆에서 본 모양. 단위 u — 폭은 -1~1, 높이는 0(바닥)~Hs(입구). 수위는 높이마다 단면적을 쌓은 실제 부피로 계산한다
+  //   round: 돌려 만든 그릇(단면 = 원, 넓이 π·(폭/2)²) · 아니면 납작한 그릇(넓이 = 폭 × 깊이) · pour 우유 줄기가 떨어지는 x
+  const SHAPES = {
+    cup:  { name: '원통 컵',     Hs: 2.25, cap: 300, col: '#9CC9F5', round: true, pour: -0.3,
+            hw: Y => { const r = 0.2, w = 0.78; return Y < r ? w - r + Math.sqrt(Math.max(0, r * r - (r - Y) * (r - Y))) : w; } },
+    wide: { name: '넓은 대접',   Hs: 1.15, cap: 450, col: '#F7B7C8', round: true, pour: -0.35,
+            hw: Y => 0.42 + 0.58 * Math.sqrt(Math.max(0, 1 - Math.pow((1.15 - Y) / 1.15, 2))) },
+    flare:{ name: '나팔 잔',     Hs: 2.2,  cap: 350, col: '#9EE2C6', round: true, pour: -0.15,
+            hw: Y => 0.2 + 0.8 * Math.pow(Y / 2.2, 1.1) },
+    pot:  { name: '배불뚝 단지', Hs: 2.1,  cap: 400, col: '#C9B8F5', round: true, pour: -0.15,
+            hw: Y => 0.45 + 0.5 * Math.sin(Math.PI * (0.12 + 0.8 * Y / 2.1)) },
+    bone: { name: '뼈다귀 그릇', Hs: 2.55, cap: 380, col: '#F6C38E', round: false, pour: -0.22,
+            inside: (x, Y) => { if (Y < 0 || Y > 2.55) return false; const r = 0.47, ax = Math.abs(x);
+              if ((ax - 0.5) * (ax - 0.5) + (Y - 0.47) * (Y - 0.47) <= r * r) return true;
+              if ((ax - 0.5) * (ax - 0.5) + (Y - 2.25) * (Y - 2.25) <= r * r) return true;
+              return ax <= 0.3 && Y >= 0.47 && Y <= 2.25; } }
+  };
+  const SHAPE_IDS = Object.keys(SHAPES);
+  const TBL = 300;
+  const STOOL_R = 0.31, KONG_HW = 0.4;   // 발판 반폭 · 앉은 콩이 반폭 (콩이 크기의 비율)
+  function prepShape(sh) {
+    const inside = sh.inside || ((x, Y) => Y >= 0 && Y <= sh.Hs && Math.abs(x) <= sh.hw(Y));
+    sh.inside = inside;
+    const width = Y => { if (sh.hw) return 2 * sh.hw(Y); let n = 0; for (let i = 0; i < 200; i++) if (inside(-1 + (i + 0.5) / 100, Y)) n++; return n / 100; };
+    sh.right = Y => { if (sh.hw) return sh.hw(Y); for (let x = 1; x >= -1; x -= 0.01) if (inside(x, Y)) return x; return 0; };
+    sh.left = Y => { if (sh.hw) return -sh.hw(Y); for (let x = -1; x <= 1; x += 0.01) if (inside(x, Y)) return x; return 0; };
+    sh.width = width;
+    const area = Y => { const w = width(Y); return sh.round ? Math.PI * w * w / 4 : w * 0.85; };
+    sh.V = new Float64Array(TBL + 1); let v = 0, a0 = area(0);
+    for (let i = 1; i <= TBL; i++) { const a1 = area(i / TBL * sh.Hs); v += (a0 + a1) / 2 * sh.Hs / TBL; sh.V[i] = v; a0 = a1; }
+    sh.vTop = v;
+    sh.floor = 0; for (let Y = 0; Y < sh.Hs; Y += 0.01) if (inside(sh.pour, Y)) { sh.floor = Y; break; }   // 줄기가 처음 닿는 바닥
+    let m = 0; for (let i = 0; i <= 40; i++) m = Math.max(m, sh.right(i / 40 * sh.Hs)); sh.maxR = m;
+    // 입구: 맨 위 높이에서 열린 구간 (뼈다귀는 둘)
+    sh.mouths = []; let on = false, s0 = 0; const yt = sh.Hs - 0.002;
+    for (let i = 0; i <= 400; i++) { const x = -1.02 + i / 400 * 2.04, inn = inside(x, yt); if (inn && !on) { on = true; s0 = x; } else if (!inn && on) { on = false; sh.mouths.push([s0, x]); } }
+    if (on) sh.mouths.push([s0, 1.02]);
+  }
+  for (const k of SHAPE_IDS) prepShape(SHAPES[k]);
+  const mlAt = (sh, Y) => { const f = clamp(Y / sh.Hs, 0, 1) * TBL, i = Math.min(TBL - 1, Math.floor(f)); return sh.cap * lerp(sh.V[i], sh.V[i + 1], f - i) / sh.vTop; };
+  function levelOf(sh, ml) {
+    const v = clamp(ml / sh.cap, 0, 1) * sh.vTop; let lo = 0, hi = TBL;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (sh.V[m] < v) lo = m; else hi = m; }
+    const d = sh.V[hi] - sh.V[lo]; return (lo + (d > 0 ? (v - sh.V[lo]) / d : 0)) / TBL * sh.Hs;
+  }
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = J(name, '이/가') + ' 우유를 따라요. 목표선에 딱 맞춰 멈춰 주세요!';
+  if (KEYS_OK) $('stKeys').hidden = false;
+  const bg = $('bg'), cv = $('cv'), fx = $('fx'), stage = $('stage'), hud = $('hud'), goal = $('goal');
+  const g = cv.getContext('2d'), fg = fx.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const K = kong(stage, 140);
+  const bimg = document.createElement('canvas'), bgc = bimg.getContext('2d');   // 지금 그릇 (잔마다 한 번 그려 둔다)
+
+  // ═══════ 상태 ═══════
+  let state = 'ready', phase = 'enter';   // state: ready · play · pause · over · result   phase: enter · aim · pour · tail · judge
+  let cup = null, cups = 0, hearts = HEARTS, lv = 1, combo = 0, bestCombo = 0, perfects = 0, pstreak = 0, poured = 0, misses = 0;
+  let phaseT = 0, overT = 0, overAt = 0, isNew = false, quit = false, tAnim = 0, held = false, holdId = null, holdKey = false, lastShape = '';
+  let floats = [], drops = [], gurgleT = 0, lastGoal = '';
+  let mood = 'idle', moodT = 0;
+  let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, wide = false, KSZ = 140, S = 60, BX = 0, floorY = 0, contentTop = 0, LR = 40;
+  let MO = { x: 0, y: -70 };                 // 콩이 발밑 → 입 (sit 자세, 화면 px)
+  const kc = { x: 0, y: 0 }, kT = { x: 0, y: 0 };   // 콩이 지금 자리 · 갈 자리 (발밑)
+
+  // ═══════ 화면 맞추기 ═══════
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function buildBg() {
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const c = bg.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const lg = c.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0B1030'); lg.addColorStop(0.6, '#1D2266'); lg.addColorStop(1, '#3B3A8E');
+    c.fillStyle = lg; c.fillRect(0, 0, W, H);
+    const blob = (x, y, r, col) => { const rg = c.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2); };
+    blob(W * 0.8, H * 0.2, Math.max(W, H) * 0.5, 'rgba(140,170,255,.13)'); blob(W * 0.15, H * 0.75, Math.max(W, H) * 0.45, 'rgba(255,190,150,.10)');
+    const rnd = mulberry32(71), n = Math.round(clamp(W * H / 2600, 80, 420));
+    for (let i = 0; i < n; i++) { const x = rnd() * W, y = rnd() * floorY, r = rnd() < 0.07 ? 1.1 + rnd() * 0.7 : 0.4 + rnd() * 0.7; c.globalAlpha = 0.3 + rnd() * 0.6; c.fillStyle = rnd() < 0.3 ? '#FFE9C4' : '#EAF0FF'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+    // 우유 달 (작게)
+    const mx = W - SAF.r - Math.min(70, W * 0.14), my = contentTop + 28; if (my < floorY - 120) { blob(mx, my, 46, 'rgba(255,248,225,.18)'); c.fillStyle = '#FFF8E6'; c.beginPath(); c.arc(mx, my, 13, 0, TAU); c.fill(); c.fillStyle = 'rgba(29,34,102,.9)'; c.beginPath(); c.arc(mx + 6, my - 4, 11, 0, TAU); c.fill(); }
+    // 탁자 (파스텔 보라 천)
+    const ty = floorY - 2, tg = c.createLinearGradient(0, ty, 0, H); tg.addColorStop(0, '#5C5BB0'); tg.addColorStop(1, '#3E3D8A');
+    c.fillStyle = tg; c.fillRect(0, ty, W, H - ty);
+    c.fillStyle = 'rgba(255,255,255,.22)'; c.fillRect(0, ty, W, 2);
+    c.fillStyle = 'rgba(255,255,255,.05)'; for (let x = -20; x < W + 20; x += 26) c.fillRect(x, ty + 2, 10, H - ty);
+  }
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    wide = W > H * 1.1;
+    const lowTop = wide && W < 760;                    // 낮은 가로 화면: 점수판을 위 줄 가운데에
+    const hudTop = lowTop ? SAF.t + 16 : SAF.t + 62;
+    hud.style.top = hudTop + 'px'; hud.style.left = (W / 2 + (SAF.l - SAF.r) / 2) + 'px';
+    const goalTop = lowTop ? SAF.t + 60 : hudTop + 40;
+    goal.style.top = goalTop + 'px';
+    contentTop = goalTop + 42;
+    floorY = H - SAF.b - (wide ? 12 : clamp(H * 0.07, 18, 60));
+    bar.setTitle(lowTop ? '' : W < 350 ? '계량천재' : TITLE);
+    const L0 = SAF.l + 6, R0 = W - SAF.r - 6, avH = floorY - contentTop;
+    LR = W < 360 ? 34 : 40;
+    let k = clamp(Math.min(W * 0.34, avH * (lowTop ? 0.42 : 0.5), 210), 76, 210), s = 0;   // 낮은 가로 화면은 콩이를 조금 작게 해 그릇을 키운다
+    for (let i = 0; i < 14; i++) {
+      const sH = (avH - 0.74 * k - 16) / 2.6, sW = Math.min((R0 - L0 - LR - 0.92 * k) / 1.18, (R0 - L0 - LR) / 2.04);   // 그릇 왼쪽 끝도 화면 안에
+      s = Math.min(sH, sW, 175);
+      if (s >= k * 0.42 || k <= 76) break;
+      k = Math.max(76, k * 0.92);
+    }
+    S = Math.max(26, s); KSZ = k;
+    const need = 2.6 * S + 0.74 * KSZ + 16;   // 가장 키 큰 그릇 + 발판 위 콩이까지
+    if (avH - need > 60) { floorY -= Math.min((avH - need) * 0.45, H * 0.2); }
+    const leftW = Math.max(0.18 * S + 0.92 * KSZ, S * 1.02), totalW = leftW + S * 1.0 + LR;
+    BX = L0 + Math.max(0, (R0 - L0) - totalW) / 2 + leftW;
+    K.setSize(KSZ); K.setPose('sit'); K.render({ t: 0 }); K.place(0, 0, 1); const m = K.mouth(); MO = { x: m.x, y: m.y };
+    // 발판·콩이를 그릇 밖으로 비키면 왼쪽으로 간다 → 어느 그릇·병에서도 콩이와 발판이 화면 안에 들게 그릇을 오른쪽으로 민다 (모자라면 그릇을 조금 줄인다)
+    for (let it = 0; it < 12; it++) {
+      let mn = 1e9; for (const id of SHAPE_IDS) for (const bt of BOTTLES) { const t = { sh: SHAPES[id], bt }; cupLayout(t); mn = Math.min(mn, kT.x - KONG_HW * KSZ, kT.x + t.stoolDx - STOOL_R * KSZ); }
+      const need = L0 - mn; if (need <= 0) break;
+      const room = R0 - (BX + S * 1.02 + LR);
+      if (room >= need) { BX += need; break; }
+      BX += Math.max(0, room); S = Math.max(26, S * 0.95);
+    }
+    for (const c of [cv, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    buildBg();
+    if (cup) { cupLayout(cup); buildBowl(cup.sh); kc.x = kT.x; kc.y = kT.y; sdx = cup.stoolDx; }
+    else { const sh = SHAPES.cup; cupLayout({ sh, bt: BOTTLES[1] }); kc.x = kT.x; kc.y = kT.y; }
+    paintGoal(true);
+  }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  // 잔마다: 병 끝이 그릇 입구(pour) 위에 오게 콩이 자리·병 각도·발판 높이를 정한다
+  //   병은 콩이 입에 물려 있고, 다 기울였을 때(θf) 끝이 줄기 자리 위에 온다. 입이 너무 낮으면 콩이가 발판에 올라선다
+  function cupLayout(c) {
+    const sh = c.sh, L = KSZ * 0.6 * c.bt.size, top = floorY - sh.Hs * S;
+    const tx = BX + sh.pour * S, ty = top - (10 + 0.22 * S);
+    let th = 35 * Math.PI / 180, len = L;
+    let gx = tx - len * Math.cos(th), gy = ty - len * Math.sin(th);
+    let ky = gy - MO.y;
+    if (ky > floorY) {   // 바닥에 앉아도 입이 충분히 높다 → 병을 더 숙인다
+      ky = floorY; gy = ky + MO.y; const dv = ty - gy;
+      th = Math.asin(clamp(dv / len, Math.sin(20 * Math.PI / 180), Math.sin(62 * Math.PI / 180)));
+      if (dv > len * Math.sin(62 * Math.PI / 180)) len = dv / Math.sin(62 * Math.PI / 180);
+      gx = tx - len * Math.cos(th);
+    }
+    // 발판(앉판·다리)이 유리 그릇 안을 지나가지 않게: 발판 오른쪽 끝이 그 높이 그릇 왼쪽 벽보다 왼쪽에 와야 한다
+    //   먼저 발판만 콩이 밑에서 왼쪽으로 비킨다(콩이는 앉판 오른쪽에 앉는다). 그래도 모자라면 콩이를 비키고 병을 늘린다
+    c.stoolDx = 0;
+    if (floorY - ky >= 3) {
+      const yTop = Math.min(sh.Hs, (floorY - ky) / S); let wall = 1e9;
+      for (let i = 0; i <= 30; i++) wall = Math.min(wall, BX + sh.left(yTop * i / 30) * S);
+      const ov = gx - MO.x + STOOL_R * KSZ + 5 - wall, sh1 = Math.min(Math.max(0, ov), (STOOL_R - 0.08) * KSZ);
+      c.stoolDx = -sh1;
+      if (ov > sh1) { gx -= ov - sh1; len = Math.hypot(tx - gx, ty - gy); th = Math.atan2(ty - gy, tx - gx); }
+    }
+    c.L = len; c.thF = th; c.thR = th - 0.5; c.tip = { x: tx, y: ty };
+    kT.x = gx - MO.x; kT.y = ky;
+  }
+
+  // ═══════ 그릇 그리기 ═══════
+  const BONE_C = [[-0.5, 0.47], [0.5, 0.47], [-0.5, 2.25], [0.5, 2.25]];   // 뼈다귀 동그라미 넷의 가운데
+  const toS = (x, Y, bx) => ({ x: bx + x * S, y: floorY - Y * S });
+  function shapePath(c, sh, bx, by) {   // by: 바닥 y (화면)
+    c.beginPath();
+    if (sh.hw) {
+      const n = 48;
+      for (let i = 0; i <= n; i++) { const Y = i / n * sh.Hs; const x = bx - sh.hw(Y) * S, y = by - Y * S; if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+      for (let i = n; i >= 0; i--) { const Y = i / n * sh.Hs; c.lineTo(bx + sh.hw(Y) * S, by - Y * S); }
+      c.closePath();
+    } else {   // 뼈다귀: 동그라미 넷 + 가운데 막대 (같은 방향이라 합쳐 칠해진다)
+      const r = 0.47 * S;
+      for (const [cx, cy] of BONE_C) { c.moveTo(bx + cx * S + r, by - cy * S); c.arc(bx + cx * S, by - cy * S, r, 0, TAU); }
+      c.rect(bx - 0.3 * S, by - 2.25 * S, 0.6 * S, 1.78 * S);
+    }
+  }
+  const PAD = 14;
+  function buildBowl(sh) {
+    const lw = clamp(S * 0.05, 2.5, 5);
+    const bw = 2 * S * 1.06 + PAD * 2, bh = sh.Hs * S + PAD * 2;
+    bimg.width = Math.round(bw * DPR); bimg.height = Math.round(bh * DPR);
+    const c = bgc; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, bw, bh);
+    const bx = bw / 2, by = bh - PAD, top = by - sh.Hs * S;
+    bimg.ox = bx; bimg.oy = by;
+    // 그림자
+    c.fillStyle = 'rgba(10,12,40,.28)'; c.beginPath(); c.ellipse(bx, by + 2, (sh.hw ? sh.hw(0) : 0.97) * S + 6, 5, 0, 0, TAU); c.fill();
+    // 바깥 테두리만 남기기: 굵게 그은 뒤 안쪽을 지운다 (뼈다귀처럼 겹친 모양도 안쪽 선이 남지 않게). 입구 위로는 자른다
+    c.save(); c.beginPath(); c.rect(0, top, bw, bh); c.clip();
+    shapePath(c, sh, bx, by); c.lineJoin = 'round'; c.lineWidth = lw * 3.4; c.strokeStyle = sh.col; c.stroke();   // 바깥 절반(1.7·lw)만 남는다
+    c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000';   // 지우개는 불투명해야 한다 (그림자 색 .28 이 남아 있으면 28% 만 지워져 안쪽 선이 남는다)
+    if (sh.hw) { shapePath(c, sh, bx, by); c.fill(); }
+    else {   // 뼈다귀: 조각마다 따로 지운다 (합친 경로 하나로 지우면 막대 가장자리 선이 남는다)
+      const r = 0.47 * S;
+      for (const [cx, cy] of BONE_C) { c.beginPath(); c.arc(bx + cx * S, by - cy * S, r, 0, TAU); c.fill(); }
+      c.beginPath(); c.rect(bx - 0.3 * S, by - 2.25 * S, 0.6 * S, 1.78 * S); c.fill();
+    }
+    c.globalCompositeOperation = 'source-over';
+    shapePath(c, sh, bx, by); c.fillStyle = 'rgba(225,235,255,.13)'; c.fill();
+    // 유리 반짝임 (왼쪽 안쪽)
+    c.save(); shapePath(c, sh, bx, by); c.clip();
+    c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineCap = 'round'; c.lineWidth = Math.max(3, S * 0.07);
+    if (sh.hw) {
+      c.beginPath();
+      for (let i = 0; i <= 10; i++) { const Y = sh.Hs * (0.2 + 0.62 * i / 10), x = bx + (sh.left(Y) + 0.16) * S, y = by - Y * S; if (i) c.lineTo(x, y); else c.moveTo(x, y); }
+      c.stroke();
+    } else {   // 뼈다귀: 왼쪽 동그라미마다 짧은 호
+      for (const [cx, cy] of BONE_C) if (cx < 0) { c.beginPath(); c.arc(bx + cx * S, by - cy * S, 0.47 * S - Math.max(4, S * 0.13), Math.PI * 0.82, Math.PI * 1.22); c.stroke(); }
+    }
+    c.restore();
+    c.restore();
+    // 입구 테두리 (위에서 살짝 내려다본 타원)
+    for (const [a, b] of sh.mouths) {
+      const cx = bx + (a + b) / 2 * S, rx = (b - a) / 2 * S + lw * 0.5, ry = Math.max(3, rx * 0.16);
+      c.fillStyle = 'rgba(255,255,255,.08)'; c.beginPath(); c.ellipse(cx, top, rx, ry, 0, 0, TAU); c.fill();
+      c.strokeStyle = sh.col; c.lineWidth = lw * 0.9; c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 1.2; c.beginPath(); c.ellipse(cx, top, rx - lw * 0.4, ry - 1, 0, Math.PI * 1.08, Math.PI * 1.9); c.stroke();
+    }
+  }
+  // 눈금: 칸 크기는 그릇 높이에 맞춰 (평균 9px 이상), 숫자는 큰 칸마다
+  function tickSteps(sh) {
+    const px = sh.Hs * S, list = D.step ? [25, 50, 100] : [10, 25, 50, 100];
+    let minor = list[list.length - 1]; for (const m of list) if (px / (sh.cap / m) >= 9) { minor = m; break; }
+    return { minor, major: minor === 10 ? 50 : minor * 2 };
+  }
+
+  // ═══════ 한 잔 만들기 ═══════
+  function newCup() {
+    let id = !cups && !misses && !poured ? 'cup' : pick(SHAPE_IDS.filter(k => k !== lastShape)); lastShape = id;
+    const sh = SHAPES[id], bt = !poured ? BOTTLES[1] : pick(BOTTLES);
+    const q = lvQ(lv) * bt.rate, wob = lvWob(lv), ts = tickSteps(sh);
+    const tol0 = Math.max(lvTol(lv) * sh.cap, D.win * lvLate(lv) / 2 * q * (1 + wob));
+    const unit = D.step ? ts.minor : 10;
+    // 목표 높이에서 TOL_PX 에 해당하는 양 (그릇이 작게 그려지는 화면에서만 띠를 넓힌다)
+    const pxTol = t => { const Y = levelOf(sh, t), d = TOL_PX / S; return (mlAt(sh, Math.min(sh.Hs, Y + d)) - mlAt(sh, Math.max(0, Y - d))) / 2; };
+    let target = 0, tol = tol0;
+    for (let i = 0; i < 30; i++) {
+      target = Math.round(rand(0.32, 0.8) * sh.cap / unit) * unit;
+      tol = Math.max(tol0, pxTol(target));
+      if (target - tol > sh.cap * 0.14 && target + tol < sh.cap * 0.93) break;
+    }
+    cup = { id, sh, bt, cap: sh.cap, target, tol, q, wob, wf: rand(0.55, 0.95), wph: rand(0, TAU), tail: D.tail * bt.tail, vol: 0, tilt: 0, qNow: 0, pourT: 0, tailV: 0, tailDone: 0, flash: D.band === 'flash' ? lvFlash(lv) : 0, res: null, err: 0, spill: 0, slide: 1, tick: ts };
+    cupLayout(cup); buildBowl(sh);
+    phase = 'enter'; phaseT = 0; drops = [];
+    paintGoal(true); paintHud();
+    tone(620, 0.06, 'sine', 0.035);
+  }
+  const bandOn = () => cup && (D.band === 'on' || (D.band === 'flash' && phase !== 'enter' && cup.flash > 0) || phase === 'judge');
+  const qAt = c => c.q * c.tilt * (1 + c.wob * Math.sin(TAU * c.wf * c.pourT + c.wph));
+
+  // ═══════ 누르기 · 떼기 ═══════
+  function press() {
+    if (state !== 'play' || held) return false;
+    held = true;
+    if (phase !== 'aim') return false;   // 그릇이 들어오는 중·판정 중에 누른 것은 뗄 때까지 무시
+    held = 'pour'; phase = 'pour'; phaseT = 0; cup.pourT = 0; cup.tilt = 0; KG.unlockAudio();
+    tone(420, 0.06, 'sine', 0.03);
+    return true;
+  }
+  function release() {
+    held = false; holdId = null; holdKey = false;
+    if (state !== 'play' || phase !== 'pour') return;
+    if (cup.pourT < TAP_MIN) {   // 너무 짧게 누름 → 없던 일 (흘린 한두 방울도 지운다)
+      cup.vol = 0; cup.tilt = 0; phase = 'aim'; phaseT = 0; drops = [];
+      addFloat(BX, floorY - cup.sh.Hs * S * 0.5, '꾹 누르고 있어요', '#FFE08A'); return;
+    }
+    cup.tailV = cup.qNow * cup.tail; cup.tailDone = 0; phase = 'tail'; phaseT = 0;
+    poured++;
+  }
+  // 사용자가 하지 않은 멈춤(화면 가림·창 초점 빠짐·일시정지): 따르던 잔은 없던 일로 (하트를 잃지 않고, 멈췄다 이어 따르기도 안 된다)
+  function cancelPour() {
+    if (state === 'play' && phase === 'pour') {
+      const had = cup.vol > 1;
+      cup.vol = 0; cup.tilt = 0; cup.qNow = 0; cup.pourT = 0; phase = 'aim'; phaseT = 0; drops = [];
+      if (had) addFloat(BX, floorY - cup.sh.Hs * S - 24, '처음부터 다시 따라요', '#FFE08A');
+      paintGoal(true);
+    }
+    held = false; holdId = null; holdKey = false;
+  }
+  function spillNow() {
+    cup.vol = cup.cap; cup.spill = 0.001; held = false;
+    if (phase === 'pour') poured++;
+    judge(true);
+  }
+
+  // ═══════ 판정 ═══════
+  function judge(spill) {
+    const c = cup; if (!spill) c.vol = Math.round(c.vol);   // 화면에 보이는 정수 ml 와 판정이 같은 수를 쓴다
+    c.err = c.vol - c.target; const a = Math.abs(c.err);
+    c.res = spill ? 'spill' : a <= c.tol * PERF ? 'perfect' : a <= c.tol ? 'good' : c.err > 0 ? 'over' : 'under';
+    phase = 'judge'; phaseT = 0;
+    const { x: lx, y: ly } = judgeSpot();
+    if (c.res === 'perfect' || c.res === 'good') {
+      cups++; combo++; bestCombo = Math.max(bestCombo, combo);
+      if (c.res === 'perfect') {
+        perfects++; pstreak++;
+        addFloat(lx, ly, '계량천재!', '#FFE08A', true); sfx('power'); setMood('perfect', 1.2);
+        if (pstreak % 3 === 0 && hearts < HEARTS) { hearts++; bumpEl('hudHp'); setTimeout(() => sfx('heart'), 380); addFloat(lx, ly + 26, '♥ 하트 보너스!', '#FFB3C1'); }
+      } else { pstreak = 0; addFloat(lx, ly, pick(['좋아요!', '딱 맞아요!', '잘했어요!']), '#BFF3D2', true); sfx('coin'); setMood('happy', 0.9); }
+      if (combo >= 2) addFloat(lx, ly - 26, combo + '콤보', '#FFFFFF');
+      bumpEl('hudSc');
+      const nl = 1 + Math.floor(cups / LV_EVERY); if (nl > lv) { lv = nl; setTimeout(() => { if (state === 'play') { sfx('match'); addFloat(BX, contentTop + 20, lv + '단계! 조금 더 어려워져요', '#C9D1F2'); } }, 500); }
+    } else {
+      hearts--; combo = 0; pstreak = 0; misses++; bumpEl('hudHp');
+      if (c.res === 'spill') { addFloat(lx, ly, '넘쳤어요!', '#FFB3B8', true); noise(0.4, 0.08, 1200, 300); tone(300, 0.3, 'sine', 0.05, 0, 160); setMood('lick', 1.6); }
+      else if (c.res === 'over') { addFloat(lx, ly, '조금 많아요', '#FFD2A8', true); sfx('wrong'); setMood('lick', 1.4); }
+      else { addFloat(lx, ly, '조금 모자라요', '#C9D1F2', true); sfx('wrong'); setMood('sad', 1.3); }
+    }
+    paintHud(); paintGoal(true);
+  }
+  // 판정 글자 자리: 그릇 위가 기본. 콩이 머리와 겹치거나 위가 좁으면(낮은 가로 화면) 그릇 오른쪽 빈 곳, 그것도 안 되면 그릇 아래쪽 안
+  function judgeSpot() {
+    const top = floorY - cup.sh.Hs * S, hd = K.head(), hr = KSZ * 0.34;
+    let x = BX, y = top - 30 - cup.L * 0.1;
+    const hit = Math.abs(x - hd.x) < 75 + hr && Math.abs(y - hd.y) < hr + 46;
+    if (hit || y - 34 < contentTop) {
+      const rx = BX + cup.sh.maxR * S + 52;   // 눈금 숫자·딱지 오른쪽
+      if (W - SAF.r - 8 - rx >= 130) { x = rx + 65; y = floorY - cup.sh.Hs * S * 0.6; }
+      else { x = BX; y = floorY - Math.min(cup.sh.Hs * S * 0.3, 60); }
+    }
+    return { x, y };
+  }
+  function bumpEl(id) { const e = $(id); if (reduceMotion || !e) return; e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
+  function addFloat(x, y, text, col, big) { floats.push({ x, y, text, col: col || '#fff', life: 1.25, big: !!big }); }
+  function setMood(m, t) { mood = m; moodT = t; }
+
+  // ═══════ 한 걸음 ═══════
+  function update(dt) {
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= dt * 24; if (f.life <= 0) floats.splice(i, 1); }
+    for (let i = drops.length - 1; i >= 0; i--) { const d = drops[i]; d.t += dt; d.vy += 600 * dt; d.x += d.vx * dt; d.y += d.vy * dt; if (d.t > d.life) drops.splice(i, 1); }
+    if (moodT > 0) { moodT -= dt; if (moodT <= 0) mood = 'idle'; }
+    if (state === 'over') { overT -= dt; if (overT <= 0) showResult(); return; }
+    if (state !== 'play' || !cup) return;
+    phaseT += dt;
+    const c = cup;
+    if (phase === 'enter') {
+      c.slide = Math.max(0, 1 - phaseT / ENTER_T);
+      if (phaseT >= ENTER_T) { c.slide = 0; phase = 'aim'; phaseT = 0; }
+    } else if (phase === 'aim') {
+      if (c.flash > 0) c.flash = Math.max(0, c.flash - dt);
+      c.tilt = Math.max(0, c.tilt - dt / RAMP);
+    } else if (phase === 'pour') {
+      if (c.flash > 0) c.flash = Math.max(0, c.flash - dt);
+      c.pourT += dt; c.tilt = Math.min(1, c.tilt + dt / RAMP);
+      c.qNow = qAt(c); c.vol += c.qNow * dt;
+      pourSound(dt);
+      if (c.vol >= c.cap) { spillNow(); return; }
+      if (!held) release();
+    } else if (phase === 'tail') {
+      c.tilt = Math.max(0, c.tilt - dt / RAMP);
+      const f = Math.min(1, phaseT / TAIL_T), add = c.tailV * f - c.tailDone; c.tailDone += add; c.vol += add;
+      if (c.vol >= c.cap) { spillNow(); return; }
+      if (phaseT >= TAIL_T + 0.12) judge(false);
+    } else if (phase === 'judge') {
+      c.tilt = Math.max(0, c.tilt - dt / RAMP);
+      if (c.spill) c.spill = Math.min(1, c.spill + dt / 0.8);
+      const ok = c.res === 'perfect' || c.res === 'good';
+      if (phaseT >= (ok ? JUDGE_OK : JUDGE_BAD)) { if (hearts <= 0) finish(); else newCup(); }
+    }
+    paintGoal(false);
+  }
+  function pourSound(dt) {
+    gurgleT -= dt; if (gurgleT > 0) return; gurgleT = 0.075;
+    const fill = clamp(cup.vol / cup.cap, 0, 1), qn = clamp(cup.qNow / 120, 0, 1.3);
+    noise(0.09, 0.02 + 0.025 * qn, 1300 + 1800 * fill, 900 + 1500 * fill);
+    if (Math.random() < 0.45) tone(260 + 520 * fill + rand(-20, 20), 0.07, 'sine', 0.018);   // 차오를수록 소리가 높아진다
+  }
+
+  // ═══════ 그리기 ═══════
+  function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  const bowlX = () => BX + (cup ? easeIn(cup.slide) * (W * 0.7) : 0);
+  const easeIn = u => u * u;
+  function draw() {
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+    fg.setTransform(1, 0, 0, 1, 0, 0); fg.clearRect(0, 0, fx.width, fx.height);
+    g.setTransform(DPR, 0, 0, DPR, 0, 0); fg.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawStool();
+    if (cup && state !== 'ready') drawBowl();
+    drawKong();
+    const c = fg; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    if (cup && state !== 'ready') { drawTicks(c); drawStream(c); }
+    drawBottle(c);
+    for (const d of drops) { c.globalAlpha = clamp(1 - d.t / d.life, 0, 1); c.fillStyle = '#FFFDF5'; c.beginPath(); c.arc(d.x, d.y, d.r, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+    if (cup && state === 'play' && phase === 'aim') {
+      const msg = held === true && phaseT > 0.15 ? '손을 뗐다가 다시 꾹 눌러요'   // 판정 중에 누른 손가락을 그대로 누르고 있을 때
+        : !poured && !misses ? null
+        : D.band === 'flash' && cup.flash > 0 && cups + misses < 2 ? '목표선을 잘 봐 두세요!'
+        : D.band === 'none' && cups + misses < 2 ? '목표 숫자를 눈금에서 찾아요' : '';
+      if (msg === null) drawHint(c);
+      else if (msg) { const p = hintSpot(1, pillW(c, msg, 13)); pill(c, msg, p.x, p.y, 13); }
+    }
+    for (const f of floats) {
+      c.font = '700 ' + (f.big ? 19 : 14) + 'px ' + FONT; c.globalAlpha = Math.min(1, f.life / 0.35);
+      const tw = c.measureText(f.text).width / 2 + 6, x = clamp(f.x, tw + SAF.l, W - tw - SAF.r), y = Math.max(contentTop - 6, f.y);
+      c.strokeStyle = 'rgba(12,16,48,.75)'; c.lineWidth = 4; c.strokeText(f.text, x, y); c.fillStyle = f.col; c.fillText(f.text, x, y);
+    }
+    c.globalAlpha = 1;
+  }
+  function drawStool() {
+    const h = floorY - kc.y; if (h < 3) return;
+    sdx += ((cup ? cup.stoolDx || 0 : 0) - sdx) * (1 - Math.exp(-dtFrame * 9));
+    const cx = kc.x + sdx, kc0 = kc;   // 발판 가운데 (콩이 밑에서 왼쪽으로 비켜 있을 수 있다)
+    { const kc = { x: cx, y: kc0.y };
+    const w = KSZ * STOOL_R * 2, x = kc.x - w / 2, th = Math.min(h, clamp(KSZ * 0.09, 8, 16));
+    if (h > th + 4) {   // 다리 두 개와 가로대
+      const lw = clamp(KSZ * 0.06, 5, 11);
+      g.fillStyle = '#E9A86E';
+      for (const s of [-1, 1]) { g.beginPath(); g.moveTo(kc.x + s * w * 0.3 - lw / 2, kc.y + th - 1); g.lineTo(kc.x + s * w * 0.3 + lw / 2, kc.y + th - 1); g.lineTo(kc.x + s * w * 0.42 + lw / 2, floorY); g.lineTo(kc.x + s * w * 0.42 - lw / 2, floorY); g.closePath(); g.fill(); }
+      const ys = [0.55]; if (h > 90) ys.push(0.3);
+      for (const f of ys) { const y = kc.y + th + (h - th) * f, sp = w * (0.3 + 0.12 * f) + lw * 0.2; rr(g, kc.x - sp, y - lw * 0.35, sp * 2, lw * 0.7, lw * 0.35); g.fill(); }
+    }
+    g.fillStyle = '#FFD6A5'; rr(g, x, kc.y - 1, w, th + 1, Math.min(8, th / 2)); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.45)'; rr(g, x + 6, kc.y + 1, w - 12, Math.max(2, th * 0.25), 2); g.fill();
+    g.fillStyle = 'rgba(176,100,40,.25)'; g.fillRect(x + 4, kc.y + th - 2, w - 8, 2);
+    }
+  }
+  let sdx = 0;
+  function liquidY() { return cup.spill ? cup.sh.Hs : levelOf(cup.sh, cup.vol); }
+  function drawBowl() {
+    const c = g, sh = cup.sh, bx = bowlX(), by = floorY;
+    c.drawImage(bimg, bx - bimg.ox, by - bimg.oy, bimg.width / DPR, bimg.height / DPR);
+    // 넘친 우유: 입구에서 그릇 바깥 벽을 따라 흘러내려 탁자에 조금 고인다
+    if (cup.spill) {
+      const u = cup.spill, lw = clamp(S * 0.05, 2.5, 5);
+      c.strokeStyle = '#FFFDF5'; c.fillStyle = '#FFFDF5'; c.lineCap = 'round'; c.lineJoin = 'round';
+      for (const side of [-1, 1]) for (const [k, f, w] of [[1, 1, 1], [0.55, 0.8, 0.8]]) {
+        const len = sh.Hs * 0.6 * Math.min(1, u * 1.5) * k * (side > 0 ? 0.9 : 1); if (len < 0.02) continue;
+        c.lineWidth = clamp(S * 0.04, 2.5, 5) * w; c.beginPath(); let ex = 0, ey = 0;
+        for (let i = 0; i <= 16; i++) { const Y = sh.Hs - len * i / 16, e = side > 0 ? sh.right(Y) : -sh.left(Y); ex = bx + side * (e * f * S + (f === 1 ? lw : 0)); ey = by - Y * S; if (i) c.lineTo(ex, ey); else c.moveTo(ex, ey); }
+        c.stroke(); c.beginPath(); c.arc(ex, ey + 1, c.lineWidth * 0.75, 0, TAU); c.fill();
+      }
+      if (u > 0.5) { const pu = (u - 0.5) * 2; for (const side of [-1, 1]) { const e = side > 0 ? sh.right(0.02) : -sh.left(0.02); c.beginPath(); c.ellipse(bx + side * (e * S + S * 0.12), by + 2, S * 0.3 * pu + 2, 2 + 2.5 * pu, 0, 0, TAU); c.fill(); } }
+    }
+    // 우유
+    const lvY = liquidY();
+    if (cup.vol > 0.05) {
+      const ys = by - lvY * S;
+      c.save(); shapePath(c, sh, bx, by); c.clip();
+      const lg = c.createLinearGradient(0, ys, 0, by); lg.addColorStop(0, '#FFFFFF'); lg.addColorStop(1, '#F1E7D6');
+      c.fillStyle = lg; c.fillRect(bx - S * 1.1, ys, S * 2.2, by - ys + 4);
+      // 수면: 판정·눈금·목표선과 같은 높이(ys)에 밝은 직선. 둥근 그릇은 아주 얇은 타원을 옅게 곁들인다 (타원 윗선이 수위보다 높아 보이지 않게 3px 까지만)
+      const wob = phase === 'pour' && !reduceMotion ? Math.sin(tAnim * 18) * 0.6 : 0;
+      if (sh.round) { const rx = sh.hw(lvY) * S, ry = Math.min(3, Math.max(1, rx * 0.05)); c.fillStyle = 'rgba(255,250,238,.9)'; c.beginPath(); c.ellipse(bx, ys + ry * 0.6, rx, ry, 0, 0, TAU); c.fill(); }
+      c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.beginPath(); c.moveTo(bx - S * 1.05, ys + wob); c.lineTo(bx + S * 1.05, ys + wob); c.stroke();
+      // 줄기가 떨어지는 곳의 물결
+      if ((phase === 'pour' || phase === 'tail') && !reduceMotion) { const px = bx + sh.pour * S, k = (tAnim * 3) % 1; c.strokeStyle = 'rgba(200,185,160,' + (0.6 * (1 - k)).toFixed(2) + ')'; c.lineWidth = 1.2; c.beginPath(); c.ellipse(px, ys, 4 + k * S * 0.3, 1 + k * 3, 0, 0, TAU); c.stroke(); }
+      c.restore();
+    }
+    // 목표 띠
+    const showBand = bandOn();
+    if (showBand) {
+      const a = levelOf(sh, cup.target - cup.tol), b = levelOf(sh, cup.target + cup.tol), t = levelOf(sh, cup.target);
+      const al = D.band === 'flash' && phase !== 'judge' && cup.flash < 0.4 ? cup.flash / 0.4 : 1;
+      c.save(); c.globalAlpha = al; shapePath(c, sh, bx, by); c.clip();
+      c.fillStyle = 'rgba(92,214,150,.32)'; c.fillRect(bx - S * 1.1, by - b * S, S * 2.2, (b - a) * S);
+      c.restore();
+      c.save(); c.globalAlpha = al; c.strokeStyle = '#5CD696'; c.lineWidth = 2; c.setLineDash([6, 4]);
+      const yt = by - t * S; c.beginPath(); c.moveTo(bx + sh.left(t) * S - 8, yt); c.lineTo(bx + sh.right(t) * S + 8, yt); c.stroke(); c.restore();
+    }
+    // 판정: 따른 높이를 줄로
+    if (phase === 'judge' && !cup.spill) {
+      const ok = cup.res === 'perfect' || cup.res === 'good', ys = by - lvY * S;
+      c.strokeStyle = cup.res === 'perfect' ? '#FFC861' : ok ? '#FFFFFF' : '#FF8E9A'; c.lineWidth = 2.5;
+      c.beginPath(); c.moveTo(bx + sh.left(lvY) * S - 10, ys); c.lineTo(bx + sh.right(lvY) * S + 10, ys); c.stroke();
+    }
+  }
+  function drawTicks(c) {
+    const sh = cup.sh, bx = bowlX(), by = floorY, ts = cup.tick, rx = bx + sh.maxR * S + 9;
+    const fs = W < 360 ? 10 : 11;
+    c.strokeStyle = 'rgba(255,255,255,.45)'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(rx, by - levelOf(sh, ts.minor) * S); c.lineTo(rx, by - sh.Hs * S); c.stroke();
+    // 딱지(목표·따른 양)가 놓일 높이: 그 언저리 눈금 숫자는 딱지에 가려지므로 그리지 않는다
+    const tagT = bandOn() ? by - levelOf(sh, cup.target) * S : null;
+    let tagV = null;
+    if (phase === 'judge' && !cup.spill) { const ty = by - levelOf(sh, cup.target) * S, y0 = by - liquidY() * S; tagV = Math.abs(y0 - ty) < 20 ? ty + (y0 <= ty ? -20 : 20) : y0; }
+    const covered = y => (tagT !== null && Math.abs(y - tagT) < 9 + fs * 0.6 + 2) || (tagV !== null && Math.abs(y - tagV) < 9 + fs * 0.6 + 2);
+    c.font = '600 ' + fs + 'px ' + FONT; c.textAlign = 'left'; c.fillStyle = 'rgba(255,255,255,.85)';
+    let lastY = 1e9;
+    for (let m = ts.minor; m < sh.cap; m += ts.minor) {
+      const Y = levelOf(sh, m), y = by - Y * S, major = m % ts.major === 0;
+      c.strokeStyle = major ? 'rgba(255,255,255,.85)' : 'rgba(255,255,255,.45)';
+      c.beginPath(); c.moveTo(rx - (major ? 7 : 4), y); c.lineTo(rx, y); c.stroke();
+      // 유리 위 짧은 눈금 (어느 높이인지 이어 보이게)
+      const ex = bx + sh.right(Y) * S; c.beginPath(); c.moveTo(ex - (major ? 7 : 4), y); c.lineTo(ex - 1, y); c.stroke();
+      if (major && lastY - y >= fs + 2 && !covered(y)) { c.fillText(String(m), rx + 4, y); lastY = y; }
+    }
+    c.textAlign = 'center';
+    // 목표 딱지 (띠가 보일 때)
+    if (bandOn()) {
+      const al = D.band === 'flash' && phase !== 'judge' && cup.flash < 0.4 ? cup.flash / 0.4 : 1;
+      const y = by - levelOf(sh, cup.target) * S;
+      c.globalAlpha = al; c.font = '700 12px ' + FONT; const t = String(cup.target), tw = c.measureText(t).width + 12, x = Math.min(rx + 2 + tw / 2, W - SAF.r - tw / 2 - 2);
+      c.fillStyle = '#5CD696'; rr(c, x - tw / 2, y - 9, tw, 18, 9); c.fill(); c.fillStyle = '#0E3B26'; c.fillText(t, x, y + 0.5); c.globalAlpha = 1;
+    }
+    if (phase === 'judge' && !cup.spill) {
+      const ok = cup.res === 'perfect' || cup.res === 'good', y = tagV;   // 목표 딱지와 겹치지 않게 비켜 놓은 높이
+      c.font = '700 12px ' + FONT; const t = fmt(cup.vol), tw = c.measureText(t).width + 12, x = Math.min(rx + 2 + tw / 2, W - SAF.r - tw / 2 - 2);
+      c.fillStyle = cup.res === 'perfect' ? '#FFC861' : ok ? '#FFFFFF' : '#FF8E9A'; rr(c, x - tw / 2, y - 9, tw, 18, 9); c.fill(); c.fillStyle = '#191F28'; c.fillText(t, x, y + 0.5);
+    }
+  }
+  // 병: 콩이 입(그립)에서 오른쪽 아래로. tilt 가 오를수록 더 숙여진다. 흐름이 출렁이면 병도 같이 출렁
+  function bottlePose() {
+    const c = cup || { thR: 0.1, thF: 0.6, L: KSZ * 0.6, tilt: 0, bt: BOTTLES[1] };
+    const m = K.mouth(), jig = cup && phase === 'pour' && c.wob ? c.wob * Math.sin(TAU * c.wf * c.pourT + c.wph) * 0.25 : 0;
+    const th = lerp(c.thR, c.thF, c.tilt) + jig * c.tilt;
+    return { gx: m.x, gy: m.y, th, L: c.L, tip: { x: m.x + Math.cos(th) * c.L, y: m.y + Math.sin(th) * c.L } };
+  }
+  function drawBottle(c) {
+    if (!cup && state === 'ready') return;
+    const holding = K.rig.pose === 'sit';
+    const bt = cup ? cup.bt : BOTTLES[1];
+    let p;
+    if (holding) p = bottlePose();
+    else { const L = cup ? cup.L : KSZ * 0.6; p = { gx: Math.max(SAF.l + L * 0.2, kc.x - KSZ * 0.42), gy: kc.y - 2, th: -Math.PI / 2, L }; }   // 핥는 동안: 옆에 세워 둔다
+    const L = p.L;
+    c.save(); c.translate(p.gx, p.gy); c.rotate(p.th);
+    const x0 = -L * 0.14, x1 = L * 0.6, x2 = L * 0.78, x3 = L * 0.97, hb = L * 0.16, hn = L * 0.07;
+    // 몸통·어깨·목
+    c.beginPath(); c.moveTo(x0 + hb * 0.5, -hb); c.lineTo(x1, -hb); c.quadraticCurveTo(x2 - L * 0.04, -hb, x2, -hn); c.lineTo(x3, -hn); c.lineTo(x3, hn); c.lineTo(x2, hn); c.quadraticCurveTo(x2 - L * 0.04, hb, x1, hb); c.lineTo(x0 + hb * 0.5, hb); c.quadraticCurveTo(x0, hb, x0, 0); c.quadraticCurveTo(x0, -hb, x0 + hb * 0.5, -hb); c.closePath();
+    c.fillStyle = 'rgba(245,250,255,.92)'; c.fill(); c.strokeStyle = '#C3D0EE'; c.lineWidth = 1.6; c.stroke();
+    // 안의 우유 (아래쪽이 늘 차 있게: 병을 숙여도 몸통 아래 반)
+    c.save(); c.clip(); c.fillStyle = '#FFFFFF'; c.fillRect(x0, -hb * 0.15, x1 - x0 + L * 0.1, hb * 1.2); c.restore();
+    // 띠지 (병마다 색)
+    c.fillStyle = bt.col; c.fillRect(x0 + L * 0.2, -hb + 1, L * 0.26, hb * 2 - 2);
+    c.fillStyle = 'rgba(255,255,255,.85)'; c.beginPath(); c.arc(x0 + L * 0.33, 0, hb * 0.32, 0, TAU); c.fill();
+    c.fillStyle = bt.col; c.beginPath(); c.arc(x0 + L * 0.33, hb * 0.06, hb * 0.13, 0, TAU); c.fill();
+    for (const [dx, dy] of [[-0.18, -0.16], [0, -0.24], [0.18, -0.16]]) { c.beginPath(); c.arc(x0 + L * 0.33 + dx * hb, dy * hb, hb * 0.06, 0, TAU); c.fill(); }
+    // 입구 고리
+    c.fillStyle = '#E3EAF8'; rr(c, x3 - L * 0.04, -hn * 1.35, L * 0.06, hn * 2.7, 2); c.fill();
+    // 반짝임
+    c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 2; c.lineCap = 'round'; c.beginPath(); c.moveTo(x0 + L * 0.06, -hb * 0.62); c.lineTo(x1 - L * 0.06, -hb * 0.62); c.stroke();
+    c.restore();
+  }
+  function drawStream(c) {
+    const cc = cup; if (!(phase === 'pour' || phase === 'tail') || K.rig.pose !== 'sit') return;
+    const p = bottlePose(), sh = cc.sh, bx = bowlX();
+    const surf = floorY - Math.max(liquidY(), sh.floor) * S, x = bx + sh.pour * S;
+    const qn = phase === 'pour' ? clamp(cc.qNow / 110, 0.1, 1.4) : clamp((cc.tailV / Math.max(0.001, cc.tail)) / 110, 0.1, 1.4);
+    const w = clamp(S * 0.05, 2, 5) * (0.5 + 0.7 * qn);
+    let y0 = p.tip.y;
+    if (phase === 'tail') y0 = lerp(p.tip.y, surf, Math.min(1, phaseT / TAIL_T));   // 뗀 뒤: 줄기 꼬리가 떨어진다
+    if (phase === 'pour' && cc.tilt < 1) y0 = p.tip.y;
+    if (surf - y0 < 2) return;
+    const sx = phase === 'tail' ? x : p.tip.x;
+    c.strokeStyle = '#FFFDF5'; c.lineCap = 'round'; c.lineWidth = w;
+    c.beginPath(); c.moveTo(sx, y0); c.quadraticCurveTo(lerp(sx, x, 0.9), lerp(y0, surf, 0.25), x, surf); c.stroke();
+    c.strokeStyle = 'rgba(210,200,180,.5)'; c.lineWidth = 1; c.stroke();
+    for (let k = 0; k < frameN; k++)   // 솎아 건너뛴 프레임만큼 물방울 시도도 몰아서 한다(원래 빈도 유지)
+      if (!reduceMotion && Math.random() < 0.35 && drops.length < 30) drops.push({ x, y: surf - 2, vx: rand(-60, 60), vy: rand(-140, -60), r: rand(1, 2.2), t: 0, life: 0.35 });
+  }
+  // 안내 알약·손가락 원은 목표 띠(초록 띠·점선·딱지)를 가리지 않는 곳에 둔다
+  //   1) 그릇 오른쪽(눈금 숫자·딱지 너머)에 자리가 있으면 거기 2) 아니면 그릇 안에서 띠 위·아래 중 넓은 쪽 3) 그것도 좁으면 그릇 아래 탁자 위
+  function bandSpan() {   // 띠가 차지하는 화면 y 범위 (띠가 안 보이는 단계라도 비워 둔다: 눈금으로 목표를 찾는 자리)
+    const sh = cup.sh, a = floorY - levelOf(sh, cup.target - cup.tol) * S, b = floorY - levelOf(sh, cup.target + cup.tol) * S;
+    return [b - 12, a + 12];
+  }
+  function hintSpot(lines, wMax) {   // lines: 알약 줄 수 → 알약 첫 줄 가운데 (x, y)
+    const h = 27 * lines + 6 * (lines - 1), sh = cup.sh, top = floorY - sh.Hs * S, [b0, b1] = bandSpan();
+    const rx = BX + sh.maxR * S + 58;
+    if (W - SAF.r - 8 - rx >= wMax) return { x: rx + wMax / 2, y: clamp((b0 + b1) / 2 - h / 2 + 13, contentTop + 14, floorY - h) };
+    const upR = b0 - top, dnR = floorY - b1;
+    if (Math.max(upR, dnR) >= h + 8) return upR >= dnR ? { x: BX, y: top + (upR - h) / 2 + 13 } : { x: BX, y: b1 + (dnR - h) / 2 + 13 };
+    return { x: BX, y: Math.min(floorY + 18, H - SAF.b - h + 6) };
+  }
+  function drawHint(c) {
+    const sub = D.band === 'flash' ? '목표선은 잠깐만 보여요' : D.band === 'none' ? '목표 숫자를 눈금에서 찾아요' : '';
+    const w = Math.max(pillW(c, '화면을 꾹 누르고 있어요', 14), sub ? pillW(c, sub, 13) : 0);
+    const p = hintSpot(sub ? 2 : 1, w);
+    pill(c, '화면을 꾹 누르고 있어요', p.x, p.y, 14);
+    if (sub) pill(c, sub, p.x, p.y + 33, 13);
+    // 손가락 원: 띠와 겹치지 않는 그릇 안 빈 곳 (알약이 쓴 쪽 말고). 자리가 없으면 그리지 않는다
+    const sh = cup.sh, top = floorY - sh.Hs * S, [b0, b1] = bandSpan(), R = 19, u = reduceMotion ? 0.5 : (tAnim % 1.4) / 1.4;
+    const pTop = p.y - 14, pBot = p.y + (sub ? 33 : 0) + 14, inBowl = p.x === BX;
+    const free = [[top + 4, b0], [b1, floorY - 4]].filter(([a, b]) => b - a >= 2 * R + 6 && !(inBowl && pBot > a && pTop < b));
+    if (!free.length) return;
+    const [a, b] = free[0], cy = (a + b) / 2, r = 10 + 8 * (u < 0.5 ? u * 2 : 1);
+    c.globalAlpha = 0.9; c.fillStyle = 'rgba(255,255,255,.3)'; c.beginPath(); c.arc(BX, cy, r, 0, TAU); c.fill();
+    c.fillStyle = '#fff'; c.beginPath(); c.arc(BX, cy, 7, 0, TAU); c.fill(); c.globalAlpha = 1;
+  }
+  function pillW(c, txt, size) { c.font = '600 ' + (size || 13) + 'px ' + FONT; return c.measureText(txt).width + 22; }
+  function pill(c, txt, x, y, size) {
+    const tw = pillW(c, txt, size), h = (size || 13) + 13;
+    x = clamp(x, tw / 2 + 6 + SAF.l, W - tw / 2 - 6 - SAF.r); y = clamp(y, h / 2 + 4, H - h / 2 - 4 - SAF.b);
+    c.fillStyle = 'rgba(18,22,52,.78)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, x, y + 0.5);
+  }
+  function drawKong() {
+    const e = 1 - Math.exp(-dtFrame * 9); kc.x += (kT.x - kc.x) * e; kc.y += (kT.y - kc.y) * e;
+    const won = state === 'result' && cups > 0, lick = mood === 'lick', happy = mood === 'happy' || mood === 'perfect', sad = mood === 'sad';
+    const pose = lick && K.has('eat') ? 'eat' : won && K.has('wave') ? 'wave' : 'sit';
+    if (K.rig.pose !== pose) K.setPose(pose);
+    // 보는 곳: 수면(따르는 중) → 그릇
+    let lx = 0.5, ly = 0.4;
+    if (cup) { const hd = K.head(), sy = floorY - (cup.vol > 0 ? liquidY() : cup.sh.Hs * 0.5) * S; lx = clamp((bowlX() - hd.x) / 120, -1, 1); ly = clamp((sy - hd.y) / 120, -1, 1); }
+    const pouring = phase === 'pour' && state === 'play', hopT = mood === 'perfect' ? clamp(moodT / 1.2, 0, 1) : mood === 'happy' ? clamp(moodT / 0.9, 0, 1) : 0;
+    K.render({ t: tAnim, eyes: sad ? 'closed' : happy || won ? 'happy' : 'open', mouth: lick ? 'open' : 'closed', look: sad ? [0, 0.6] : [lx, ly],
+      tilt: sad ? -8 : pouring ? 4 : happy ? Math.sin(tAnim * 8) * 4 : Math.sin(tAnim * 1.2) * 2,
+      hop: reduceMotion ? 0 : Math.sin(hopT * Math.PI) * (mood === 'perfect' ? 30 : 18), earLift: sad ? -8 : happy ? 7 : pouring ? 4 : 0,
+      nod: lick && !reduceMotion ? Math.sin(tAnim * 14) * 3 : 0,
+      tailAmp: sad ? 3 : happy || won || lick ? 22 : pouring ? 6 : 12, tailRate: happy || won ? 3.6 : 2.2, blush: happy || won || lick ? 1 : 0 });
+    K.place(kc.x, kc.y, 1);
+    if (lick && !reduceMotion && Math.random() < dtFrame * 2.2) { const m = K.mouth(); addFloat(m.x + rand(-10, 10), m.y - 12, '할짝', '#FFE9F0'); noise(0.05, 0.05, 2400, 1600); }
+  }
+  let last = 0, dtFrame = 0, dtSum = 0, frameN = 1, skipN = 0;
+  // 절전: 놀이 중이 아니면(시작·멈춤·결과 카드) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다
+  let calmKey = '', calmAt = 0, drawnAt = -1e9;
+  function calmSkip(now) {
+    const key = state + '|' + W + 'x' + H;
+    if (key !== calmKey) { calmKey = key; calmAt = now; }
+    if ((state !== 'ready' && state !== 'pause' && state !== 'result') || now - calmAt < 1000 || now - drawnAt >= 200) { drawnAt = now; return false; }
+    return true;
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; dtSum += dt; skipN++;
+    if (state !== 'pause') { tAnim += dt; update(dt); }
+    if (calmSkip(now)) return;
+    dtFrame = dtSum; dtSum = 0; frameN = skipN; skipN = 0;   // 건너뛴 프레임의 시간은 다음 그리기에 몰아 준다
+    draw();
+  }
+
+  // ═══════ 점수판 · 목표 줄 ═══════
+  function paintHud() {
+    $('hudScore').textContent = fmt(cups); $('hudLv').textContent = lv;
+    [...$('hudHp').children].forEach((e, i) => e.classList.toggle('off', i >= hearts));
+  }
+  function paintGoal(force) {
+    if (!cup || state === 'ready' || state === 'result') { goal.hidden = true; lastGoal = ''; return; }
+    const c = cup, narrow = W < 380;
+    let html, cls = '';
+    if (phase === 'judge') {
+      const ok = c.res === 'perfect' || c.res === 'good', d = Math.round(c.vol) - c.target;
+      cls = 'res ' + (ok ? 'ok' : 'bad');
+      html = c.res === 'spill' ? '<span>목표 <b>' + c.target + '</b>ml</span><i class="sep"></i><span><b class="v">넘쳤어요</b></span>'
+        : '<span>목표 <b>' + c.target + '</b>ml</span><i class="sep"></i><span>따른 양 <b class="v">' + fmt(c.vol) + '</b>ml' + (narrow ? '' : ' (' + (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d) + ')') + '</span>';
+    } else {
+      const live = D.live && (phase === 'pour' || phase === 'tail' || c.vol > 0);
+      html = '<span>목표 <b>' + c.target + '</b>ml</span>' + (live ? '<i class="sep"></i><span class="now">지금 <b>' + fmt(c.vol) + '</b>ml</span>' : '')
+        + '<i class="sep"></i><span class="bt">' + (narrow && live ? '' : c.bt.name + ' ') + '💧'.repeat(c.bt.drops) + '</span>';
+    }
+    const key = cls + html; if (!force && key === lastGoal) return; lastGoal = key;
+    goal.className = cls; goal.innerHTML = html; goal.hidden = false;
+  }
+
+  // ═══════ 흐름 ═══════
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    cups = 0; hearts = HEARTS; lv = 1; combo = 0; bestCombo = 0; perfects = 0; pstreak = 0; poured = 0; misses = 0; quit = false; isNew = false;
+    floats = []; drops = []; mood = 'idle'; moodT = 0; held = false; holdId = null; holdKey = false; lastShape = '';
+    state = 'play'; newCup();
+    showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+  }
+  function pause() {
+    if (state !== 'play') return;
+    cancelPour();   // 따르던 중이면 그 잔은 없던 일로 (멈춤으로 이어 따르기는 안 된다)
+    state = 'pause';
+    $('psText').textContent = '지금 ' + cups + '잔 성공했어요. ' + J(name, '이/가') + ' 우유병을 물고 기다려요.';
+    showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
+  }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = performance.now(); }
+  function finish() {
+    if (state !== 'play') return;
+    state = 'over'; overT = 1.0; btnPause.hidden = true; held = false; goal.hidden = true;
+    sfx('lose');
+  }
+  function end() {   // 「그만하기」: 지금까지 성공한 잔으로 끝낸다
+    if (state === 'pause') { state = 'play'; showCard(null); }
+    if (state !== 'play') return;
+    quit = true; finish(); overT = 0.3;
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now(); paintGoal(true);
+    isNew = cups > 0 && setBest(KG.dkey(KEY, diffId), cups);
+    $('edScore').textContent = fmt(cups); $('edPerf').textContent = perfects + '번'; $('edCombo').textContent = bestCombo + '잔';
+    $('edTitle').textContent = cups >= 20 ? '진짜 계량천재예요!' : quit ? '여기까지 따랐어요' : cups > 0 ? '우유를 다 따랐어요' : '다음엔 꼭 맞춰 봐요';
+    $('edText').textContent = cups > 0 ? J(name, '이/가') + ' 우유 ' + cups + '잔을 맛있게 마셨어요.' + (perfects ? ' 계량천재 ' + perfects + '번!' : '') : '초록 띠 안에서 손을 떼 보세요.';
+    paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    if (isNew) sfx('win');
+  }
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { if (held) cancelPour(); });
+
+  // ═══════ 입력: 화면 어디든 누르고 있기 · 스페이스 누르고 있기 ═══════
+  fx.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    e.preventDefault();
+    if (held) return;
+    try { fx.setPointerCapture(e.pointerId); } catch (err) {}
+    holdId = e.pointerId; press();
+    if (held) holdId = e.pointerId;
+  });
+  const up = e => { if (holdId !== null && e.pointerId === holdId) release(); };
+  fx.addEventListener('pointerup', up); fx.addEventListener('pointercancel', up); fx.addEventListener('lostpointercapture', up);
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (k === ' ' || k === 'Enter') {
+      if (state === 'play') {
+        if (k === 'Enter' && e.target && e.target.closest && e.target.closest('.kg-top a, .kg-top button')) return;   // 위 줄 단추(게임·소리·멈춤)는 Enter 로 쓸 수 있게
+        e.preventDefault(); if (KG.rulesOpen) return;
+        if (k === ' ' && !e.repeat && !held) { press(); if (held) holdKey = true; }
+        return;
+      }
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault(); if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    } else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+  document.addEventListener('keyup', e => { if (e.key === ' ' && holdKey) { e.preventDefault(); release(); } });
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '잔';
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '잔';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+  }
+  function onDiff() { paintBest(); if (state === 'ready') D = DIFF[KG.diff()] || DIFF.normal; }
+  $('stRec').before(KG.diffPicker(null, onDiff));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);
+  KG.startRank($('cardStart'), KEY);
+  diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+  layout(); paintBest(); paintHud();
+  const RULES = { key: KEY, title: TITLE, lead: '목표선에 딱 맞춰 우유를 따르는 놀이예요.', items: [
+    ['👆', '화면을 꾹 누르고 있으면 우유가 나오고, 떼면 멈춰요' + (KEYS_OK ? ' (스페이스도 돼요).' : '.')],
+    ['🎯', '초록 띠 안에서 멈추면 한 잔 성공! 한가운데면 「계량천재!」예요.'],
+    ['💧', '떼고 나서도 조금 더 흘러요. 물방울 표시가 많은 병일수록 많이 흘러요.'],
+    ['💔', '넘치거나 모자라면 하트가 하나 줄어요. 계량천재를 3번 연속하면 하트 하나가 돌아와요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  window.GAME = {
+    DIFF, SHAPES, get state() { return state; }, get phase() { return phase; }, get score() { return cups; }, get hearts() { return hearts; }, get lv() { return lv; },
+    get combo() { return combo; }, get perfects() { return perfects; }, get diff() { return diffId; }, get D() { return D; }, get held() { return held; },
+    cup: () => cup && { id: cup.id, bottle: cup.bt.id, cap: cup.cap, target: cup.target, tol: +cup.tol.toFixed(2), vol: +cup.vol.toFixed(2), q: +cup.q.toFixed(2), qNow: +cup.qNow.toFixed(2), wob: cup.wob, tail: cup.tail, res: cup.res, err: +cup.err.toFixed(2), flash: cup.flash },
+    // 지금 떼면 최종 양 (흘러내림 포함)
+    predict: () => cup ? cup.vol + cup.qNow * cup.tail : 0,
+    field: () => ({ W, H, S, BX, floorY, contentTop, KSZ, kong: { x: kc.x, y: kc.y }, kongT: { x: kT.x, y: kT.y }, L: cup && cup.L, sdx: cup && cup.stoolDx, tip: cup && cup.tip, hud: hud.getBoundingClientRect().toJSON(), goal: goal.getBoundingClientRect().toJSON() }),
+    levelOf: (id, ml) => levelOf(SHAPES[id], ml), mlAt: (id, Y) => mlAt(SHAPES[id], Y),
+    start, end, pause, resume, press, release, over: showResult, bowlImg: () => bimg,
+    step: dt => { tAnim += dt; update(dt); }
+  };
+})();
+</script>
+</body>
+</html>

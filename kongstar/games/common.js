@@ -1,6 +1,6 @@
 // 콩이별 미니게임 공통 — make.js 가 콩이 그림·리그·목소리를 넣어 app/games/common.js 로 만든다 (직접 고칠 파일은 이 common.src.js)
 // 게임 파일(run.html·puzzle.html·shoot.html)과 고르는 화면(index.html)이 <script src="common.js"> 로 함께 쓴다.
-//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), rankBox(결과 카드 순위표), resultActions(결과 카드 단추), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
+//   window.KG = { name, outfit, ribbon, J, best, setBest, GAMES, recKey, rank(가족 순위), rankBox(결과 카드 순위표), resultActions(결과 카드 단추), achv(업적·칭호), master(게임 달인 알림), kong, sfx, tone, noise, voice, unlockAudio, soundOn, setSound, topbar, toast, safe, rand, pick, clamp, lerp, TAU, reduceMotion }
 // 콩이 리그 구동기 — CONTRACT.md 규약을 지킨 SVG 의 부위를 움직인다.
 //   앱(kongstar.html)과 그림 미리보기(preview.js)가 같은 코드를 쓴다 (make.js 가 앱에 합친다).
 //   사용: const rig = new KongRig(svg); rig.setPose('sit'); rig.render({ t, tilt: 8, eyes: 'happy', … })
@@ -451,6 +451,19 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
 @media (max-height:430px), (orientation:landscape) and (max-height:520px) { .kg-alt { height:32px; margin:2px auto -6px; } }   /* 낮은 가로 화면(순위 카드와 나란히 서는 높이 ≤520)도 줄여 카드 아래가 잘리지 않게 */
 @media (max-width:340px) { .kg-card .row.kg-res .kg-again { font-size:16px; } .kg-card .row.kg-res .kg-other { padding:0 12px; } .kg-again svg { display:none; } }
 .kg-rules { z-index:40; background:rgba(8,10,28,.62); }
+/* 결과 카드의 「업적 달성!」 띠 (11-27) — 누르면 업적 화면으로. 낮은 가로 화면은 한 줄로 */
+.kg-achv { display:flex; align-items:center; gap:10px; margin:12px 0 0; padding:10px 12px; border-radius:16px; background:linear-gradient(120deg,#FFF3D1,#FFE3EA); text-align:left; text-decoration:none; color:var(--ink); animation:kgAchv .5s cubic-bezier(.2,.9,.3,1.3); }
+.kg-achv .ai { flex:none; width:42px; height:42px; border-radius:50%; display:grid; place-items:center; font-size:23px; background:linear-gradient(140deg,#FFE7A8,#FFC861); }
+.kg-achv .at { flex:1; min-width:0; }
+.kg-achv small { display:block; font-size:12px; font-weight:700; color:#C0682E; }
+.kg-achv b { display:block; font-size:15px; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kg-achv .t { display:block; font-size:12.5px; line-height:1.35; color:#8A5A62; }
+@keyframes kgAchv { from { transform:scale(.85); opacity:0; } }
+.kg-achv.float { position:fixed; z-index:31; top:calc(var(--sat) + 8px); left:50%; transform:translateX(-50%); margin:0; width:max-content; max-width:calc(100vw - 32px - var(--sal) - var(--sar)); box-sizing:border-box; box-shadow:0 8px 24px rgba(0,0,0,.3); animation:kgAchvF .4s ease-out; transition:opacity .4s; }
+.kg-achv.float.gone { opacity:0; pointer-events:none; }
+@keyframes kgAchvF { from { opacity:0; transform:translate(-50%,-8px); } }
+@media (max-height:520px) { .kg-achv { margin-top:8px; padding:6px 10px; gap:8px; } .kg-achv .ai { width:32px; height:32px; font-size:18px; } .kg-achv .t { display:none; } }
+@media (prefers-reduced-motion: reduce) { .kg-achv { animation:none; } }
 /* 새 버전 띠 (일상 앱과 같은 모양). 게임 고르기·순위 화면은 위 줄 아래, 게임 화면은 카드가 떠 있을 때 흐려진 위 줄 자리에 */
 .kg-upd { position:fixed; z-index:46; left:50%; top:calc(var(--sat) + 62px); transform:translateX(-50%); display:flex; align-items:center; gap:10px; width:max-content; max-width:calc(100vw - 24px - var(--sal) - var(--sar)); box-sizing:border-box; padding:6px 6px 6px 14px; border-radius:18px; background:var(--card); color:var(--ink); box-shadow:0 8px 28px rgba(0,0,0,.3); animation:kgUpdIn .28s cubic-bezier(.2,.85,.25,1); }
 .kg-upd.play { top:calc(var(--sat) + 8px); }
@@ -593,10 +606,15 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { key: 'cross', title: '무단횡단', ico: '🚸', unit: '칸', lower: false, href: 'cross.html' },
     { key: 'pinball', title: '핀볼', ico: '🪩', unit: '점', lower: false, href: 'pinball.html' },
     { key: 'socks', title: '양말도둑', ico: '🧦', unit: '켤레', lower: false, href: 'socks.html' },
+    { key: 'bake', title: '파티시에', ico: '🧁', unit: '개', lower: false, href: 'bake.html' },
+    { key: 'sleep', title: '수면보장', ico: '💤', unit: '밤', lower: false, href: 'sleep.html' },
     { key: 'rhythm', title: '리듬스타', ico: '🎵', unit: '점', lower: false, href: 'rhythm.html' },
+    { key: 'pipe', title: '정비공', ico: '🔧', unit: '단계', lower: false, href: 'pipe.html' },
+    { key: 'pour', title: '계량천재', ico: '🥛', unit: '잔', lower: false, href: 'pour.html' },
     { key: 'hoop', title: '훌라후프', ico: '⭕', unit: '바퀴', lower: false, href: 'hoop.html' },
     { key: 'claw', title: '인형뽑기', ico: '🕹️', unit: '점', lower: false, href: 'claw.html' },
     { key: 'stamp', title: '도장 쾅', ico: '💌', unit: '점', lower: false, href: 'stamp.html' },
+    { key: 'stone', title: '징검다리', ico: '🪷', unit: '개', lower: false, href: 'stone.html' }
   ];
   const recKey = (g, d) => { const k = typeof g === 'string' ? g : g.key; d = d || diffId; return k === 'pairs' ? 'pairs.' + d : dkey(k, d); };
   const RK = { me: 'kongstar.rank.me', cfg: 'kongstar.rank.cfg', dirty: 'kongstar.rank.dirty', last: 'kongstar.rank.last', cache: 'kongstar.rank.cache', seen: 'kongstar.rank.seen' };
@@ -648,7 +666,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     const now = Date.now(), last = +ls.get(RK.last) || 0;
     if (!force && now >= last && now - last < 60000) return Promise.resolve(null);
     ls.set(RK.last, String(now)); syncAgain = false; rankStatus.state = 'sync';
-    syncing = rankCall('PUT', '/me', { id: m.id, name: m.name, recs: myRecs(), key: meKey() }, c).then(r => {
+    syncing = rankCall('PUT', '/me', { id: m.id, name: m.name, recs: myRecs(), key: meKey(), title: myTitleId() }, c).then(r => {   // title: 고른 칭호 id (11-27, 예전 저장소는 모르는 칸이라 무시한다)
       syncing = null; rankStatus.at = Date.now();
       const me = r.ok && r.data && r.data.me && typeof r.data.me === 'object' ? r.data.me : null;
       if (!me) { ls.set(RK.dirty, '1'); ls.set(RK.last, String(Date.now() - 50000)); rankStatus.state = 'fail'; rankStatus.msg = r.ok ? '저장소가 올바르게 답하지 않았어요' : rankMsg(r); rankStatus.code = r.status; return null; }
@@ -677,7 +695,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     for (const p of Array.isArray(list) ? list : []) {
       if (!validPlayer(p) || out.length >= 40) continue; const recs = {}, ts = {};
       for (const [k] of keys) { const v = p.recs && p.recs[k]; if (typeof v === 'number' && isFinite(v) && v > 0) { recs[k] = v; const t = p.ts && p.ts[k]; if (typeof t === 'number' && isFinite(t)) ts[k] = t; } }
-      out.push({ id: p.id.slice(0, 40), name: cleanName(p.name) || '이름 없음', recs, ts, at: typeof p.at === 'number' && isFinite(p.at) ? p.at : 0 });
+      out.push({ id: p.id.slice(0, 40), name: cleanName(p.name) || '이름 없음', recs, ts, at: typeof p.at === 'number' && isFinite(p.at) ? p.at : 0, title: typeof p.title === 'string' && TITLES.some(t => t.id === p.title) ? p.title : '' });
     }
     return out;
   }
@@ -708,10 +726,10 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   }
   // 받은 목록에 이 폰의 기록을 겹친다 (아직 못 올린 새 기록도 내 줄에는 보이게)
   function withMe(players) {
-    const m = rankMe(), list = (players || []).map(p => ({ id: p.id, name: p.name, recs: Object.assign({}, p.recs), ts: Object.assign({}, p.ts), at: p.at }));
+    const m = rankMe(), list = (players || []).map(p => ({ id: p.id, name: p.name, recs: Object.assign({}, p.recs), ts: Object.assign({}, p.ts), at: p.at, title: p.title || '' }));
     if (!m || !m.name) return list;
     let me = list.find(p => p.id === m.id); if (!me) { me = { id: m.id, name: m.name, recs: {}, ts: {}, at: 0 }; list.push(me); }
-    me.name = m.name; const mine = myRecs(), keys = rankKeys();
+    me.name = m.name; me.title = myTitleId(); const mine = myRecs(), keys = rankKeys();   // 내 칭호는 이 폰에서 고른 것이 바로 보이게
     for (const k in mine) { const v = mine[k], cur = me.recs[k]; if (!(cur > 0) || (keys.get(k) ? v < cur : v > cur)) me.recs[k] = v; }
     return list;
   }
@@ -852,7 +870,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
         });
     }
     function show(d, o) {
-      diff = DIFFS.some(x => x.id === d) ? d : diffId; note = (o && o.note) || ''; place(); el.hidden = false; if (!atStart) recPhoto();
+      diff = DIFFS.some(x => x.id === d) ? d : diffId; note = (o && o.note) || ''; place(); el.hidden = false; if (!atStart) { achvEnd(g.key, host || el.previousElementSibling); recPhoto(); }   // achvEnd 는 recPhoto 가 recBase 를 비우기 전에
       const my = ++gen; since = Date.now(); clearInterval(timer); timer = 0;
       const c = rankCache(); paint(c ? c.players : [], rankCfg() && (rankMe() || {}).name ? '순위를 받는 중…' : '');
       if (!rankCfg() || !(rankMe() || {}).name) return;
@@ -894,6 +912,140 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     return { retry: retry || null, other: other || null };
   }
   document.querySelectorAll('.kg-card').forEach(c => { if (c.querySelector('.row #btnAgain')) resultActions(c); });
+  // ── 업적·칭호 (11-27): 이 폰 안에서 계산·저장한다(localStorage). 고른 칭호 하나만 가족 순위 저장소에 같이 올린다(rankSync 의 title)
+  //   기록 업적은 이미 있는 최고 기록으로 소급, 판 수·연속 일수·숨은 업적은 넣은 날부터 센다. 판 끝 신호는 결과 순위 카드(rankBox.show)
+  //   가족 업적은 종합 순위와 같은 Very Hard 칸으로 본다 (받아 둔 순위 cache 기준). 한 번 깬 업적은 순위가 바뀌어도 그대로 둔다
+  const AK = { got: 'kongstar.achv.got', cnt: 'kongstar.achv.cnt', title: 'kongstar.achv.title', since: 'kongstar.achv.since', fresh: 'kongstar.achv.new' };
+  const dayOf = t => { const d = new Date(t); return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000); };
+  // 게임 달인: 결과 카드에 「○○ 달인이에요!」가 뜨는 판. 기록과 같은 값으로 재는 게임은 기록으로 소급(숫자·난이도별 표), 아닌 게임(0)은 그 뒤 달인 판에서 KG.master 로
+  const MASTER = [['claw', { easy: 250, normal: 230, hard: 170, vhard: 130 }], ['pinball', 20000], ['hoop', 60], ['stone', 50], ['cross', 100], ['socks', { easy: 60, normal: 40, hard: 32, vhard: 26 }], ['stamp', 0], ['brick', 0], ['bubble', 0], ['rhythm', 0]];
+  const masters = () => MASTER.filter(([k]) => GAMES.some(g => g.key === k));
+  const recMaster = (k, th) => !!th && DIFFS.some(d => { const t = typeof th === 'number' ? th : th[d.id]; return t > 0 && best(recKey(k, d.id)) >= t; });
+  const ACH = [
+    { id: 'first', g: 'rec', ico: '🐾', nm: '첫 발자국', cd: () => '아무 게임이나 기록 1개', p: x => [x.any, 1] },
+    { id: 'all1', g: 'rec', ico: '🌈', nm: '골고루 콩이\u00a0Ⅰ', cd: () => '서로 다른 게임 10개 기록', p: x => [x.any, Math.min(10, x.n)] },
+    { id: 'all2', g: 'rec', ico: '🌈', nm: '골고루 콩이\u00a0Ⅱ', cd: () => '서로 다른 게임 20개 기록', p: x => [x.any, Math.min(20, x.n)] },
+    { id: 'all3', g: 'rec', ico: '🌈', nm: '골고루 콩이\u00a0Ⅲ', cd: x => '게임 ' + x.n + '개 모두 기록', p: x => [x.any, x.n] },
+    { id: 'vh1', g: 'rec', ico: '🔥', nm: 'Very Hard 입문', cd: () => 'Very Hard 기록 1개', p: x => [x.vh, 1] },
+    { id: 'vh2', g: 'rec', ico: '🔥', nm: 'Very Hard 장인', cd: () => 'Very Hard 기록 10개', p: x => [x.vh, Math.min(10, x.n)] },
+    { id: 'vh3', g: 'rec', ico: '🔥', nm: 'Very Hard 정복', cd: x => '게임 ' + x.n + '개 모두 Very Hard 기록', p: x => [x.vh, x.n] },
+    { id: 'bowl1', g: 'rec', ico: '🥣', nm: '사료그릇 박사\u00a0Ⅰ', cd: () => '사료그릇 50단계 (어느 난이도든)', p: x => [x.bowl, 50], go: 'bowl' },
+    { id: 'bowl2', g: 'rec', ico: '🥣', nm: '사료그릇 박사\u00a0Ⅱ', cd: () => '사료그릇 100단계 (어느 난이도든)', p: x => [x.bowl, 100], go: 'bowl' },
+    { id: 'bowl3', g: 'rec', ico: '🥣', nm: '사료그릇 박사\u00a0Ⅲ', cd: () => '사료그릇 130단계 (어느 난이도든)', p: x => [x.bowl, 130], go: 'bowl' },
+    { id: 'stage', g: 'rec', ico: '🧩', nm: '단계 수집가', cd: x => '단계 게임 ' + x.stg + '종 모두 20단계', p: x => [x.stg20, x.stg] },
+    { id: 'msum', g: 'rec', ico: '👑', nm: '달인 모음', cd: x => '게임 달인 ' + Math.min(5, x.ms) + '개', p: x => [x.mOk, Math.min(5, x.ms)] },
+    { id: 'mall', g: 'rec', ico: '🎖️', nm: '달인 정복', cd: x => '게임 달인 ' + x.ms + '개 모두', p: x => [x.mOk, x.ms] },
+    { id: 'gold1', g: 'fam', ico: '🥇', nm: '첫 금메달', cd: () => '아무 게임에서 가족 1등 (Very Hard)', p: x => [x.fam ? x.fam.first : 0, 1] },
+    { id: 'gold5', g: 'fam', ico: '🏅', nm: '금메달 수집가\u00a0Ⅰ', cd: () => '1등인 게임 5개 (Very Hard)', p: x => [x.fam ? x.fam.first : 0, 5] },
+    { id: 'gold10', g: 'fam', ico: '🏅', nm: '금메달 수집가\u00a0Ⅱ', cd: () => '1등인 게임 10개 (Very Hard)', p: x => [x.fam ? x.fam.first : 0, 10] },
+    { id: 'gold20', g: 'fam', ico: '🏅', nm: '금메달 수집가\u00a0Ⅲ', cd: () => '1등인 게임 20개 (Very Hard)', p: x => [x.fam ? x.fam.first : 0, 20] },
+    { id: 'champ', g: 'fam', ico: '🏆', nm: '콩이별 챔피언', cd: () => '종합 순위 1등', p: x => [x.fam ? x.fam.champ : 0, 1] },
+    { id: 'podium', g: 'fam', ico: '🎗️', nm: '골고루 시상대', cd: () => '10개 게임에서 3등 안 (4명 넘게 한 게임, Very Hard)', p: x => [x.fam ? x.fam.pod : 0, 10] },
+    { id: 'family', g: 'fam', ico: '👨‍👩‍👧', nm: '온 가족 출동', cd: () => '가족 모두가 Very Hard 기록을 남긴 게임 하나', p: x => [x.fam ? x.fam.all : 0, 1] },
+    { id: 'play100', g: 'day', ico: '🎮', nm: '콩이별 단골\u00a0Ⅰ', cd: () => '모두 합쳐 100판', p: x => [x.c.plays, 100] },
+    { id: 'play500', g: 'day', ico: '🎮', nm: '콩이별 단골\u00a0Ⅱ', cd: () => '모두 합쳐 500판', p: x => [x.c.plays, 500] },
+    { id: 'play1000', g: 'day', ico: '🎮', nm: '콩이별 단골\u00a0Ⅲ', cd: () => '모두 합쳐 1,000판', p: x => [x.c.plays, 1000] },
+    { id: 'streak3', g: 'day', ico: '📅', nm: '개근상\u00a0Ⅰ', cd: () => '3일 연속 한 판 이상', p: x => [x.c.sBest, 3] },
+    { id: 'streak7', g: 'day', ico: '📅', nm: '개근상\u00a0Ⅱ', cd: () => '7일 연속 한 판 이상', p: x => [x.c.sBest, 7] },
+    { id: 'streak30', g: 'day', ico: '📅', nm: '개근상\u00a0Ⅲ', cd: () => '30일 연속 한 판 이상', p: x => [x.c.sBest, 30] },
+    { id: 'one100', g: 'day', ico: '🕳️', nm: '한 우물', cd: () => '한 게임만 100판', p: x => [x.one, 100] },
+    { id: 'dayrec', g: 'day', ico: '✨', nm: '오늘도 새 기록', cd: () => '하루에 게임 3개에서 새 기록', p: x => [x.c.dRB, 3] },
+    { id: 'near', g: 'secret', ico: '😮', nm: '아슬아슬', cd: () => '내 최고 기록을 딱 1 차이로 넘기기', p: x => [x.c.near, 1] },
+    { id: 'owl', g: 'secret', ico: '🦉', nm: '올빼미 집사', cd: () => '밤 12시~새벽 4시에 10판', p: x => [x.c.night, 10] },
+    { id: 'again', g: 'secret', ico: '🔁', nm: '다시 한 판만', cd: () => '같은 게임을 쉬지 않고 10판 연속', p: x => [x.c.rBest, 10] },
+    { id: 'explore', g: 'secret', ico: '🧭', nm: '탐험가', cd: () => '하루에 서로 다른 게임 10개', p: x => [x.c.dGB, Math.min(10, x.n)] }
+  ];
+  const TITLES = [
+    { id: 'newbie', ico: '🐣', nm: '새내기 집사', by: 'first' }, { id: 'allround', ico: '🌈', nm: '골고루 집사', by: 'all2' }, { id: 'vhpro', ico: '🔥', nm: 'Very Hard 장인', by: 'vh2' },
+    { id: 'gold', ico: '🥇', nm: '금메달 수집가', by: 'gold10' }, { id: 'bowl', ico: '🥣', nm: '사료그릇 박사', by: 'bowl2' }, { id: 'champ', ico: '🏆', nm: '콩이별 챔피언', by: 'champ' },
+    { id: 'streak', ico: '📅', nm: '개근 집사', by: 'streak7' }, { id: 'owl', ico: '🦉', nm: '올빼미 집사', by: 'owl' }, { id: 'doctor', ico: '📚', nm: '콩이별 박사', by: 'all3' },
+    { id: 'legend', ico: '🌟', nm: '콩이별 전설', by: '' }   // 업적 80% 이상
+  ];
+  const LEGEND = () => Math.ceil(ACH.length * 0.8);
+  const achGot = () => lsJSON(AK.got) || {};
+  function achCnt() { return Object.assign({ plays: 0, per: {}, d: 0, dG: [], dR: [], dGB: 0, dRB: 0, sLast: 0, sN: 0, sBest: 0, night: 0, rG: '', rN: 0, rT: 0, rBest: 0, near: 0 }, lsJSON(AK.cnt) || {}); }
+  function achCtx(got) {
+    got = got || achGot(); const c = achCnt(), mx = g => Math.max(0, ...DIFFS.map(d => best(recKey(g, d.id)))), stg = GAMES.filter(g => g.unit === '단계'), bowlG = GAMES.find(g => g.key === 'bowl'), ms = masters();
+    const x = { c, got, n: GAMES.length, any: GAMES.filter(g => mx(g) > 0).length, vh: GAMES.filter(g => best(recKey(g, 'vhard')) > 0).length, bowl: bowlG ? mx(bowlG) : 0,
+      stg: stg.length, stg20: stg.filter(g => mx(g) >= 20).length, ms: ms.length, mOk: ms.filter(([k]) => got['m:' + k]).length, one: Math.max(0, ...Object.values(c.per || {}).map(v => +v || 0)), fam: null };
+    const me = rankMe(), rc = rankCache();
+    if (rankCfg() && me && me.name && rc) {
+      const ps = withMe(rc.players); let first = 0, pod = 0;
+      for (const g of GAMES) { const rows = board(ps, recKey(g, TOTAL_DIFF), g.lower), r = rows.find(y => y.id === me.id); if (!r) continue; if (rows.length >= 2 && r.rank === 1) first++; if (rows.length >= 4 && r.rank <= 3) pod++; }
+      const st = standings(ps).filter(y => y.played > 0), mine = st.find(y => y.id === me.id), act = ps.filter(p => Object.keys(p.recs).length > 0);
+      let all = 0; if (act.length >= 2 && act.some(p => p.id === me.id)) for (const g of GAMES) { const k = recKey(g, TOTAL_DIFF); if (act.every(p => p.recs[k] > 0)) { all = 1; break; } }
+      x.fam = { first, pod, champ: st.length >= 2 && mine && mine.rank === 1 ? 1 : 0, all };
+    }
+    return x;
+  }
+  // 새로 깬 업적 id 들을 저장하고 돌려준다 (게임 달인 'm:<게임>' 포함)
+  let achPend = [];
+  function achFresh(ids) { if (!ids.length) return; const f = (() => { try { const v = JSON.parse(ls.get(AK.fresh) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } })(); ls.set(AK.fresh, JSON.stringify([...new Set(f.concat(ids))].slice(-60))); }
+  function achEval() {
+    const got = achGot(), now = Date.now(), out = [], t0 = myTitleId();
+    for (const [k, th] of masters()) if (!got['m:' + k] && recMaster(k, th)) { got['m:' + k] = now; out.push('m:' + k); }
+    const x = achCtx(got);
+    for (const a of ACH) { if (got[a.id]) continue; const [v, goal] = a.p(x); if (goal > 0 && v >= goal) { got[a.id] = now; out.push(a.id); } }
+    if (out.length) { ls.set(AK.got, JSON.stringify(got)); achFresh(out); if (myTitleId() !== t0) titleChanged(); }
+    return out;
+  }
+  // 게임이 「달인」 판을 냈을 때 부른다 (결과 카드 띠에 함께 나온다)
+  function masterHit(k) { if (!masters().some(([m]) => m === k)) return; const got = achGot(); if (got['m:' + k]) return; const t0 = myTitleId(); got['m:' + k] = Date.now(); ls.set(AK.got, JSON.stringify(got)); achFresh(['m:' + k]); achPend.push('m:' + k); if (myTitleId() !== t0) titleChanged(); }
+  // 판 하나가 끝났다: 판 수·하루 기록·연속 일수·숨은 업적 세기 (같은 결과를 두 번 띄우면 2.5초 안은 한 번으로)
+  let achLast = { g: '', t: 0 };
+  let achHint = false;   // KG.markNew 로 알린 새 기록 (setBest 를 안 쓰는 puzzle)
+  function achRound(gk, base, hint) {
+    const now = Date.now(), c = achCnt(), d = dayOf(now), keys = rankKeys();
+    c.plays++; c.per[gk] = (c.per[gk] || 0) + 1;
+    if (c.d !== d) { c.d = d; c.dG = []; c.dR = []; }
+    if (!c.dG.includes(gk)) c.dG.push(gk);
+    let rec = false;
+    const stg = new Set(); for (const g of GAMES) if (g.unit === '단계') for (const d of DIFFS) stg.add(recKey(g, d.id));   // 단계 게임은 한 단계씩 오르니 「딱 1 차이」에서 뺀다
+    for (const k in base) { const b = base[k], v = best(k), lower = k.startsWith('pairs.') || !!keys.get(k); if (!(v > 0)) continue; if (b == null || (lower ? v < b : v > b)) { rec = true; if (b > 0 && !stg.has(k) && Math.abs(Math.round(v) - Math.round(b)) === 1) c.near++; } }
+    if ((rec || hint) && !c.dR.includes(gk)) c.dR.push(gk);
+    c.dGB = Math.max(c.dGB, c.dG.length); c.dRB = Math.max(c.dRB, c.dR.length);
+    if (c.sLast !== d) { c.sN = c.sLast === d - 1 ? c.sN + 1 : 1; c.sLast = d; c.sBest = Math.max(c.sBest, c.sN); }
+    if (new Date(now).getHours() < 4) c.night++;
+    if (c.rG === gk && now - c.rT < 15 * 60000) c.rN++; else { c.rG = gk; c.rN = 1; } c.rT = now; c.rBest = Math.max(c.rBest, c.rN);
+    ls.set(AK.cnt, JSON.stringify(c));
+  }
+  const achInfo = id => { if (id.startsWith('m:')) { const g = GAMES.find(x => x.key === id.slice(2)); return g ? { ico: g.ico, nm: g.title + ' 달인' } : null; } const a = ACH.find(x => x.id === id); return a ? { ico: a.ico, nm: a.nm } : null; };
+  function achBanner(card, ids) {
+    const list = ids.map(achInfo).filter(Boolean); if (!list.length || !card || !card.isConnected) return;
+    const t = TITLES.find(x => x.by && ids.includes(x.by));   // 이번에 칭호도 얻었으면 함께 알린다
+    const a = document.createElement('a'); a.className = 'kg-achv'; a.href = 'achv.html'; a.setAttribute('aria-label', '업적 달성: ' + list.map(x => x.nm).join(', ') + ' · 누르면 업적 화면');
+    const ai = document.createElement('span'); ai.className = 'ai'; ai.setAttribute('aria-hidden', 'true'); ai.textContent = list[0].ico;
+    const at = document.createElement('span'); at.className = 'at';
+    const sm = document.createElement('small'); sm.textContent = '🏅 업적 달성!';
+    const b = document.createElement('b'); b.textContent = list[0].nm + (list.length > 1 ? ' 외 ' + (list.length - 1) + '개' : '');
+    const s = document.createElement('span'); s.className = 't'; s.textContent = t ? '칭호 「' + t.nm + '」 획득!' : '눌러서 업적 화면에서 볼 수 있어요';
+    at.appendChild(sm); at.appendChild(b); at.appendChild(s); a.appendChild(ai); a.appendChild(at);
+    if (matchMedia('(orientation: landscape) and (max-height: 520px)').matches) { a.classList.add('float'); document.body.appendChild(a); setTimeout(() => a.classList.add('gone'), 6000); setTimeout(() => a.remove(), 6600); }
+    else {
+      const row = card.querySelector('.row'), b0 = card.getBoundingClientRect().bottom; if (row) row.before(a); else card.appendChild(a);
+      if (card.getBoundingClientRect().bottom > innerHeight && b0 <= innerHeight) { a.classList.add('float'); document.body.appendChild(a); setTimeout(() => a.classList.add('gone'), 6000); setTimeout(() => a.remove(), 6600); }   // 띠 때문에 카드가 화면 아래로 넘치면(좁은 세로 화면의 큰 카드) 위 알약으로
+    }
+    setTimeout(() => sfx('power'), 350);
+  }
+  function achvEnd(gk, card) {
+    const now = Date.now(); if (achLast.g === gk && now - achLast.t < 400) return; achLast = { g: gk, t: now };   // 같은 순간 두 번 부른 것만 하나로 (게임은 판마다 한 번 부른다 — 38개 확인, 다시 하기는 0.45초 막이)
+    if (card && card.querySelectorAll) card.querySelectorAll('.kg-achv').forEach(e => e.remove());
+    document.querySelectorAll('.kg-achv.float').forEach(e => e.remove());
+    const base = Object.assign({}, recBase);
+    setTimeout(() => { try { achRound(gk, base, achHint); achHint = false; const ids = achPend.splice(0).concat(achEval()); if (ids.length && card && card.classList && card.classList.contains('kg-card')) achBanner(card, ids); } catch (e) {} }, 40);   // 게임이 결과 글(달인 등)을 다 쓴 뒤에
+  }
+  // 칭호: 고른 것('-' 는 안 붙이기). 고른 적 없으면 얻은 칭호 중 목록에서 가장 뒤의 것
+  function titlesOwned() { const got = achGot(), n = ACH.filter(a => got[a.id]).length; return TITLES.filter(t => t.by ? !!got[t.by] : n >= LEGEND()); }
+  function myTitle() { const own = titlesOwned(), v = ls.get(AK.title); if (v === '-') return null; return own.find(t => t.id === v) || own[own.length - 1] || null; }
+  function myTitleId() { const t = myTitle(); return t ? t.id : ''; }
+  function titleChanged() { if (!rankCfg()) return; ls.set(RK.dirty, '1'); if (syncing) syncAgain = true; else rankSync(true); }
+  function setTitle(id) { if (id !== '-' && !titlesOwned().some(t => t.id === id)) return false; const t0 = myTitleId(); ls.set(AK.title, id); if (myTitleId() !== t0) titleChanged(); return true; }
+  const titleOf = id => TITLES.find(t => t.id === id) || null;
+  const achNew = () => { try { const v = JSON.parse(ls.get(AK.fresh) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
+  // 처음 한 번: 이미 있는 기록으로 깬 업적을 조용히 채운다 (띠 없이, 업적 화면에 NEW)
+  if (!ls.get(AK.since)) { ls.set(AK.since, String(Date.now())); try { achEval(); } catch (e) {} }
+  const achv = { list: ACH, titles: TITLES, legend: LEGEND, masters: () => masters().map(([k, th]) => ({ key: k, rec: !!th })), got: achGot, cnt: achCnt, ctx: achCtx, eval: achEval, since: () => +ls.get(AK.since) || 0,
+    fresh: achNew, clearFresh: () => lsDel(AK.fresh), owned: titlesOwned, myTitle, setTitle, titleOf, info: achInfo };
   const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName, flush: rankFlush };
   // 밀린 기록: 화면을 열었을 때·앱이 다시 보일 때 (60초에 한 번). 화면을 떠날 때 보내려던 것이 남았으면 바로 보낸다 (keepalive)
   if (rankCfg()) setTimeout(() => { if (ls.get(RK.dirty) === '1') rankSync(false); }, 1500);
@@ -974,5 +1126,5 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   }
 
   const voiceG = (n, delay, vol) => n === 'bark' ? 0 : voice(n, delay, vol);   // 11-23: 게임 속 짖는 소리가 너무 잦다는 요청 → 게임 쪽 짖기는 끄고 신기록 때만(recPhoto)
-  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice: voiceG, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, resultActions, markNew(beat) { recFlag = true; if (beat !== false) recBeat = true; } };
+  window.KG = { name, outfit: share.outfit || 'none', ribbon: !!share.ribbon, J, best, setBest, DIFFS, diff, diffIdx, diffLabel, dkey, setDiff, diffPicker, kong, sfx, tone, noise, voice: voiceG, unlockAudio, get soundOn() { return soundOn; }, setSound, topbar, toast, rules, rulesSeen, get rulesOpen() { return !!rulesEl; }, safe, rand, pick, clamp, lerp, TAU, reduceMotion, GAMES, recKey, rank, rankBox, startRank, resultActions, achv, master: masterHit, markNew(beat) { recFlag = true; achHint = true; if (beat !== false) recBeat = true; } };
 })();

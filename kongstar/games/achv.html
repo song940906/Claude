@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>업적</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 업적·칭호 (11-27): 순위 화면과 같은 결 — 밤하늘 + 흰 카드. 계산은 common.js 의 KG.achv */
+#sky { position: fixed; inset: 0; width: 100%; height: 100%; }
+.wrap { position: fixed; inset: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: calc(var(--sat) + 70px) calc(var(--sar) + 16px) calc(var(--sab) + 28px) calc(var(--sal) + 16px); }
+.inner { max-width: 460px; margin: 0 auto; }
+.head { margin: 6px 4px 12px; }
+.head h1 { margin: 0; font-size: 24px; letter-spacing: -.4px; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.head p { margin: 6px 0 0; font-size: 14px; color: #C9D1F2; }
+.head p b { color: var(--gold); }
+.prog { margin: 10px 4px 0; height: 8px; border-radius: 99px; background: rgba(255,255,255,.14); overflow: hidden; }
+.prog i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #FFC861, #FF9F5A); }
+.panel { background: var(--card); color: var(--ink); border-radius: 20px; padding: 16px; margin-top: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.ptitle { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.ptitle h2 { margin: 0; font-size: 17px; letter-spacing: -.3px; white-space: nowrap; }
+.ptitle span { font-size: 12px; color: var(--sub); text-align: right; }
+.sec { margin: 22px 4px 0; font-size: 13px; font-weight: 600; color: #AEB8E6; }
+/* 칭호 */
+.now { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; background: #FFF6E3; }
+.now.none { background: var(--soft); }
+.now .ic { font-size: 28px; }
+.now b { display: block; font-size: 17px; color: #8A5A00; letter-spacing: -.3px; }
+.now.none b { color: var(--sub); }
+.now small { font-size: 12.5px; color: #9A7A3A; }
+.now.none small { color: var(--sub); }
+.titles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.tt { height: 34px; padding: 0 12px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); font-size: 13.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.tt.on { border-color: #E3A33B; background: #FFF6E3; color: #8A5A00; }
+.tt.lock { color: #B4BBC6; background: var(--soft); border-color: transparent; }
+.tt.off { border-style: dashed; color: var(--sub); }
+/* 배지 */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.bd { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 12px 4px 10px; border: 0; border-radius: 16px; background: var(--soft); color: var(--ink); min-width: 0; }
+.bd:active { filter: brightness(.96); }
+.bd .ic { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 27px; background: linear-gradient(140deg, #FFE7A8, #FFC861); box-shadow: 0 3px 8px rgba(200,140,30,.28); }
+.bd b { margin-top: 8px; font-size: 13px; line-height: 1.3; letter-spacing: -.3px; word-break: keep-all; }
+.bd small { margin-top: 3px; font-size: 11.5px; color: var(--sub); line-height: 1.3; word-break: keep-all; }
+.bd.off .ic { background: #E4E7EE; box-shadow: none; filter: grayscale(1); opacity: .55; }
+.bd.off b { color: #8B95A1; }
+.bd .bar { width: 72%; height: 5px; margin-top: 6px; border-radius: 99px; background: #E1E4EA; overflow: hidden; }
+.bd .bar i { display: block; height: 100%; background: var(--pri); border-radius: 99px; }
+.bd.new::after { content: 'NEW'; position: absolute; top: 6px; right: 6px; padding: 1px 6px; border-radius: 99px; background: #FF5370; color: #fff; font-size: 10px; font-weight: 800; }
+.bd.secret .ic { background: var(--pri); color: #fff; filter: none; opacity: 1; font-size: 22px; font-weight: 800; }
+.masters { margin-top: 10px; padding: 12px; border-radius: 16px; background: var(--soft); }
+.masters .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13.5px; font-weight: 700; }
+.masters .top span { font-size: 12px; color: var(--sub); font-weight: 500; text-align: right; }
+.mi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
+.mi button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; border: 0; background: none; font-size: 10.5px; color: var(--sub); text-align: center; word-break: keep-all; min-width: 0; }
+.mi button em { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 20px; background: linear-gradient(140deg, #FFE7A8, #FFC861); }
+.mi button.off em { background: #E4E7EE; filter: grayscale(1); opacity: .55; }
+.hint { margin: 10px 2px 0; font-size: 12px; line-height: 1.45; color: var(--sub); }
+/* 상세 시트 */
+.sheet .kg-card { text-align: center; }
+.sheet .bigic { width: 84px; height: 84px; margin: 4px auto 10px; border-radius: 50%; display: grid; place-items: center; font-size: 44px; background: linear-gradient(140deg, #FFE7A8, #FFC861); box-shadow: 0 6px 16px rgba(200,140,30,.3); }
+.sheet .bigic.off { background: #E4E7EE; box-shadow: none; filter: grayscale(1); opacity: .7; }
+.sheet .bigic.secret { background: var(--pri); color: #fff; filter: none; opacity: 1; font-weight: 800; font-size: 36px; }
+.sheet .cond { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--soft); font-size: 14px; color: var(--ink); text-align: left; line-height: 1.5; }
+.sheet .cond b { color: var(--pri); }
+.sheet .kg-card .row a.kg-btn { text-decoration: none; }
+@media (max-width: 340px) { .bd b { font-size: 12.5px; } .bd .ic { width: 46px; height: 46px; font-size: 24px; } .tt { font-size: 13px; padding: 0 10px; } }
+@media (min-width: 700px) { .inner { max-width: 560px; } }
+@media (max-height: 430px) { .sheet .kg-card { padding: 14px 18px; } .sheet .bigic { width: 56px; height: 56px; font-size: 30px; margin: 0 auto 6px; } }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="wrap"><div class="inner" id="root"></div></div>
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { achv: A, GAMES, topbar, sfx, toast, rand, TAU, rank } = KG;
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };   // 글은 textContent 로만 넣는다
+  const obj = n => '「' + n + '」' + KG.J(n, '을/를').slice(n.length);   // 「골고루 콩이 Ⅱ」를
+  const md = t => { const d = new Date(t); return (d.getMonth() + 1) + '월 ' + d.getDate() + '일'; };
+  const num = v => Math.round(v).toLocaleString();
+  topbar({ title: '', back: 'index.html' });
+  const GROUPS = [
+    ['rec', '기록 업적', '내 기록으로 깨요', () => '지금 있는 기록도 쳐 줘요'],
+    ['fam', '가족 순위 업적', '가족과 겨뤄요', x => x.fam ? '받아 둔 가족 순위로 봐요' : '가족 순위에 연결하면 열려요'],
+    ['day', '꾸준함 업적', '꾸준히 놀아요', () => { const s = A.since(); return s ? md(s) + '부터 세요' : '오늘부터 세요'; }],
+    ['secret', '숨은 업적', '찾아보세요', () => '깨기 전엔 비밀이에요']
+  ];
+  let fresh = [];
+
+  function badge(a, x, got) {
+    const t = got[a.id], [v, goal] = a.p(x), secret = a.g === 'secret' && !t;
+    const b = el('button', 'bd' + (t ? '' : ' off') + (t && fresh.includes(a.id) ? ' new' : '') + (secret ? ' secret' : '')); b.type = 'button';
+    const ic = el('span', 'ic', secret ? '?' : a.ico); ic.setAttribute('aria-hidden', 'true'); b.appendChild(ic);
+    b.appendChild(el('b', '', secret ? '???' : a.nm));
+    if (t) b.appendChild(el('small', '', md(t)));
+    else if (secret) b.appendChild(el('small', '', '깨면 보여요'));
+    else if (a.g === 'fam' && !x.fam) b.appendChild(el('small', '', '연결하면 열려요'));
+    else { b.appendChild(el('small', '', num(Math.min(v, goal)) + ' / ' + num(goal))); const bar = el('span', 'bar'); bar.appendChild(el('i')).style.width = Math.round(Math.min(1, goal ? v / goal : 0) * 100) + '%'; b.appendChild(bar); }
+    b.setAttribute('aria-label', (secret ? '숨은 업적' : a.nm) + (t ? ', ' + md(t) + ' 깸' : ', 아직 못 깸'));
+    b.addEventListener('click', () => { sfx('tap'); detail(a, x, got); });
+    return b;
+  }
+
+  function paint() {
+    A.eval();
+    const got = A.got(), x = A.ctx(got), all = A.list, n = all.filter(a => got[a.id]).length, own = A.owned(), cur = A.myTitle(), root = $('root');
+    root.textContent = '';
+    const hd = el('div', 'head'); hd.appendChild(el('h1', '', '🏅 업적'));
+    const p = el('p'); p.appendChild(document.createTextNode(all.length + '개 중 ')); p.appendChild(el('b', '', n + '개')); p.appendChild(document.createTextNode(' 깼어요 · 칭호 ' + own.length + '개')); hd.appendChild(p); root.appendChild(hd);
+    const pg = el('div', 'prog'); pg.setAttribute('role', 'progressbar'); pg.setAttribute('aria-valuemin', '0'); pg.setAttribute('aria-valuemax', String(all.length)); pg.setAttribute('aria-valuenow', String(n)); pg.appendChild(el('i')).style.width = Math.round(n / all.length * 100) + '%'; root.appendChild(pg);
+
+    // 내 칭호
+    const tp = el('section', 'panel'), tt = el('div', 'ptitle'); tt.appendChild(el('h2', '', '내 칭호')); tt.appendChild(el('span', '', '순위의 내 이름 아래에 붙어요')); tp.appendChild(tt);
+    const now = el('div', 'now' + (cur ? '' : ' none'));
+    if (cur) { const from = cur.by ? all.find(a => a.id === cur.by) : null; now.appendChild(el('span', 'ic', cur.ico)); const d = el('div'); d.appendChild(el('b', '', cur.nm)); d.appendChild(el('small', '', from ? obj(from.nm) + ' 깨서 얻었어요' : '업적을 ' + A.legend() + '개 넘게 깨서 얻었어요')); now.appendChild(d); }
+    else { now.appendChild(el('span', 'ic', '🏷️')); const d = el('div'); d.appendChild(el('b', '', own.length ? '칭호를 안 붙였어요' : '아직 칭호가 없어요')); d.appendChild(el('small', '', own.length ? '아래에서 하나를 골라 보세요' : '업적을 깨면 칭호를 얻어요')); now.appendChild(d); }
+    tp.appendChild(now);
+    const ts = el('div', 'titles');
+    for (const t of A.titles) {
+      const has = own.some(o => o.id === t.id), src = t.by ? all.find(a => a.id === t.by) : null, hid = !has && src && src.g === 'secret' && !got[src.id];
+      const has_ = has, b = el('button', 'tt' + (cur && cur.id === t.id ? ' on' : has ? '' : ' lock'), has ? t.ico + ' ' + t.nm : hid ? '🔒 숨은 칭호' : '🔒 ' + t.nm); b.type = 'button'; b.dataset.id = t.id;
+      b.addEventListener('click', () => {
+        sfx('tap');
+        if (!has_) { toast(hid ? '숨은 업적을 깨면 얻어요' : src ? obj(src.nm) + ' 깨면 얻어요' : '업적을 ' + A.legend() + '개 넘게 깨면 얻어요'); return; }
+        if (cur && cur.id === t.id) return;
+        A.setTitle(t.id); refocus(t.id); toast('칭호를 「' + t.nm + '」' + KG.J(t.nm, '으로/로').slice(t.nm.length) + ' 바꿨어요');
+      });
+      ts.appendChild(b);
+    }
+    if (own.length) { const b = el('button', 'tt off', '칭호 안 붙이기'); b.type = 'button'; b.dataset.id = '-'; b.addEventListener('click', () => { sfx('tap'); if (!cur) return; A.setTitle('-'); refocus('-'); toast('칭호를 떼었어요'); }); ts.appendChild(b); }
+    tp.appendChild(ts);
+    if (!rank.cfg()) tp.appendChild(el('p', 'hint', '가족 순위에 연결하면 가족에게도 내 칭호가 보여요.'));
+    root.appendChild(tp);
+
+    // 업적 묶음
+    for (const [g, sec, title, sub] of GROUPS) {
+      root.appendChild(el('div', 'sec', sec));
+      const pn = el('section', 'panel'), pt = el('div', 'ptitle'); pt.appendChild(el('h2', '', title)); pt.appendChild(el('span', '', sub(x))); pn.appendChild(pt);
+      const grid = el('div', 'grid'); for (const a of all.filter(y => y.g === g)) grid.appendChild(badge(a, x, got)); pn.appendChild(grid);
+      if (g === 'rec') pn.appendChild(masterBox(got));
+      if (g === 'secret') pn.appendChild(el('p', 'hint', '조건은 깨고 나서야 보여요. 평소와 조금 다르게 놀아 보세요.'));
+      root.appendChild(pn);
+    }
+  }
+
+  function refocus(id) { paint(); const b = document.querySelector('.tt[data-id="' + id + '"]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) {} }
+  function masterBox(got) {
+    const ms = A.masters(), ok = ms.filter(m => got['m:' + m.key]).length, box = el('div', 'masters'), top = el('div', 'top');
+    top.appendChild(document.createTextNode('게임 달인')); top.appendChild(el('span', '', ok + ' / ' + ms.length + ' · 결과 화면에 「달인」이 뜨면')); box.appendChild(top);
+    const mi = el('div', 'mi');
+    for (const m of ms) {
+      const g = GAMES.find(y => y.key === m.key); if (!g) continue;
+      const has = !!got['m:' + m.key], b = el('button', has ? '' : 'off'); b.type = 'button';
+      const e = el('em', '', g.ico); e.setAttribute('aria-hidden', 'true'); b.appendChild(e); b.appendChild(document.createTextNode(g.title));
+      b.setAttribute('aria-label', g.title + ' 달인' + (has ? ', ' + md(got['m:' + m.key]) + ' 깸' : ', 아직 못 깸'));
+      b.addEventListener('click', () => { sfx('tap'); detailMaster(g, has ? got['m:' + m.key] : 0); });
+      mi.appendChild(b);
+    }
+    box.appendChild(mi); return box;
+  }
+
+  // ── 상세 시트
+  let sheetEl = null;
+  function closeSheet() { if (sheetEl) { sheetEl.remove(); sheetEl = null; } }
+  function sheet(icon, cls, title, lead, lines, go) {
+    closeSheet();
+    const scrim = el('div', 'kg-scrim sheet'), card = el('div', 'kg-card'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true'); card.setAttribute('aria-label', title);
+    const bi = el('div', 'bigic' + (cls ? ' ' + cls : ''), icon); bi.setAttribute('aria-hidden', 'true'); card.appendChild(bi);
+    card.appendChild(el('h2', '', title)); card.appendChild(el('p', '', lead));
+    const cd = el('div', 'cond'); lines.forEach((l, i) => { if (i) cd.appendChild(document.createElement('br')); for (const [t, b] of l) cd.appendChild(b ? el('b', '', t) : document.createTextNode(t)); }); card.appendChild(cd);
+    const row = el('div', 'row'), x = el('button', 'kg-btn', '닫기'); x.type = 'button'; x.addEventListener('click', () => { sfx('tap'); closeSheet(); }); row.appendChild(x);
+    if (go) { const a = el('a', 'kg-btn pri', '하러 가기'); a.href = go; row.appendChild(a); }
+    card.appendChild(row); scrim.appendChild(card); document.body.appendChild(scrim); sheetEl = scrim;
+    scrim.addEventListener('click', e => { if (e.target === scrim) closeSheet(); });
+    try { x.focus({ preventScroll: true }); } catch (e) {}
+  }
+  addEventListener('keydown', e => { if (e.key === 'Escape' && sheetEl) closeSheet(); });
+  function detail(a, x, got) {
+    const t = got[a.id], [v, goal] = a.p(x), gg = a.go ? GAMES.find(y => y.key === a.go) : null;
+    if (a.g === 'secret' && !t) { sheet('?', 'secret', '숨은 업적', '아직 못 깼어요', [[['조건은 깨고 나서야 보여요. 평소와 조금 다르게 놀아 보세요.']]]); return; }
+    const lines = [[['조건: '], [a.cd(x)]]];
+    if (t) lines.push([['깬 날: '], [md(t), 1]]);
+    else if (a.g === 'fam' && !x.fam) lines.push([['가족 순위에 연결하고 이름을 정하면 셀 수 있어요']]);
+    else lines.push([['지금: '], [num(Math.min(v, goal)) + ' / ' + num(goal), 1], [' · ' + num(Math.max(0, goal - v)) + ' 남았어요']]);
+    const tl = A.titles.find(y => y.by === a.id); if (tl) lines.push([[t ? '칭호 ' : '깨면 칭호 '], ['「' + tl.nm + '」', 1], [KG.J(tl.nm, '을/를').slice(tl.nm.length) + (t ? ' 얻었어요' : ' 얻어요')]]);
+    sheet(a.ico, t ? '' : 'off', a.nm, t ? '깼어요! 🎉' : '아직 못 깼어요', lines, !t && gg ? gg.href : '');
+  }
+  function detailMaster(g, t) {
+    const lines = [[['조건: 결과 화면에 「' + g.title + ' 달인이에요!」가 뜨는 판']]];
+    if (t) lines.push([['깬 날: '], [md(t), 1]]);
+    sheet(g.ico, t ? '' : 'off', g.title + ' 달인', t ? '깼어요! 🎉' : '아직 못 깼어요', lines, t ? '' : g.href);
+  }
+
+  fresh = A.fresh(); paint(); A.clearFresh();   // NEW 는 이번에 한 번만 보여 준다
+  addEventListener('pageshow', e => { if (e.persisted) { fresh = A.fresh(); paint(); A.clearFresh(); } });
+
+  // ── 밤하늘 (순위 화면과 같음)
+  const cv = $('sky'), c = cv.getContext('2d'); let W = 0, H = 0, stars = [];
+  function layout() {
+    const d = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * d; cv.height = H * d; c.setTransform(d, 0, 0, d, 0, 0);
+    stars = Array.from({ length: Math.round(W * H / 5200) }, () => ({ x: rand(0, W), y: rand(0, H), r: rand(0.5, 1.5), p: rand(0, TAU), s: rand(0.6, 1.8) }));
+  }
+  addEventListener('resize', layout); layout();
+  let last = 0;
+  function frame(ms) {
+    requestAnimationFrame(frame); if (ms - last < 48) return; last = ms; const t = ms / 1000;
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#0B1030'); g.addColorStop(0.6, '#1B2260'); g.addColorStop(1, '#3A3F8F'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    for (const s of stars) { c.globalAlpha = 0.35 + 0.5 * (0.5 + 0.5 * Math.sin(t * s.s + s.p)); c.fillStyle = '#fff'; c.beginPath(); c.arc(s.x, s.y, s.r, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

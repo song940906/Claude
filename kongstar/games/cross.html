@@ -798,6 +798,7 @@ body .kg-top { z-index: 26; }
       pigeon: ['비둘기 떼에 둘러싸였어요', '너무 오래 머뭇거리면 비둘기가 쫓아와요.'] };
     const tt = quit ? ['여기까지 했어요', nm + ' 신나게 건넜어요.'] : T[cause] || T.car;
     $('edTitle').textContent = maxR >= 100 && !quit ? '무단횡단 달인이에요!' : tt[0];
+    if (maxR >= 100 && !quit && KG.master) KG.master('cross');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = maxR > 0 ? tt[1] + (treats ? ' 간식 ' + treats + '개 냠!' : '') : '화면을 누르면 앞으로 한 칸 가요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     K.el.style.opacity = '';

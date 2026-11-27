@@ -787,6 +787,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edScore').textContent = score; $('edDump').textContent = cleared + '개'; $('edSave').textContent = rescued + '짝';
     $('edTitle').textContent = quit ? '여기까지 했어요' : score >= D.praise[0] ? '빨래 정리 달인이에요!' : score >= D.praise[1] ? '뽀송하게 정리했어요!' : '시간이 다 됐어요';
+    if (!quit && score >= D.praise[0] && KG.master) KG.master('socks');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = score > 0 ? '양말 ' + score + '켤레를 바구니에 담았어요.' + (rescued ? ' ' + name + '에게서 ' + rescued + '짝을 되찾았어요.' : '') : '같은 양말 두 짝을 차례로 눌러 보세요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

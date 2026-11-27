@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 수면보장</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 수면보장: 어둑한 방(bg) → 콩이(stage) → 이불·Zzz·손·말풍선(fx, 쓰다듬기 누름도 여기서) → 방 안 물건 단추(objs) → 점수판 순서로 겹친다 */
+#bg, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; touch-action: none; }
+#objs { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+.obj { position: absolute; left: 0; top: 0; box-sizing: border-box; pointer-events: auto; border: 0; padding: 0; border-radius: 50%; background: radial-gradient(circle at 50% 42%, rgba(255,255,255,.17), rgba(255,255,255,.05) 70%); box-shadow: 0 0 0 1px rgba(255,255,255,.13), 0 4px 14px rgba(0,0,0,.25); display: grid; place-items: center; touch-action: manipulation; transition: box-shadow .2s, background .2s; }
+.obj .ico { display: block; line-height: 1; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); transition: transform .2s, opacity .2s; font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif; }
+.obj .ring { position: absolute; inset: -5px; border-radius: inherit; pointer-events: none; opacity: 0; --p: 0; background: conic-gradient(#FFC861 calc(var(--p) * 1turn), rgba(255,200,97,.16) 0); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); }
+.obj .bang { position: absolute; right: -6px; top: -8px; width: 26px; height: 26px; border-radius: 50%; background: #FFC861; color: #3A2A00; font-size: 17px; font-weight: 800; line-height: 26px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.35); opacity: 0; transform: scale(.4); transition: opacity .15s, transform .2s cubic-bezier(.2,1.6,.4,1); pointer-events: none; }
+.obj .k { position: absolute; left: -2px; bottom: -4px; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 4px; box-sizing: border-box; background: rgba(18,22,52,.8); border: 1px solid rgba(255,255,255,.25); color: #DDE3FF; font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; pointer-events: none; }
+.obj.floor::before { content: ''; position: absolute; left: 8%; right: 8%; bottom: -9px; height: 11px; border-radius: 50%; background: rgba(0,0,0,.26); pointer-events: none; }   /* 바닥 물건 그림자 (나온 물건만 보이게 단추에 붙인다) */
+.obj.win { border-radius: 16px; background: transparent; box-shadow: none; }
+.obj.win .ico { opacity: 0; transform: translateY(30%) scale(.7); }
+.obj.win.warn .ico, .obj.win.loud .ico { opacity: 1; transform: none; }
+.obj.warn { background: radial-gradient(circle at 50% 42%, rgba(255,226,160,.42), rgba(255,200,97,.12) 72%); box-shadow: 0 0 0 2px rgba(255,200,97,.9), 0 0 26px rgba(255,200,97,.55); }
+.obj.win.warn { background: rgba(255,226,160,.14); }
+.obj.warn .ring { opacity: 1; }
+.obj.warn .bang { opacity: 1; transform: none; }
+.obj.warn .ico { animation: objShake .32s ease-in-out infinite; }
+.obj.loud { background: radial-gradient(circle at 50% 42%, rgba(255,150,150,.4), rgba(229,72,77,.14) 72%); box-shadow: 0 0 0 2px rgba(255,130,130,.9), 0 0 28px rgba(229,72,77,.6); }
+.obj.loud .ico { animation: objShake .12s linear infinite; }
+.obj.hush { box-shadow: 0 0 0 2px rgba(160,200,255,.85), 0 0 22px rgba(140,180,255,.5); }
+.obj.hush .ico { transform: scale(.88); opacity: .75; }
+.obj:focus { outline: none; }
+.obj:focus-visible { outline: 3px solid #9FB0FF; outline-offset: 3px; }
+@keyframes objShake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-11deg) translateX(-1px); } 75% { transform: rotate(11deg) translateX(1px); } }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; gap: 6px; pointer-events: none; }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; flex: none; }
+#hud .hs { gap: 2px; padding: 0 9px; }
+#hud .hs svg { width: 17px; height: 17px; display: block; transition: transform .25s, opacity .25s; }
+#hud .hs svg.off { opacity: .28; transform: scale(.82); }
+#hud .hs.hurt { animation: hsHurt .5s; }
+@keyframes hsHurt { 0%,100% { transform: none; } 30% { transform: translateX(-4px); } 60% { transform: translateX(4px); } }
+#hud .gg { flex: 1 1 auto; min-width: 96px; padding: 0 8px 0 10px; gap: 7px; }
+#hud .gg small { font-size: 12px; font-weight: 600; color: #C9D1F2; }
+#hud .bar { position: relative; flex: 1; min-width: 40px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.14); overflow: hidden; }
+#hud .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 5px; background: linear-gradient(90deg, #8E9BFF, #C7A8FF 55%, #FFE19A); }
+#hud .gg.peek { border-color: rgba(255,200,97,.8); }
+#hud .gg.peek small { color: #FFE3A6; }
+#hud .gg b { font-size: 15px; line-height: 1; font-family: "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif; }
+#hud.tight { gap: 4px; }
+#hud.tight > div { padding: 0 8px; font-size: 13px; }
+#hud.tight .gg small { display: none; }
+#say { position: fixed; z-index: 10; pointer-events: none; text-align: center; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .2s; }
+#say.show { opacity: 1; transform: none; }
+#say span { display: inline-block; max-width: 100%; box-sizing: border-box; background: rgba(255,255,255,.94); color: var(--ink); font-size: 13.5px; font-weight: 600; letter-spacing: -.3px; line-height: 1.35; padding: 6px 13px; border-radius: 14px; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+body .kg-top .kg-title { pointer-events: none; }
+:focus { outline: none; }
+:focus-visible { outline: 3px solid #9FB0FF; outline-offset: 2px; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .info { margin: 8px 0 0; font-size: 13px; color: var(--sub); }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stInfo { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+}
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면: 카드가 위 줄(게임·소리 단추) 밑에서 시작하게, 결과 카드 높이를 줄인다 */
+@media (orientation: landscape) and (max-height: 360px) {
+  #cardStart, #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+  body .kg-rbwrap > .kg-card #edText { display: none; }
+  body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+  /* 시작 카드: 순위 카드 옆 좁은 폭에서 안내 세 줄이 접혀 「시작」을 밀어내므로 숨긴다(「규칙 보기」로 볼 수 있다) */
+  #cardStart .how { display: none; }
+  body .kg-rbwrap > .kg-card #stRec { margin-top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { .obj.warn .ico, .obj.loud .ico, #hud .hs.hurt { animation: none; } }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="stage"></div>
+<canvas id="fx" role="img" aria-label="콩이가 자는 방 — 콩이를 누르고 있으면 쓰다듬어요"></canvas>
+<div id="objs"></div>
+<div id="say" role="status" aria-live="polite"><span></span></div>
+
+<div id="hud" aria-hidden="true">
+  <div class="hs" id="hudHearts"></div>
+  <div class="nt"><span id="hudNight">1</span><small>번째 밤</small></div>
+  <div class="gg" id="hudGauge"><small id="hudGLabel">졸음</small><div class="bar"><i id="hudFill"></i></div><b>🌙</b></div>
+</div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 수면보장</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p><b id="stHow1"></b> 졸음이 차올라요.</p>
+      <p>물건이 흔들리면 <b>소리 나기 전에 톡</b> 눌러 꺼요.</p>
+      <p><b>실눈을 뜨면 손을 떼고</b> 기다려요.</p>
+    </div>
+    <p class="info" id="stInfo"></p>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">계속하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">콩이가 깨 버렸어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>밤</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="rec"><span>끈 소리<b id="edHush"></b></span><span>쓰다듬기<b id="edPet"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, voice, best, setBest, topbar, safe, rand, pick, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const KEY = 'sleep', TITLE = J(name, '의') + ' 수면보장';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   pet 쓰다듬을 때 1초에 차는 졸음(가득 100) · petMin 밤이 깊어져도 이 배율 아래로는 안 줄어듦 · decay 손을 떼고 있을 때 1초에 빠지는 졸음(실눈 뜰 때는 안 빠짐)
+  //   start 밤을 시작할 때 졸음 · startle 소리를 못 꺼 깜짝 깰 때 빠지는 졸음 · annoyHit 실눈 뜰 때 쓰다듬어 깰 때 빠지는 졸음 · reset 완전히 깬 뒤 다시 시작하는 졸음
+  //   k0 첫 밤 물건 수 · kStep 몇 밤마다 물건이 하나씩 늘까 · warn [첫 밤, 가장 짧은] 예고 시간(초) · gap [첫 밤, 가장 짧은] 소리와 소리 사이(초)
+  //   dualFrom 두 물건이 겹쳐 울리기 시작하는 밤 · dual 그 확률(밤마다 조금씩 오름, dualMax 까지) · first 밤마다 첫 소리까지 쉬는 시간(초)
+  //   peekGap 실눈 사이(초) · toss 실눈 뜨기 전 뒤척이는 시간(미리 알림) · peekDur 실눈 뜨고 있는 시간 · grace 실눈을 뜬 뒤 손을 뗄 여유 · annoyMax 그 뒤로 이만큼 더 쓰다듬으면 깸
+  //   ramp 몇 밤에 걸쳐 가장 어려운 값에 닿나 · heal 몇 밤마다 하트 하나 회복(3개까지)
+  //   lateGap ramp 를 지난 밤마다 소리 사이가 줄어드는 비율(70% 까지) · lateHit 그 뒤 깜짝 깰 때 빠지는 졸음이 밤마다 1씩 늘어 닿는 상한
+  //   (실눈: peekDur 는 grace + annoyMax 보다 넉넉히 길어야 「계속 만지면 깸」이 실제로 일어난다)
+  const DIFF = {
+    easy:   { pet: 10,  petMin: 0.8,  decay: 0.4, start: 30, startle: 22, annoyHit: 18, reset: 30, k0: 2, kStep: 2, warn: [3.4, 2.3], gap: [7.5, 4.2], dualFrom: 7, dual: 0.15, dualMax: 0.3,
+              first: 3.5, peekGap: [10, 15], toss: 0.9, peekDur: 2.3, grace: 0.9, annoyMax: 0.8, ramp: 10, heal: 2, lateGap: 0.025, lateHit: 12 },
+    normal: { pet: 8.5, petMin: 0.75, decay: 0.9, start: 22, startle: 36, annoyHit: 28, reset: 24, k0: 2, kStep: 1, warn: [2.4, 1.5], gap: [5.4, 2.8], dualFrom: 4, dual: 0.25, dualMax: 0.45,
+              first: 2.8, peekGap: [7, 11], toss: 0.7, peekDur: 1.8, grace: 0.6, annoyMax: 0.6, ramp: 9, heal: 3, lateGap: 0.04, lateHit: 20 },
+    hard:   { pet: 7.5, petMin: 0.7,  decay: 1.4, start: 16, startle: 44, annoyHit: 36, reset: 18, k0: 3, kStep: 1, warn: [1.8, 1.15], gap: [4.2, 2.3], dualFrom: 3, dual: 0.35, dualMax: 0.55,
+              first: 2.2, peekGap: [5.5, 9], toss: 0.55, peekDur: 2.0, grace: 0.48, annoyMax: 0.45, ramp: 8, heal: 4, lateGap: 0.025, lateHit: 12 },
+    vhard:  { pet: 7,   petMin: 0.7,  decay: 1.8, start: 12, startle: 50, annoyHit: 44, reset: 14, k0: 4, kStep: 1, warn: [1.5, 1.0], gap: [3.5, 1.9], dualFrom: 2, dual: 0.45, dualMax: 0.65,
+              first: 1.8, peekGap: [4.5, 7.5], toss: 0.45, peekDur: 2.2, grace: 0.4, annoyMax: 0.35, ramp: 8, heal: 5, lateGap: 0.025, lateHit: 12 }
+  };
+  let diffId = 'normal', D = DIFF.normal;   // 판을 시작할 때 한 번 읽어 그 판 동안 그대로
+  const rampT = n => clamp((n - 1) / D.ramp, 0, 1);
+  const warnOf = n => lerp(D.warn[0], D.warn[1], rampT(n));
+  //   ramp 를 지난 밤부터는(late) 소리 사이가 조금씩 더 줄고(70% 까지) 깜짝 깰 때 빠지는 졸음이 밤마다 1씩 는다(+lateHit 까지) — 끝없이 쉬워지지 않게
+  const lateOf = n => Math.max(0, n - 1 - D.ramp);
+  const gapOf = n => lerp(D.gap[0], D.gap[1], rampT(n)) * Math.max(0.7, 1 - lateOf(n) * D.lateGap);
+  const startleOf = n => D.startle + Math.min(D.lateHit, lateOf(n));
+  const kindsOf = n => Math.min(OBJS.length, D.k0 + Math.floor((n - 1) / D.kStep));
+  const dualOf = n => n < D.dualFrom ? 0 : Math.min(D.dualMax, D.dual + (n - D.dualFrom) * 0.03);
+  const petOf = n => D.pet * Math.max(D.petMin, 1 - (n - 1) * 0.025);
+  const HEARTS = 3;
+
+  // ═══════ 방 안 물건: 나오는 차례대로. 창문은 고양이·귀뚜라미 둘 중 하나가 온다 ═══════
+  const OBJS = [
+    { id: 'clock',  name: '알람 시계',     ico: '⏰', word: '따르릉!' },
+    { id: 'window', name: '창밖',          ico: '🐱', win: true, vars: [{ ico: '🐱', name: '창밖 고양이', word: '야옹~' }, { ico: '🦗', name: '창밖 귀뚜라미', word: '찌르르' }] },
+    { id: 'toy',    name: '삑삑이 장난감', ico: '🐤', word: '삑!' },
+    { id: 'phone',  name: '휴대폰',        ico: '📱', word: '드르르' },
+    { id: 'drip',   name: '물방울',        ico: '🚰', word: '똑, 똑' }
+  ];
+  const INTRO_TIP = {
+    clock: '⏰ 시계가 흔들리면 울리기 전에 톡 눌러요',
+    window: '🪟 창밖에 누가 오면 창문을 톡 눌러 쉿!',
+    toy: '🐤 삑삑이가 흔들리면 톡 눌러 조용히',
+    phone: '📱 휴대폰이 떨리기 전에 톡 눌러 꺼요',
+    drip: '🚰 물이 똑똑 떨어지기 전에 수도를 잠가요'
+  };
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '어둑한 방에서 꾸벅꾸벅 조는 ' + J(name, '을/를') + ' 푹 재워 주세요.';
+  $('stHow1').textContent = J(name, '을/를') + ' 꾹 누르고 있으면';
+  const bg = $('bg'), fx = $('fx'), stage = $('stage'), hud = $('hud'), objsEl = $('objs'), sayEl = $('say');
+  const fg = fx.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily, EMO = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  const K = kong(stage, 260);
+  const HEART_SVG = '<svg viewBox="0 0 24 24"><path fill="#FF8FA8" d="M12 20.6s-7.6-4.6-9.3-9.4C1.4 7.6 3.7 4.2 7.2 4.2c2 0 3.6 1.1 4.8 2.8 1.2-1.7 2.8-2.8 4.8-2.8 3.5 0 5.8 3.4 4.5 7-1.7 4.8-9.3 9.4-9.3 9.4z"/></svg>';
+  $('hudHearts').innerHTML = HEART_SVG.repeat(HEARTS);
+
+  // 물건 단추
+  OBJS.forEach((o, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'obj' + (o.win ? ' win' : o.id === 'clock' ? '' : ' floor'); b.hidden = true; b.dataset.i = i;
+    b.innerHTML = '<span class="ring"></span><span class="ico" aria-hidden="true">' + o.ico + '</span><b class="bang" aria-hidden="true">!</b>' + (KEYS_OK ? '<small class="k" aria-hidden="true">' + (i + 1) + '</small>' : '');
+    b.setAttribute('aria-label', o.name);
+    b.addEventListener('pointerdown', e => { if (e.button > 0) return; e.preventDefault(); e.stopPropagation(); tapObj(i); });
+    b.addEventListener('click', e => { if (e.detail === 0) tapObj(i); });   // 키보드(Tab → Enter·Space)로 누른 것
+    objsEl.appendChild(b); o.el = b; o.ring = b.querySelector('.ring'); o.icoEl = b.querySelector('.ico');
+  });
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';            // ready · play · pause · over · result
+  let phase = 'intro';            // (play 안에서) intro 밤 이름 · night 재우는 중 · wake 완전히 깨서 다시 눕는 중 · clear 잠든 연출
+  let mood = 'doze';              // (night 안에서) doze 꾸벅꾸벅 · toss 뒤척임(곧 실눈) · peek 실눈 · startle 깜짝 깸
+  let night = 1, nights = 0, hearts = HEARTS, drowsy = 0, quit = false, isNew = false, overAt = 0;
+  let phaseT = 0, moodT = 0, nextPeek = 0, peekAge = 0, annoy = 0, nextNoise = 0, dualReady = true, simT = 0, tAnim = 0, overT = 0;
+  let hushed = 0, missed = 0, wakes = 0, petTime = 0, peeksOk = 0, healed = false, healPending = false, shield = false;
+  let peekN = 0, lullT = 0, lullI = 0, noteT = 0, zzzT = 0, hurtT = 0, dim = 0, peekSeen = false, petHint = false;
+  let events = [];                // 지금 예고 중인 물건 { i, t, dur, v(창문 변형), born }
+  const loud = [];                // 못 끈 물건의 짧은 소란 { i, t }
+  const pets = new Map();         // 쓰다듬는 손가락 pointerId → { x, y }
+  let petKey = false;             // 스페이스로 쓰다듬기
+  let parts = [], floats = [];
+  let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, wide = false, KS = 260, kx = 0, ky = 0, top0 = 0, floorY = 0, OS = 60;
+  const intro = new Set();        // 이번 판에 이미 소개한 물건
+
+  // ═══════ 화면 맞추기 ═══════
+  //   방 칸(top0 ~ 바닥) 안에 상대 자리로 물건을 둔다. 세로 화면은 위에 창문·시계, 옆 바닥에 나머지. 가로 화면은 콩이 양옆 기둥에
+  const SLOTS = {
+    tall: { window: [0.28, 0.13], clock: [0.79, 0.12], drip: [0.85, 0.42], toy: [0.15, 0.93], phone: [0.85, 0.93] },
+    wide: { window: [0.27, 0.17], clock: [0.74, 0.16], drip: [0.1, 0.52], toy: [0.12, 0.88], phone: [0.88, 0.86] }
+  };
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    wide = W > H * 1.05;
+    const low = wide && H <= 520;
+    let hudTop, hudLeft, hudW;
+    if (low) {   // 낮은 가로 화면: 점수판을 위 줄 가운데(게임 단추와 오른쪽 단추 사이)에
+      const L = SAF.l + 108, R = W - SAF.r - 116; hudLeft = L; hudW = Math.max(200, R - L); hudTop = SAF.t + 16;
+      top0 = SAF.t + 58; bar.setTitle('');
+    } else {
+      hudW = Math.min(W - SAF.l - SAF.r - 24, 440); hudLeft = (W - hudW) / 2; hudTop = SAF.t + 62;
+      top0 = hudTop + 40; bar.setTitle(W < 350 ? '수면보장' : TITLE);
+    }
+    hud.style.top = hudTop + 'px'; hud.style.left = hudLeft + 'px'; hud.style.width = hudW + 'px'; hud.classList.toggle('tight', hudW < 330);
+    if (low) { const sw = Math.max(240, W - SAF.l - SAF.r - 2 * (Math.round(clamp(Math.min(W, H) * 0.15, 52, 80)) + 40)); sayEl.style.left = ((W - sw) / 2) + 'px'; sayEl.style.width = sw + 'px'; sayEl.style.top = (H - SAF.b - 42) + 'px'; }   // 낮은 가로 화면: 창문·시계를 가리지 않게 아래 가운데
+    else { sayEl.style.left = (SAF.l + 12) + 'px'; sayEl.style.width = (W - SAF.l - SAF.r - 24) + 'px'; sayEl.style.top = (top0 + 4) + 'px'; }
+    const rt = low ? top0 : top0 + 38, bot = H - SAF.b - 6, ah = bot - rt;   // 세로 화면은 위에 안내 말풍선 자리(38px)를 비워 둔다 — 말풍선이 창문·시계를 가리지 않게
+    OS = Math.round(clamp(Math.min(W, H) * 0.15, 52, 80));
+    if (wide) {
+      KS = clamp(Math.min(ah * 0.95, W * 0.5), 150, 470);
+      kx = W / 2; ky = rt + ah * 0.86;
+      floorY = rt + ah * 0.42;
+    } else {
+      KS = clamp(Math.min(W * 0.98, ah * 0.62), 150, 470);
+      kx = W / 2; ky = rt + ah * 0.79;
+      floorY = rt + ah * 0.34;
+    }
+    K.setSize(KS);
+    // 물건 자리
+    const sl = SLOTS[wide ? 'wide' : 'tall'];
+    for (const o of OBJS) {
+      const [rx, ry] = sl[o.id], w = o.win ? Math.round(OS * 1.55) : OS, h = o.win ? Math.round(OS * 1.35) : OS;
+      let x = SAF.l + rx * (W - SAF.l - SAF.r), y = rt + ry * ah;
+      x = clamp(x, SAF.l + w / 2 + 10, W - SAF.r - w / 2 - 10); y = clamp(y, rt + h / 2 + 8, bot - h / 2 - 4);
+      o.x = x; o.y = y; o.w = w; o.h = h;
+      const b = o.el; b.style.width = w + 'px'; b.style.height = h + 'px'; b.style.transform = 'translate(' + (x - w / 2).toFixed(1) + 'px,' + (y - h / 2).toFixed(1) + 'px)';
+      o.icoEl.style.fontSize = Math.round(OS * (o.win ? 0.6 : 0.54)) + 'px';
+    }
+    fx.width = Math.round(W * DPR); fx.height = Math.round(H * DPR);
+    buildBg();
+  }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  // ═══════ 그림: 방 ═══════
+  function rr(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function buildBg() {
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const c = bg.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // 벽
+    const wg = c.createLinearGradient(0, 0, 0, floorY); wg.addColorStop(0, '#121738'); wg.addColorStop(1, '#232552');
+    c.fillStyle = wg; c.fillRect(0, 0, W, floorY);
+    // 벽지 무늬: 아주 옅은 별 점
+    const rnd = mulberry32(19);
+    c.fillStyle = 'rgba(200,210,255,.06)';
+    for (let y = 26; y < floorY - 10; y += 34) for (let x = (y / 34 % 2) * 17 + 10; x < W; x += 34) { c.beginPath(); c.arc(x, y, 1.6, 0, TAU); c.fill(); }
+    // 바닥
+    const fgd = c.createLinearGradient(0, floorY, 0, H); fgd.addColorStop(0, '#2C2658'); fgd.addColorStop(1, '#3A2F66');
+    c.fillStyle = fgd; c.fillRect(0, floorY, W, H - floorY);
+    c.fillStyle = 'rgba(255,255,255,.07)'; c.fillRect(0, floorY - 3, W, 3);
+    c.strokeStyle = 'rgba(255,255,255,.035)'; c.lineWidth = 1;
+    for (let i = 1; i < 8; i++) { const y = floorY + (H - floorY) * Math.pow(i / 8, 1.5); c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+    // 창문 (달빛)
+    const wo = OBJS[1], ww = wo.w, wh = wo.h, wx = wo.x - ww / 2, wy = wo.y - wh / 2;
+    // 달빛 줄기: 창문에서 방석 쪽 바닥으로
+    c.save(); c.fillStyle = 'rgba(255,240,200,.055)'; c.beginPath(); c.moveTo(wx + 4, wy + wh); c.lineTo(wx + ww - 4, wy + wh);
+    c.lineTo(kx + KS * 0.38, ky + KS * 0.02); c.lineTo(kx - KS * 0.3, ky + KS * 0.04); c.closePath(); c.fill(); c.restore();
+    const halo = c.createRadialGradient(wo.x, wo.y, 0, wo.x, wo.y, ww * 1.4); halo.addColorStop(0, 'rgba(255,236,190,.16)'); halo.addColorStop(1, 'rgba(255,236,190,0)');
+    c.fillStyle = halo; c.fillRect(wo.x - ww * 1.5, wo.y - ww * 1.5, ww * 3, ww * 3);
+    c.fillStyle = '#4A4486'; rr(c, wx - 6, wy - 6, ww + 12, wh + 12, 14); c.fill();
+    const sg = c.createLinearGradient(0, wy, 0, wy + wh); sg.addColorStop(0, '#0A0F2E'); sg.addColorStop(1, '#25306E');
+    c.fillStyle = sg; rr(c, wx, wy, ww, wh, 10); c.fill();
+    c.save(); rr(c, wx, wy, ww, wh, 10); c.clip();
+    for (let i = 0; i < 14; i++) { c.globalAlpha = 0.4 + rnd() * 0.6; c.fillStyle = '#EEF2FF'; c.beginPath(); c.arc(wx + rnd() * ww, wy + rnd() * wh * 0.8, 0.6 + rnd() * 0.9, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+    const mx = wx + ww * 0.7, my = wy + wh * 0.3, mr = Math.min(ww, wh) * 0.17;
+    const mg = c.createRadialGradient(mx, my, 0, mx, my, mr * 3); mg.addColorStop(0, 'rgba(255,240,200,.45)'); mg.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = mg; c.fillRect(mx - mr * 3, my - mr * 3, mr * 6, mr * 6);
+    c.fillStyle = '#FFF2C8'; c.beginPath(); c.arc(mx, my, mr, 0, TAU); c.fill();
+    c.fillStyle = '#121A48'; c.beginPath(); c.arc(mx + mr * 0.45, my - mr * 0.25, mr * 0.85, 0, TAU); c.fill();   // 초승달
+    // 창밖 담장 (고양이가 앉는 자리)
+    c.fillStyle = '#1A1F4A'; c.fillRect(wx, wy + wh * 0.78, ww, wh * 0.22);
+    c.restore();
+    c.strokeStyle = '#4A4486'; c.lineWidth = 4; c.beginPath(); c.moveTo(wo.x, wy); c.lineTo(wo.x, wy + wh); c.moveTo(wx, wo.y); c.lineTo(wx + ww, wo.y); c.stroke();
+    // 커튼
+    c.fillStyle = 'rgba(155,140,220,.42)';
+    for (const s of [-1, 1]) { const ex = s < 0 ? wx - 8 : wx + ww + 8; c.beginPath(); c.moveTo(ex, wy - 10); c.quadraticCurveTo(ex - s * ww * 0.2, wy + wh * 0.5, ex + s * 4, wy + wh + 16); c.lineTo(ex + s * 12, wy + wh + 16); c.lineTo(ex + s * 12, wy - 10); c.closePath(); c.fill(); }
+    c.fillStyle = '#6B62B0'; rr(c, wx - 22, wy - 14, ww + 44, 6, 3); c.fill();
+    // 시계 선반
+    const co = OBJS[0]; c.fillStyle = '#5A4C8E'; rr(c, co.x - co.w * 0.75, co.y + co.h * 0.5 + 2, co.w * 1.5, 7, 3); c.fill();
+    c.fillStyle = 'rgba(0,0,0,.2)'; c.fillRect(co.x - co.w * 0.7, co.y + co.h * 0.5 + 9, co.w * 1.4, 3);
+    // 깔개 + 방석
+    const rug = c.createRadialGradient(kx, ky, 0, kx, ky, KS * 0.62); rug.addColorStop(0, 'rgba(255,214,170,.14)'); rug.addColorStop(1, 'rgba(255,214,170,0)');
+    c.fillStyle = rug; c.beginPath(); c.ellipse(kx, ky, KS * 0.62, KS * 0.2, 0, 0, TAU); c.fill();
+    const cw = KS * 0.46, ch = KS * 0.11, cy = ky - KS * 0.015;
+    c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(kx, cy + ch * 0.75, cw * 1.02, ch * 0.7, 0, 0, TAU); c.fill();
+    const cg = c.createLinearGradient(0, cy - ch, 0, cy + ch); cg.addColorStop(0, '#D99BB6'); cg.addColorStop(1, '#A86A8C');
+    c.fillStyle = cg; c.beginPath(); c.ellipse(kx, cy, cw, ch, 0, 0, TAU); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.ellipse(kx, cy - ch * 0.35, cw * 0.82, ch * 0.45, 0, 0, TAU); c.fill();
+    // 가장자리 어둡게
+    const vg = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.35, W / 2, H * 0.55, Math.max(W, H) * 0.8); vg.addColorStop(0, 'rgba(5,6,20,0)'); vg.addColorStop(1, 'rgba(5,6,20,.45)');
+    c.fillStyle = vg; c.fillRect(0, 0, W, H);
+  }
+
+  // ═══════ 소리 ═══════
+  const LULL = [392, 330, 392, 440, 392, 330, 294, 330, 262, 294, 330, 392, 330, 294, 262, 196];   // 자장가처럼 느린 오음 음계 (새로 지은 가락)
+  const SOUND = {
+    clock: () => { for (let i = 0; i < 7; i++) tone(i % 2 ? 1180 : 1320, 0.07, 'square', 0.03, i * 0.11); },
+    cat: () => { tone(560, 0.2, 'triangle', 0.06, 0, 840); tone(840, 0.34, 'triangle', 0.06, 0.18, 470); },
+    cricket: () => { for (let i = 0; i < 8; i++) tone(4100, 0.03, 'sine', 0.035, i * 0.045 + (i >= 4 ? 0.16 : 0)); },
+    toy: () => { tone(1300, 0.12, 'square', 0.028, 0, 1950); tone(1950, 0.15, 'square', 0.028, 0.14, 1150); },
+    phone: () => { for (let i = 0; i < 3; i++) { noise(0.22, 0.07, 190, 160, i * 0.32); tone(140, 0.22, 'sawtooth', 0.025, i * 0.32); } },
+    drip: () => { for (let i = 0; i < 3; i++) tone(1750, 0.09, 'sine', 0.07, i * 0.26, 720); }
+  };
+  const soundOf = ev => { const o = OBJS[ev.i]; return o.win ? (ev.v === 0 ? 'cat' : 'cricket') : o.id; };
+
+  // ═══════ 흐름 ═══════
+  const availObjs = () => OBJS.slice(0, kindsOf(night));
+  function paintObjs() {
+    const n = state === 'ready' ? DIFF[KG.diff()].k0 : kindsOf(night);
+    OBJS.forEach((o, i) => { o.el.hidden = i >= n; });
+  }
+  function say(text, ms) { clearTimeout(say.t); if (!text) { sayEl.classList.remove('show'); return; } sayEl.firstElementChild.textContent = text; sayEl.classList.add('show'); if (ms) say.t = setTimeout(() => sayEl.classList.remove('show'), ms); }
+  function startNight() {
+    phase = 'intro'; phaseT = 1.5; mood = 'doze'; moodT = 0; drowsy = D.start; annoy = 0; peekAge = 0;
+    events = []; loud.length = 0; dualReady = true; healed = false; shield = true;
+    nextNoise = D.first + 1.5; nextPeek = rand(D.peekGap[0], D.peekGap[1]) * (night === 1 ? 0.6 : 1);
+    paintObjs(); paintEvents(); paintHud();
+    // 새로 나온 물건 소개 (첫 밤은 쓰다듬기 안내가 먼저)
+    const fresh = availObjs().filter(o => !intro.has(o.id));
+    for (const o of fresh) intro.add(o.id);
+    if (night === 1) say('🤚 ' + J(name, '을/를') + ' 꾹 누르고 있으면 살살 쓰다듬어요', 4200);
+    else if (fresh.length) say(INTRO_TIP[fresh[fresh.length - 1].id], 4200);
+    tone(523, 0.3, 'sine', 0.04); tone(659, 0.4, 'sine', 0.04, 0.18);
+  }
+  function start() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    night = 1; nights = 0; hearts = HEARTS; quit = false; isNew = false; simT = 0;
+    healPending = false; hushed = 0; missed = 0; wakes = 0; petTime = 0; peeksOk = 0; peekSeen = false; petHint = false;
+    parts = []; floats = []; pets.clear(); petKey = false; intro.clear(); dim = 0;
+    state = 'play'; startNight(); paintHud();
+    showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio();
+  }
+  function petting() { return pets.size > 0 || petKey; }
+  function spawnNoise() {
+    const av = availObjs().map((o, i) => i).filter(i => !events.some(e => e.i === i) && !loud.some(l => l.i === i));
+    if (!av.length || events.length >= 2) return false;
+    // 같은 물건만 계속 울리지 않게: 방금 울린 물건은 되도록 피한다
+    let cand = av.filter(i => i !== spawnNoise.last); if (!cand.length) cand = av;
+    const i = pick(cand); spawnNoise.last = i;
+    const o = OBJS[i], ev = { i, t: 0, dur: warnOf(night), v: o.win ? (Math.random() < 0.5 ? 0 : 1) : 0, born: simT };
+    events.push(ev);
+    if (o.win) { o.icoEl.textContent = o.vars[ev.v].ico; }
+    tone(990, 0.05, 'sine', 0.018); tone(1180, 0.06, 'sine', 0.014, 0.07);   // 아주 작은 예고음
+    paintEvents();
+    return true;
+  }
+  function scheduleNoise() {
+    const d = dualOf(night);
+    if (dualReady && d > 0 && Math.random() < d) { nextNoise = rand(0.55, 1.0); dualReady = false; }
+    else { nextNoise = gapOf(night) * rand(0.8, 1.2); dualReady = true; }
+  }
+  function tapObj(i) {
+    if (state !== 'play' || KG.rulesOpen) return;
+    const o = OBJS[i]; if (!o || o.el.hidden) return;
+    const k = events.findIndex(e => e.i === i);
+    if (k < 0) { tone(700, 0.05, 'sine', 0.025); return; }   // 조용한 물건: 그냥 톡
+    events.splice(k, 1); hushed++;
+    noise(0.16, 0.025, 2600, 4200); tone(620, 0.12, 'sine', 0.03, 0.04);
+    o.el.classList.add('hush'); clearTimeout(o.hushT); o.hushT = setTimeout(() => o.el.classList.remove('hush'), 450);
+    floatText(o.x, o.y - o.h * 0.62, '쉿!', '#CFE0FF');
+    drowsy = Math.min(100, drowsy + 1.5);
+    paintEvents();
+  }
+  function missNoise(ev) {
+    const o = OBJS[ev.i]; missed++;
+    SOUND[soundOf(ev)]();
+    loud.push({ i: ev.i, t: 0.9 }); o.el.classList.add('loud');
+    floatText(o.x, o.y - o.h * 0.62, o.win ? o.vars[ev.v].word : o.word, '#FFD0D0');
+    disturb(startleOf(night), 'noise');
+  }
+  // 깜짝 깸: 졸음이 크게 빠진다. 바닥(0)까지 떨어지면 완전히 깨서 하트 -1
+  function disturb(hit, why) {
+    if (phase !== 'night') return;
+    // 밤을 시작하거나 깬 직후의 첫 실수 하나는 완전히 깨우지 않는다(실수 한 번에 하트가 연달아 깎이지 않게)
+    if (drowsy - hit <= 0 && !shield) { fullWake(why); return; }
+    shield = false; drowsy = Math.max(4, drowsy - hit); mood = 'startle'; moodT = 0.95; annoy = 0; dropZ();
+    nextPeek = Math.max(nextPeek, 2.2);
+    tone(330, 0.14, 'triangle', 0.05, 0, 560);
+    if (why === 'annoy') { voice('growl', 0.05, 0.55); say(J(name, '이/가') + ' 귀찮대요. 실눈 뜰 땐 손을 떼요', 2400); }
+    burstAt(kongHead(), 6, '#FFE3A6', 140);
+  }
+  function fullWake(why) {
+    hearts--; wakes++; hurtT = 0.5; $('hudHearts').classList.remove('hurt'); void $('hudHearts').offsetWidth; $('hudHearts').classList.add('hurt');
+    phase = 'wake'; phaseT = 1.9; mood = 'startle'; moodT = 0; drowsy = 0; annoy = 0; dropZ();
+    events = []; paintEvents(); pets.clear(); petKey = false;
+    sfx('lose'); if (why === 'annoy') voice('growl', 0.1, 0.6);
+    floatText(kx, K.toScreen(200, 40).y, hearts > 0 ? J(name, '이/가') + ' 깼어요!' : '잠이 다 달아났어요', '#FFD0D0');
+    paintHud();
+    if (hearts <= 0) gameOver();
+  }
+  function clearNight() {
+    phase = 'clear'; phaseT = 0; mood = 'doze'; events = []; loud.length = 0; paintEvents(); nights++;
+    for (const o of OBJS) o.el.classList.remove('loud');
+    isNew = setBest(KG.dkey(KEY, diffId), nights) || isNew;   // 밤마다 바로 저장 (잠든 연출 중에 나가도 남게)
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.6, 'sine', 0.035, 0.1 + i * 0.22));
+    say('');
+    if (nights % D.heal === 0 && hearts < HEARTS) { hearts++; healed = true; healPending = true; }
+  }
+  function gameOver() {
+    if (state !== 'play') return;
+    state = 'over'; overT = 1.7; btnPause.hidden = true; pets.clear(); petKey = false; events = []; paintEvents(); say('');
+  }
+  function end() {   // 「그만하기」: 지금까지 재운 밤으로 끝낸다
+    if (state === 'pause') { state = 'play'; showCard(null); }
+    if (state !== 'play') return;
+    quit = true; state = 'over'; overT = 0.3; btnPause.hidden = true; pets.clear(); petKey = false; events = []; paintEvents(); say('');
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now();
+    if (nights > 0) isNew = setBest(KG.dkey(KEY, diffId), nights) || isNew;
+    $('edScore').textContent = nights; $('edHush').textContent = hushed + '번'; $('edPet').textContent = Math.round(petTime) + '초';
+    $('edTitle').textContent = quit ? '여기까지 재웠어요' : nights >= 10 ? '꿀잠 지킴이예요!' : nights > 0 ? J(name, '이/가') + ' 깨 버렸어요' : '잠이 다 달아났어요';
+    $('edText').textContent = nights > 0 ? J(name, '을/를') + ' ' + nights + '밤 푹 재웠어요.' + (missed ? ' 못 끈 소리 ' + missed + '번.' : ' 소리를 하나도 안 놓쳤어요!') : '꾹 눌러 쓰다듬고, 흔들리는 물건은 톡 눌러 꺼요.';
+    paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    if (isNew) sfx('win');
+  }
+  function pause() {
+    if (state !== 'play') return; state = 'pause'; pets.clear(); petKey = false;
+    $('psText').textContent = night + '번째 밤 · ' + J(name, '이/가') + ' 눈을 감고 기다려요.';
+    showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
+  }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = performance.now(); }
+  function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+
+  // ═══════ 한 걸음 ═══════
+  function update(dt) {
+    simT += dt;
+    for (let i = loud.length - 1; i >= 0; i--) { loud[i].t -= dt; if (loud[i].t <= 0) { OBJS[loud[i].i].el.classList.remove('loud'); loud.splice(i, 1); } }
+    for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; if (p.life <= 0) { parts.splice(i, 1); continue; } p.x += p.vx * dt; p.y += p.vy * dt; if (p.g) p.vy += p.g * dt; }
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= 22 * dt; if (f.life <= 0) floats.splice(i, 1); }
+    hurtT = Math.max(0, hurtT - dt);
+    if (state === 'over') { overT -= dt; dim = Math.max(0, dim - dt); if (overT <= 0) showResult(); return; }
+    if (state !== 'play') { dim = Math.max(0, dim - dt); return; }
+    const pet = petting();
+    if (phase === 'intro') { phaseT -= dt; dim = Math.max(0, dim - dt * 0.8); if (phaseT <= 0) phase = 'night'; if (pet) petTime += dt; }
+    else if (phase === 'wake') { phaseT -= dt; if (phaseT <= 0) { phase = 'night'; mood = 'doze'; drowsy = D.reset; shield = true; nextPeek = rand(D.peekGap[0], D.peekGap[1]) * 0.7; nextNoise = Math.max(nextNoise, D.first); } }
+    else if (phase === 'clear') {
+      phaseT += dt; dim = Math.min(1, phaseT / 0.8) * (phaseT < 2.6 ? 1 : Math.max(0, 1 - (phaseT - 2.6) / 0.6));
+      zzzT -= dt; if (zzzT <= 0) { zzzT = 0.45; zzz(); }
+      if (healPending && phaseT >= 1.5) { healPending = false; sfx('heart'); paintHud(); }   // 하트 회복: 판·멈춤과 함께 가는 시계로
+      if (phaseT >= 3.2) { night++; startNight(); if (healed) floatText(kx, top0 + 40, '하트 하나가 돌아왔어요 ♥', '#FFC4D2'); }
+      return;
+    }
+    if (phase !== 'night') return;
+    // 콩이 기분
+    moodT -= dt;
+    if (mood === 'doze') { nextPeek -= dt; if (nextPeek <= 0) { mood = 'toss'; moodT = D.toss; tone(220, 0.25, 'sine', 0.03); } }
+    else if (mood === 'toss') { if (moodT <= 0) { mood = 'peek'; moodT = D.peekDur; peekAge = 0; annoy = 0; peekN++; dropZ(); if (!peekSeen) { peekSeen = true; say('👀 실눈을 떴어요! 손을 떼고 기다려요', 2600); } } }
+    else if (mood === 'peek') {
+      peekAge += dt;
+      if (pet && peekAge > D.grace) { annoy += dt; if (annoy >= D.annoyMax) { disturb(D.annoyHit + Math.min(D.lateHit, lateOf(night)), 'annoy'); } }
+      if (mood === 'peek' && moodT <= 0) { mood = 'doze'; nextPeek = rand(D.peekGap[0], D.peekGap[1]); if (annoy === 0) { peeksOk++; drowsy = Math.min(100, drowsy + 3); floatText(kx, kongHead().y - KS * 0.1, '스르르…', '#E6E0FF'); } }
+    }
+    else if (mood === 'startle') { if (moodT <= 0) mood = 'doze'; }
+    // 졸음
+    if (pet) petTime += dt;
+    if (pet && (mood === 'doze' || mood === 'toss')) {
+      drowsy += petOf(night) * dt;
+      lullT -= dt; if (lullT <= 0) { const f = LULL[lullI++ % LULL.length]; tone(f, 0.95, 'sine', 0.035); tone(f / 2, 1.1, 'triangle', 0.014); lullT = 0.52; }
+      noteT -= dt; if (noteT <= 0) { noteT = 0.55; const h = kongHead(); parts.push({ kind: 'txt', txt: pick(['♪', '♫', '♡']), x: h.x + rand(-KS * 0.15, KS * 0.15), y: h.y - KS * 0.02, vx: rand(-8, 8), vy: -28, life: 1.4, max: 1.4, r: 15, col: pick(['#FFE3A6', '#E6D6FF', '#FFC4D2']) }); }
+    } else if (!pet && mood !== 'peek') { drowsy = Math.max(0, drowsy - D.decay * dt); lullT = 0; }
+    if (!pet) lullT = Math.min(lullT, 0);
+    if (drowsy >= 60 && (mood === 'doze' || mood === 'toss')) { zzzT -= dt; if (zzzT <= 0) { zzzT = lerp(1.6, 0.8, (drowsy - 60) / 40); zzz(); } }
+    // 방해꾼
+    nextNoise -= dt;
+    if (nextNoise <= 0) { spawnNoise(); scheduleNoise(); }
+    for (let i = events.length - 1; i >= 0; i--) { const e = events[i]; e.t += dt; if (e.t >= e.dur) { events.splice(i, 1); paintEvents(); missNoise(e); if (phase !== 'night') return; } }
+    if (drowsy >= 100) { drowsy = 100; clearNight(); }
+  }
+  function dropZ() { parts = parts.filter(p => p.kind !== 'z'); }   // 실눈·깜짝 깸: 떠 있던 Z 도 거둔다
+  function zzz() { const h = kongHead(); parts.push({ kind: 'z', x: h.x + KS * 0.06, y: h.y - KS * 0.04, vx: 14, vy: -22, life: 2.0, max: 2.0, r: clamp(KS * 0.06, 12, 24) }); }
+  function burstAt(p, n, col, spd) { if (reduceMotion) n = Math.ceil(n / 2); for (let i = 0; i < n; i++) { const a = rand(0, TAU), v = rand(spd * 0.4, spd); parts.push({ kind: 'dot', x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40, g: 200, life: 0.6, max: 0.6, r: rand(2, 3.5), col }); } }
+  function floatText(x, y, text, col) { floats.push({ x, y, text, col: col || '#fff', life: 1.3, max: 1.3 }); if (floats.length > 6) floats.shift(); }
+
+  // ═══════ 그리기 ═══════
+  // 콩이 그림 좌표(0~400, 땅 380) 기준 머리 근처 — 누운 자세는 머리가 왼쪽
+  const kongHead = () => K.toScreen(K.rig.pose === 'lie' ? 112 : 200, K.rig.pose === 'lie' ? 250 : 80);
+  // 쓰다듬는 자리: 누운 몸통을 덮는 타원 (손가락이 조금 벗어나도 되게 넉넉히)
+  function petZone() { const c = K.toScreen(205, 318); return { x: c.x, y: c.y, rx: KS * 0.42, ry: KS * 0.2 }; }
+  const inZone = (x, y, k) => { const z = petZone(); k = k || 1; const dx = (x - z.x) / (z.rx * k), dy = (y - z.y) / (z.ry * k); return dx * dx + dy * dy <= 1; };
+  function drawKong() {
+    const asleep = state === 'ready' || phase === 'clear' || phase === 'intro' || (state === 'play' && phase === 'night' && (mood === 'doze' || mood === 'toss')) || (state === 'pause');
+    let pose = 'lie', o = { t: tAnim, breathRate: 0.22, breath: 1.4, tailAmp: 0, tailRate: 1 };
+    if (state === 'over' || state === 'result') {
+      if (quit) { pose = 'lie'; o.sleep = true; }
+      else { pose = 'sit'; Object.assign(o, { eyes: 'open', mouth: 'closed', earLift: -6, tilt: Math.sin(tAnim * 1.3) * 4, tailAmp: 4, tailRate: 1.5, look: [0, 0.3] }); }
+    } else if (state === 'play' && (phase === 'wake' || mood === 'startle')) {
+      const a = phase === 'wake' ? clamp((1.9 - phaseT) / 0.3, 0, 1) : clamp((0.95 - moodT) / 0.18, 0, 1);
+      pose = 'sit'; Object.assign(o, { eyes: 'open', mouth: phase === 'wake' ? 'open' : 'closed', earLift: 14, hop: reduceMotion ? 0 : Math.sin(a * Math.PI) * 26, tilt: phase === 'wake' ? Math.sin(tAnim * 6) * 6 : 0, tailAmp: 6, tailRate: 3, look: [Math.sin(tAnim * 2) * 0.6, -0.2] });
+    } else if (state === 'play' && phase === 'night' && mood === 'peek') { pose = 'lie'; o.sleep = true; o.tailAmp = 3; if (!reduceMotion) { const k = clamp(peekAge / 0.25, 0, 1); o.hop = k * 5; o.roll = -k * 3; o.rollPivot = [330, 380]; } }   // 누운 그림 그대로 머리만 살짝 들고, 실눈은 말풍선·고리로 알린다
+    else {
+      pose = 'lie'; o.sleep = asleep;
+      if (state === 'play' && mood === 'toss' && phase === 'night' && !reduceMotion) { const k = Math.sin(tAnim * 14); o.squash = k * 0.18; o.roll = k * 4; o.rollPivot = [200, 380]; }
+      if (petting() && state === 'play') { o.tailAmp = 6; o.tailRate = 1.2; }
+    }
+    if (K.rig.pose !== pose) K.setPose(pose);
+    K.render(o); K.place(kx, ky, 1);
+  }
+  // 이불: 누운 그림(잠든 장면)의 등선을 따라 목덜미부터 꼬리까지 덮는다. 오른쪽(꼬리)부터 스르르 끌려 온다
+  const BLK = [[178, 384], [176, 330], [188, 290], [215, 268], [255, 256], [300, 260], [338, 280], [366, 312], [376, 352], [372, 384]];
+  function drawBlanket(c, a) {   // a: 0~1 (덮이는 정도)
+    if (a <= 0) return;
+    const P = BLK.map(([x, y]) => K.toScreen(x, y)), xr = K.toScreen(380, 0).x, xl = K.toScreen(170, 0).x, cut = lerp(xr, xl, a), u = KS / 400;
+    c.save(); c.beginPath(); c.rect(cut, 0, W, H); c.clip();
+    c.globalAlpha = Math.min(1, a * 1.5);
+    const path = () => { c.beginPath(); c.moveTo(P[0].x, P[0].y); for (let i = 1; i < P.length - 1; i++) { const mx = (P[i].x + P[i + 1].x) / 2, my = (P[i].y + P[i + 1].y) / 2; c.quadraticCurveTo(P[i].x, P[i].y, mx, my); } c.lineTo(P[P.length - 1].x, P[P.length - 1].y); c.closePath(); };
+    const g0 = K.toScreen(0, 250).y, g1 = K.toScreen(0, 384).y, gr = c.createLinearGradient(0, g0, 0, g1); gr.addColorStop(0, '#9AA8FF'); gr.addColorStop(1, '#6E7FE0');
+    path(); c.fillStyle = gr; c.fill();
+    // 접어 내린 단: 목덜미 쪽 가장자리를 따라 밝은 띠
+    c.save(); path(); c.clip(); c.strokeStyle = '#C3CCFF'; c.lineWidth = 15 * u; c.lineCap = 'round'; c.beginPath(); c.moveTo(P[0].x + 4 * u, P[0].y); c.quadraticCurveTo(P[1].x + 6 * u, P[1].y, P[2].x + 8 * u, P[2].y + 4 * u); c.quadraticCurveTo(P[3].x + 6 * u, P[3].y + 8 * u, P[4].x, P[4].y + 9 * u); c.stroke();
+    c.fillStyle = 'rgba(255,240,190,.8)'; for (const [x, y] of [[250, 290], [305, 282], [340, 318], [232, 342], [290, 340], [345, 362]]) { const p = K.toScreen(x, y); star(c, p.x, p.y, 7 * u + 2); }
+    c.restore();
+    c.strokeStyle = 'rgba(40,50,130,.35)'; c.lineWidth = 2; path(); c.stroke();
+    c.restore();
+  }
+  function star(c, x, y, r) { c.beginPath(); for (let i = 0; i < 10; i++) { const an = -Math.PI / 2 + i * Math.PI / 5, rr0 = i % 2 ? r * 0.45 : r; c.lineTo(x + Math.cos(an) * rr0, y + Math.sin(an) * rr0); } c.closePath(); c.fill(); }
+  function bubble(c, x, y, txt, emo, col) {
+    c.font = '700 14px ' + FONT; const tw = c.measureText(txt).width, w = tw + 46, h = 34;
+    x = clamp(x, SAF.l + w / 2 + 6, W - SAF.r - w / 2 - 6); y = Math.max(top0 + h / 2 + 4, y);
+    c.fillStyle = col || 'rgba(255,255,255,.95)'; rr(c, x - w / 2, y - h / 2, w, h, h / 2); c.fill();
+    c.beginPath(); c.moveTo(x - 6, y + h / 2 - 1); c.lineTo(x + 2, y + h / 2 + 8); c.lineTo(x + 8, y + h / 2 - 1); c.fill();
+    c.font = '18px ' + EMO; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(emo, x - w / 2 + 18, y + 1);
+    c.font = '700 14px ' + FONT; c.fillStyle = '#2C3577'; c.textAlign = 'left'; c.fillText(txt, x - w / 2 + 32, y + 1);
+  }
+  function draw() {
+    const c = fg; c.setTransform(DPR, 0, 0, DPR, 0, 0); c.clearRect(0, 0, W, H);
+    drawKong();
+    // 잠든 연출: 방이 조금 더 어두워지고 이불이 덮인다
+    if (dim > 0) { c.fillStyle = 'rgba(6,8,26,' + (dim * 0.32).toFixed(3) + ')'; c.fillRect(0, 0, W, H); }
+    const cover = state === 'play' && phase === 'clear' ? clamp((phaseT - 0.2) / 0.8, 0, 1) * (phaseT < 2.7 ? 1 : Math.max(0, 1 - (phaseT - 2.7) / 0.4)) : (state === 'over' || state === 'result') && quit ? 1 : 0;
+    drawBlanket(c, cover);
+    // 실눈 · 뒤척임 알림
+    const h = kongHead();
+    if (state === 'play' && phase === 'night') {
+      if (mood === 'peek') {
+        const late = peekAge > D.grace;
+        bubble(c, h.x + KS * 0.04, h.y - KS * 0.24 - 20, petting() ? (late ? '손 떼요!' : '쉿… 손 떼요') : '기다려요…', '👀', petting() && late ? '#FFE2A0' : 'rgba(255,255,255,.95)');
+        // 실눈: 머리 위에 반짝 놀람 줄 세 개 (깜빡이며)
+        const pa = reduceMotion ? 1 : 0.55 + 0.45 * Math.sin(tAnim * 9), u = KS / 400; c.strokeStyle = 'rgba(255,226,160,' + pa.toFixed(3) + ')'; c.lineWidth = Math.max(2.5, 5 * u); c.lineCap = 'round'; c.beginPath();
+        for (const an of [-2.2, -1.57, -0.94]) { c.moveTo(h.x + Math.cos(an) * 40 * u, h.y - 6 * u + Math.sin(an) * 40 * u); c.lineTo(h.x + Math.cos(an) * 62 * u, h.y - 6 * u + Math.sin(an) * 62 * u); } c.stroke();
+      } else if (mood === 'toss') {
+        c.font = Math.round(clamp(KS * 0.09, 16, 28)) + 'px ' + EMO; c.textAlign = 'center'; c.textBaseline = 'middle'; c.globalAlpha = 0.6 + 0.4 * Math.sin(tAnim * 10); c.fillText('💭', h.x - KS * 0.02, h.y - KS * 0.16); c.globalAlpha = 1;
+      }
+    }
+    if (state === 'play' && phase === 'clear' && phaseT > 0.5) {
+      const a = clamp((phaseT - 0.5) / 0.4, 0, 1) * (phaseT < 2.7 ? 1 : Math.max(0, 1 - (phaseT - 2.7) / 0.4));
+      c.globalAlpha = a; c.font = '800 ' + Math.round(clamp(KS * 0.085, 18, 30)) + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineJoin = 'round'; c.strokeStyle = 'rgba(12,16,48,.6)'; c.lineWidth = 5; c.strokeText('쿨쿨… 잘 자요', kx, Math.max(top0 + 30, h.y - KS * 0.3)); c.fillStyle = '#FFF2C8'; c.fillText('쿨쿨… 잘 자요', kx, Math.max(top0 + 30, h.y - KS * 0.3)); c.globalAlpha = 1;
+    }
+    if (state === 'play' && phase === 'intro') {
+      const a = clamp(phaseT / 0.4, 0, 1) * clamp((1.5 - phaseT) / 0.3, 0, 1);
+      c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle'; const y = Math.max(top0 + 60, h.y - KS * 0.32);
+      c.font = '800 ' + Math.round(clamp(KS * 0.1, 20, 34)) + 'px ' + FONT; c.lineJoin = 'round'; c.strokeStyle = 'rgba(12,16,48,.6)'; c.lineWidth = 5; c.strokeText(night + '번째 밤', kx, y); c.fillStyle = '#fff'; c.fillText(night + '번째 밤', kx, y);
+      c.globalAlpha = 1;
+    }
+    // 쓰다듬는 손
+    if (state === 'play' && petting() && (phase === 'night' || phase === 'intro')) {
+      const z = petZone(); let hx = z.x + KS * 0.08, hy = z.y - KS * 0.1;
+      for (const p of pets.values()) { hx = p.x; hy = p.y - 26; break; }
+      const sw = reduceMotion ? 0 : Math.sin(tAnim * 4) * 9;
+      c.font = Math.round(clamp(KS * 0.13, 26, 46)) + 'px ' + EMO; c.textAlign = 'center'; c.textBaseline = 'middle'; c.globalAlpha = mood === 'peek' ? 0.55 : 0.92; c.fillText('🤚', hx + sw, hy); c.globalAlpha = 1;
+    }
+    // 날리는 것
+    for (const p of parts) {
+      const a = clamp(p.life / p.max, 0, 1); c.globalAlpha = Math.min(1, a * 1.8);
+      if (p.kind === 'z') { c.font = '800 ' + Math.round(p.r * (1.2 - a * 0.5)) + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#D9DFFF'; c.fillText('Z', p.x + Math.sin(p.life * 3) * 6, p.y); }
+      else if (p.kind === 'txt') { c.font = '700 ' + p.r + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = p.col; c.fillText(p.txt, p.x, p.y); }
+      else { c.fillStyle = p.col; c.beginPath(); c.arc(p.x, p.y, p.r, 0, TAU); c.fill(); }
+    }
+    c.globalAlpha = 1;
+    if (floats.length) {
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 14px ' + FONT; c.lineJoin = 'round';
+      for (const f of floats) { const tw = c.measureText(f.text).width / 2 + 6, x = clamp(f.x, SAF.l + tw, W - SAF.r - tw), y = Math.max(top0 + 10, f.y); c.globalAlpha = Math.min(1, f.life / 0.35); c.strokeStyle = 'rgba(12,16,48,.75)'; c.lineWidth = 3.5; c.strokeText(f.text, x, y); c.fillStyle = f.col; c.fillText(f.text, x, y); }
+      c.globalAlpha = 1;
+    }
+    paintFrame();
+  }
+  // 예고 고리·점수판 (매 장면)
+  let lastFill = -1, lastPeek = null;
+  function paintFrame() {
+    for (const e of events) { const o = OBJS[e.i]; o.ring.style.setProperty('--p', (1 - e.t / e.dur).toFixed(3)); }
+    const f = Math.round(drowsy * 2) / 2; if (f !== lastFill) { lastFill = f; $('hudFill').style.width = f + '%'; }
+    const pk = state === 'play' && phase === 'night' && mood === 'peek'; if (pk !== lastPeek) { lastPeek = pk; $('hudGauge').classList.toggle('peek', pk); $('hudGLabel').textContent = pk ? '쉿!' : '졸음'; }
+  }
+  function paintEvents() {
+    OBJS.forEach((o, i) => {
+      const e = events.find(x => x.i === i);
+      o.el.classList.toggle('warn', !!e);
+      o.el.setAttribute('aria-label', (o.win && e ? o.vars[e.v].name : o.name) + (e ? ' — 지금 눌러서 조용히 시켜요' : ''));
+    });
+  }
+  function paintHud() {
+    $('hudNight').textContent = night;
+    [...$('hudHearts').children].forEach((s, i) => s.classList.toggle('off', i >= hearts));
+  }
+  let last = 0;
+  // 절전: 놀이 중이 아니면(시작·멈춤·결과 카드) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다
+  let calmKey = '', calmAt = 0, drawnAt = -1e9;
+  function calmSkip(now) {
+    const key = state + '|' + W + 'x' + H;
+    if (key !== calmKey) { calmKey = key; calmAt = now; }
+    if ((state !== 'ready' && state !== 'pause' && state !== 'result') || now - calmAt < 1000 || now - drawnAt >= 200) { drawnAt = now; return false; }
+    return true;
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    if (state !== 'pause') { tAnim += dt; update(dt); }
+    if (calmSkip(now)) return;
+    draw();
+  }
+
+  // ═══════ 입력: 콩이를 누르고 있으면 쓰다듬기 (손가락 여러 개도 됨), 물건은 단추로 ═══════
+  fx.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    e.preventDefault();
+    if (inZone(e.clientX, e.clientY, 1.15)) { try { fx.setPointerCapture(e.pointerId); } catch (err) {} pets.set(e.pointerId, { x: e.clientX, y: e.clientY }); }
+    else if (!petHint && phase === 'night') { petHint = true; say('🤚 ' + J(name, '을/를') + ' 직접 꾹 누르고 있어요', 2200); }
+  });
+  fx.addEventListener('pointermove', e => { const p = pets.get(e.pointerId); if (!p) return; p.x = e.clientX; p.y = e.clientY; if (!inZone(p.x, p.y, 1.5)) pets.delete(e.pointerId); });
+  const upPet = e => { pets.delete(e.pointerId); };
+  fx.addEventListener('pointerup', upPet); fx.addEventListener('pointercancel', upPet); fx.addEventListener('lostpointercapture', upPet);
+  window.addEventListener('blur', () => { pets.clear(); petKey = false; });
+  document.addEventListener('keydown', e => {
+    const k = e.key;
+    if (KG.rulesOpen) return;
+    if (k === ' ' || k === 'Enter') {
+      if (state === 'play') {
+        if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 초점이 간 단추(물건·멈춤)는 Enter·Space 로 단추가 눌린다
+        e.preventDefault(); if (k === ' ' && !e.repeat) petKey = true;
+        return;
+      }
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault();
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    } else if (k >= '1' && k <= '5') { if (state === 'play' && !e.repeat) { e.preventDefault(); tapObj(+k - 1); } }
+    else if (k === 'Escape' || k === 'p' || k === 'P') { if (state === 'play') pause(); else if (state === 'pause') resume(); }
+  });
+  document.addEventListener('keyup', e => { if (e.key === ' ') petKey = false; });
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = b + '밤';
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = e + '밤';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+    const Dn = DIFF[KG.diff()] || DIFF.normal;
+    $('stInfo').textContent = '예고 ' + Dn.warn[0].toFixed(1) + '초 · 방해꾼 ' + Dn.k0 + '개부터 · ' + Dn.heal + '밤마다 하트 회복';
+  }
+  function onDiff() { paintBest(); if (state === 'ready') paintObjs(); }
+  $('stRec').before(KG.diffPicker(null, onDiff));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);   // 결과 카드 바로 아래(가로 낮은 화면은 오른쪽) 가족 순위 — 방금 판 난이도
+  KG.startRank($('cardStart'), KEY);   // 시작 카드 아래에 고른 난이도의 가족 순위
+  diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+  layout(); paintBest(); paintHud(); paintObjs();
+  const RULES = { key: KEY, title: TITLE, lead: '꾸벅꾸벅 조는 ' + J(name, '을/를') + ' 방해꾼에게서 지켜 푹 재워요.', items: [
+    ['🤚', J(name, '을/를') + ' 꾹 누르고 있으면 살살 쓰다듬어 졸음이 차올라요' + (KEYS_OK ? ' (스페이스를 눌러도 돼요).' : '.')],
+    ['❗', '물건이 흔들리며 ❗가 뜨면 소리 나기 전에 톡 눌러 꺼요' + (KEYS_OK ? ' (숫자 키도 돼요).' : '.')],
+    ['👀', '뒤척이다 실눈을 뜨면 손을 떼고 기다려요. 계속 만지면 귀찮아서 깨요.'],
+    ['❤️', '완전히 깨면 하트가 하나 줄어요. 졸음을 끝까지 채우면 다음 밤!']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  //   autoplay(cfg): 화면 없이 빨리 돌리는 봇. react 반응 시간(초) · jitter 그 흔들림 비율 · miss 소리를 놓칠 확률 · peekMiss 실눈을 늦게 알아챌 확률
+  //   oneHand 손 하나(물건을 누를 때 쓰다듬기를 잠깐 멈춤) · maxNights · maxTime(초) → { nights, time, hearts, hushed, missed, wakes, perNight }
+  function autoplay(cfg) {
+    cfg = Object.assign({ react: 0.4, jitter: 0.35, miss: 0, peekMiss: 0, oneHand: true, maxNights: 30, maxTime: 3600, dt: 1 / 30 }, cfg || {});
+    if (state !== 'play') start();
+    const plan = new Map(); let busy = 0, peekPlan = null, peekKey = -1, t0 = simT, nightStart = simT; const perNight = [];
+    let lastNight = night;
+    while (state === 'play' && nights < cfg.maxNights && simT - t0 < cfg.maxTime) {
+      // 물건: 예고를 보고 반응 시간 뒤에 누른다 (놓칠 확률)
+      for (const e of events) if (!plan.has(e)) plan.set(e, Math.random() < cfg.miss ? Infinity : e.born + cfg.react * (1 + rand(-cfg.jitter, cfg.jitter)));
+      for (const e of events.slice()) if (simT >= plan.get(e)) { tapObj(e.i); if (cfg.oneHand) busy = 0.28; }
+      // 실눈: 반응 시간 뒤에 손을 뗀다
+      if (mood === 'peek' && phase === 'night' && peekKey !== peekN) { peekKey = peekN; peekPlan = Math.random() < cfg.peekMiss ? D.grace + D.annoyMax * 1.2 : cfg.react * (1 + rand(-cfg.jitter, cfg.jitter)); }
+      const wantPet = phase !== 'clear' && busy <= 0 && !(mood === 'peek' && peekAge >= peekPlan) && mood !== 'startle' && phase !== 'wake';
+      petKey = wantPet;
+      busy -= cfg.dt;
+      tAnim += cfg.dt; update(cfg.dt);
+      if (night !== lastNight) { perNight.push(+(simT - nightStart).toFixed(1)); nightStart = simT; lastNight = night; }
+    }
+    petKey = false;
+    return { nights, time: +(simT - t0).toFixed(1), hearts, hushed, missed, wakes, peeksOk, state, perNight };
+  }
+  window.GAME = {
+    DIFF, OBJS,
+    get state() { return state; }, get phase() { return phase; }, get mood() { return mood; }, get score() { return nights; }, get nights() { return nights; }, get night() { return night; },
+    get hearts() { return hearts; }, get drowsy() { return drowsy; }, get diff() { return diffId; }, get peekAge() { return peekAge; }, get grace() { return D.grace; },
+    get events() { return events.map(e => ({ i: e.i, id: OBJS[e.i].id, t: e.t, dur: e.dur })); }, get petting() { return petting(); }, get stats() { return { hushed, missed, wakes, petTime, peeksOk }; },
+    start, end, pause, resume, tap: tapObj, petDown() { petKey = true; }, petUp() { petKey = false; },
+    step: dt => { let left = dt; while (left > 1e-6) { const d = Math.min(0.05, left); left -= d; tAnim += d; if (state !== 'pause') update(d); } },
+    autoplay,
+    field: () => ({ W, H, wide, KS, kx, ky, top0, zone: petZone(), head: kongHead(), objs: OBJS.map(o => ({ id: o.id, x: o.x, y: o.y, w: o.w, h: o.h, hidden: o.el.hidden })), hud: hud.getBoundingClientRect().toJSON() }),
+    set: o => { if ('drowsy' in o) drowsy = o.drowsy; if ('night' in o) { night = o.night; paintObjs(); paintHud(); } if ('hearts' in o) { hearts = o.hearts; paintHud(); } if ('nextNoise' in o) nextNoise = o.nextNoise; if ('nextPeek' in o) nextPeek = o.nextPeek; },
+    spawn: () => spawnNoise()
+  };
+})();
+</script>
+</body>
+</html>

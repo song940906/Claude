@@ -745,6 +745,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edScore').textContent = fmt(score); $('edLv').textContent = level + '판'; $('edBrk').textContent = fmt(broken) + '개';
     $('edTitle').textContent = quit ? '여기까지 했어요' : level >= 6 ? '상자 깨기 달인이에요!' : '공을 다 놓쳤어요';
+    if (!quit && level >= 6 && KG.master) KG.master('brick');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = score > 0 ? (cleared > 0 ? cleared + '판을 깨끗이 비웠어요.' : '다음엔 판을 다 비워 봐요.') + (bestCombo >= 5 ? ' 가장 긴 연속 ' + bestCombo + '개!' : '') : '받침대 끝에 맞히면 비스듬히 튀어요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

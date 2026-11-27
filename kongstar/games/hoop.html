@@ -555,6 +555,7 @@ body .kg-top { z-index: 26; }
     isNew = laps > 0 && setBest(KG.dkey(KEY, diffId), laps);
     $('edScore').textContent = fmt(laps); $('edPf').textContent = fmt(perfects) + '번'; $('edCombo').textContent = fmt(bestStreak) + '번';
     $('edTitle').textContent = quit ? '여기까지 돌렸어요' : laps >= 60 ? '훌라후프 달인이에요!' : laps >= 20 ? '잘 돌렸어요!' : '후프가 떨어졌어요';
+    if (!quit && laps >= 60 && KG.master) KG.master('hoop');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = laps > 0 ? J(name, '이/가') + ' 후프를 ' + fmt(laps) + '바퀴 돌렸어요.' + (perfects ? ' 퍼펙트 ' + fmt(perfects) + '번!' : '') : '구슬이 반짝이는 칸에 왔을 때 눌러 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win'); else if (!quit) sfx('lose');

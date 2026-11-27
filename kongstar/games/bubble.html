@@ -642,6 +642,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edScore').textContent = fmt(score); $('edLv').textContent = level + '판'; $('edPop').textContent = fmt(popped + dropped) + '개';
     $('edTitle').textContent = quit ? '여기까지 했어요' : level >= 5 ? '방울팡 달인이에요!' : '방울이 선을 넘었어요';
+    if (!quit && level >= 5 && KG.master) KG.master('bubble');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = score > 0 ? (level > 1 ? (level - 1) + '판을 깨끗이 비웠어요.' : '다음엔 병을 다 비워 봐요.') + (dropped ? ' 와르르 떨어뜨린 방울 ' + fmt(dropped) + '개!' : '') : '같은 색 셋을 붙이면 팡 터져요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) { sfx('win'); voice('bark', 0.3, 1.0); }

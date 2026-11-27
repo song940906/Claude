@@ -35,6 +35,10 @@
 .card.daily .ico { background: rgba(255,255,255,.14); }
 #diffSpot .kg-diff { margin-top: 8px; }
 .card.rankc { background: linear-gradient(135deg, #FFF6DD, #FFE3A6); }
+.card.achvc { background: linear-gradient(135deg, #F3EEFF, #FFE6EF); }
+.card.achvc small em { font-style: normal; font-weight: 700; color: #E5486B; }
+.card.achvc .ico { background: rgba(255,255,255,.7); }
+.card.achvc small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card.rankc .ico { background: rgba(255,255,255,.7); }
 .card.rankc small { color: #7A5A1E; }
 .card.rankc .go { flex: none; font-size: 24px; line-height: 1; color: #B98A2E; }
@@ -92,6 +96,7 @@
   </div>
   <a class="card daily" href="../index.html"><span class="ico">🌙</span><span class="txt"><b id="dTitle">콩이의 일상</b><small>쓰다듬고, 산책하고, 편지를 띄워요</small></span></a>
   <a class="card rankc" href="rank.html"><span class="ico">🏆</span><span class="txt"><b>가족 순위</b><small id="rkSub">가족끼리 기록을 모아 등수를 봐요</small></span><span class="go" aria-hidden="true">›</span></a>
+  <a class="card achvc" href="achv.html"><span class="ico">🏅</span><span class="txt"><b id="acTitle">업적</b><small id="acSub">게임을 하며 배지와 칭호를 모아요</small></span><span class="go" aria-hidden="true">›</span></a>
   <section class="alert" id="rkAlert" hidden aria-label="내 기록이 깨졌어요"><div class="ahd"><button class="at" id="alFold" type="button" aria-expanded="true"><span class="ai" aria-hidden="true">🔔</span><span class="atx">내 기록이 깨졌어요</span><span class="an" id="alN"></span><span class="chev" aria-hidden="true"></span></button><button class="ax" id="alX" type="button" aria-label="알림 닫기">✕</button></div><a class="abody" id="alGo" href="rank.html"><ul id="alList"></ul><span class="amore"><span id="alMore"></span><span>가족 순위 보기 ›</span></span></a></section>
   <div class="sec">미니게임 난이도</div>
   <div id="diffSpot"></div>
@@ -109,7 +114,7 @@
     <a class="card" href="stairs.html"><span class="ico" style="background:#E3F3FF">🪜</span><span class="txt"><b>콩이의 계단 유산소</b><small>왼쪽 오른쪽, 계단을 올라요</small></span><span class="rec" data-rec="stairs" data-unit="층"></span></a>
     <a class="card" href="stamp.html"><span class="ico" style="background:#FFF4D6">💌</span><span class="txt"><b>콩이의 도장 쾅</b><small>지나가는 봉투에 발바닥 도장을 찍어요</small></span><span class="rec" data-rec="stamp" data-unit="점"></span></a>
   </details>
-  <details class="grp" data-g="aim"><summary><span class="gi" aria-hidden="true">🎯</span><span class="gt"><b>딱 맞춰요</b><small>타이밍·조준이 중요한 게임</small></span><span class="gn">12</span><span class="chev" aria-hidden="true"></span></summary>
+  <details class="grp" data-g="aim"><summary><span class="gi" aria-hidden="true">🎯</span><span class="gt"><b>딱 맞춰요</b><small>타이밍·조준이 중요한 게임</small></span><span class="gn">14</span><span class="chev" aria-hidden="true"></span></summary>
     <a class="card" href="jump.html"><span class="ico" style="background:#E3F3FF">☁️</span><span class="txt"><b id="jTitle">콩이의 점프 점프</b><small>구름을 밟고 높이높이 올라가요</small></span><span class="rec" data-rec="jump" data-unit="점"></span></a>
     <a class="card" href="rope.html"><span class="ico" style="background:#FFF1E3">🪢</span><span class="txt"><b id="rpTitle">콩이의 줄넘기</b><small>돌아오는 줄을 폴짝 넘어요</small></span><span class="rec" data-rec="rope" data-unit="번"></span></a>
     <a class="card" href="stack.html"><span class="ico" style="background:#F1EAFB">🥞</span><span class="txt"><b id="kTitle">콩이의 간식쌓기</b><small>간식을 딱 맞춰 높이 쌓아요</small></span><span class="rec" data-rec="stack" data-unit="층"></span></a>
@@ -121,9 +126,11 @@
     <a class="card" href="flower.html"><span class="ico" style="background:#FBE9F0">🌸</span><span class="txt"><b>콩이의 무궁화꽃</b><small>콩이가 돌아보면 얼음!</small></span><span class="rec" data-rec="flower" data-unit="점"></span></a>
     <a class="card" href="tug.html"><span class="ico" style="background:#FDEBE3">💪</span><span class="txt"><b>콩이랑 줄다리기</b><small>콩이랑 영차영차 줄을 당겨요</small></span><span class="rec" data-rec="tug" data-unit="점"></span></a>
     <a class="card" href="rhythm.html"><span class="ico" style="background:#F1EAFB">🎵</span><span class="txt"><b>콩이의 리듬스타</b><small>박자에 맞춰 발자국을 눌러요</small></span><span class="rec" data-rec="rhythm" data-unit="점"></span></a>
+    <a class="card" href="pour.html"><span class="ico" style="background:#E3F2FB">🥛</span><span class="txt"><b>콩이는 계량천재</b><small>선에 딱 맞춰 우유를 따라요</small></span><span class="rec" data-rec="pour" data-unit="잔"></span></a>
     <a class="card" href="hoop.html"><span class="ico" style="background:#FFF1E3">⭕</span><span class="txt"><b>콩이의 훌라후프</b><small>박자 맞춰 후프를 돌려요</small></span><span class="rec" data-rec="hoop" data-unit="바퀴"></span></a>
+    <a class="card" href="stone.html"><span class="ico" style="background:#E6F6F1">🪷</span><span class="txt"><b>콩이의 징검다리</b><small>꾹 눌러 힘을 모아 돌을 건너요</small></span><span class="rec" data-rec="stone" data-unit="개"></span></a>
   </details>
-  <details class="grp" data-g="think"><summary><span class="gi" aria-hidden="true">🧠</span><span class="gt"><b>곰곰이 생각해요</b><small>천천히 머리 쓰는 게임</small></span><span class="gn">7</span><span class="chev" aria-hidden="true"></span></summary>
+  <details class="grp" data-g="think"><summary><span class="gi" aria-hidden="true">🧠</span><span class="gt"><b>곰곰이 생각해요</b><small>천천히 머리 쓰는 게임</small></span><span class="gn">9</span><span class="chev" aria-hidden="true"></span></summary>
     <a class="card" href="puzzle.html"><span class="ico" style="background:#FFF1E3">🧩</span><span class="txt"><b id="pTitle">콩이의 퍼즐</b><small>간식 3개 맞추기 · 카드 짝 맞추기</small></span><span class="rec" data-rec="m3stage" data-unit="단계"></span></a>
     <a class="card" href="bowl.html"><span class="ico" style="background:#E9ECFB">🥣</span><span class="txt"><b id="bwTitle">콩이의 사료그릇</b><small>섞인 사료를 색깔별로 모아요</small></span><span class="rec" data-rec="bowl" data-unit="단계"></span></a>
     <a class="card" href="quiz.html"><span class="ico" style="background:#FFF3D6">❓</span><span class="txt"><b>콩이의 퀴즈 퀴즈</b><small>콩이가 내는 문제를 맞혀요</small></span><span class="rec" data-rec="quiz" data-unit="점"></span></a>
@@ -131,12 +138,15 @@
     <a class="card" href="deliver.html"><span class="ico" style="background:#FDEBE3">🚀</span><span class="txt"><b>콩이의 로켓배송</b><small>길을 그려 집집마다 간식 배달</small></span><span class="rec" data-rec="deliver" data-unit="단계"></span></a>
     <a class="card" href="shop.html"><span class="ico" style="background:#FBE9F0">🏪</span><span class="txt"><b id="shTitle">콩이의 간식가게</b><small>주문을 기억해 간식을 담아 줘요</small></span><span class="rec" data-rec="shop" data-unit="점"></span></a>
     <a class="card" href="spot.html"><span class="ico" style="background:#FFF4D6">🔎</span><span class="txt"><b>콩이의 틀린그림찾기</b><small>두 그림에서 다른 곳을 찾아요</small></span><span class="rec" data-rec="spot" data-unit="점"></span></a>
+    <a class="card" href="bake.html"><span class="ico" style="background:#FBE9F0">🧁</span><span class="txt"><b>콩이는 파티시에</b><small>주문대로 재료를 넣고 알맞게 구워요</small></span><span class="rec" data-rec="bake" data-unit="개"></span></a>
+    <a class="card" href="pipe.html"><span class="ico" style="background:#E3F3FF">🔧</span><span class="txt"><b>콩이는 정비공</b><small>파이프를 돌려 물그릇까지 물길을 이어요</small></span><span class="rec" data-rec="pipe" data-unit="단계"></span></a>
   </details>
-  <details class="grp" data-g="calm"><summary><span class="gi" aria-hidden="true">😌</span><span class="gt"><b>느긋하게 쉬어요</b><small>가볍게 즐기는 게임</small></span><span class="gn">5</span><span class="chev" aria-hidden="true"></span></summary>
+  <details class="grp" data-g="calm"><summary><span class="gi" aria-hidden="true">😌</span><span class="gt"><b>느긋하게 쉬어요</b><small>가볍게 즐기는 게임</small></span><span class="gn">6</span><span class="chev" aria-hidden="true"></span></summary>
     <a class="card" href="seek.html"><span class="ico" style="background:#E6F6F1">🔍</span><span class="txt"><b id="hkTitle">콩이의 숨바꼭질</b><small>방 안에 숨은 콩이와 장난감 찾기</small></span><span class="rec" data-rec="seek" data-unit="점"></span></a>
     <a class="card" href="cups.html"><span class="ico" style="background:#E9ECFB">🥤</span><span class="txt"><b>콩이의 야바위</b><small>섞인 컵 속 간식을 찾아요</small></span><span class="rec" data-rec="cups" data-unit="번"></span></a>
     <a class="card" href="fish.html"><span class="ico" style="background:#E3F2FB">🎣</span><span class="txt"><b>콩이의 어부체험</b><small>찌가 쑥 들어가면 당겨요</small></span><span class="rec" data-rec="fish" data-unit="점"></span></a>
     <a class="card" href="socks.html"><span class="ico" style="background:#E9ECFB">🧦</span><span class="txt"><b>콩이는 양말도둑</b><small>콩이가 물고 간 양말까지 짝 맞춰 정리해요</small></span><span class="rec" data-rec="socks" data-unit="켤레"></span></a>
+    <a class="card" href="sleep.html"><span class="ico" style="background:#E9ECFB">💤</span><span class="txt"><b>콩이의 수면보장</b><small>살금살금, 졸린 콩이를 재워요</small></span><span class="rec" data-rec="sleep" data-unit="밤"></span></a>
     <a class="card" href="claw.html"><span class="ico" style="background:#FBE9F0">🕹️</span><span class="txt"><b>콩이의 인형뽑기</b><small>집게를 딱 멈춰 인형을 뽑아요</small></span><span class="rec" data-rec="claw" data-unit="점"></span></a>
   </details>
 </div></div>
@@ -168,6 +178,20 @@
     sub.textContent = mine && mine.rank ? 'Very Hard 종합 ' + mine.rank + '등 · 가족 ' + rows.length + '명' : mine ? '아직 Very Hard 기록이 없어요 · 가족 ' + rows.length + '명' : me && me.name ? '가족과 기록을 겨루고 있어요' : '이름을 정하면 순위에 올라가요';
   }
   paintRankSub();
+  // 업적 카드 (11-27): 깬 수 · 내 칭호 · 가장 가까운 다음 업적 (가족 업적은 순위에 연결했을 때만, 숨은 업적은 빼고)
+  function paintAchv() {
+    const A = KG.achv; if (!A) return; A.eval();
+    const got = A.got(), x = A.ctx(got), all = A.list, n = all.filter(a => got[a.id]).length, t = A.myTitle(), nw = A.fresh().length;
+    let next = null, nr = -1;
+    for (const a of all) { if (got[a.id] || a.g === 'secret' || (a.g === 'fam' && !x.fam)) continue; const [v, g] = a.p(x); if (g > 0 && v / g > nr) { nr = v / g; next = [a, v, g]; } }
+    $('acTitle').textContent = '업적 ' + n + '/' + all.length;
+    const sub = $('acSub'); sub.textContent = '';
+    if (nw) { const em = document.createElement('em'); em.textContent = '새 업적 ' + nw + '개! '; sub.appendChild(em); }
+    // 새 업적이 있으면 칭호 대신 그 알림을 (두 줄 안에), 진행 수치 괄호는 앞 낱말과 붙여 혼자 줄을 넘지 않게
+    sub.appendChild(document.createTextNode([!nw && t ? t.ico + ' ' + t.nm : '', next ? '다음: ' + next[0].nm + '\u00a0(' + Math.min(next[1], next[2]).toLocaleString() + '/' + next[2].toLocaleString() + ')' : ''].filter(Boolean).join(' · ') || '게임을 하며 배지와 칭호를 모아요'));
+  }
+  try { paintAchv(); } catch (e) {}
+  addEventListener('pageshow', e => { if (e.persisted) try { paintAchv(); } catch (er) {} });
 
   // ── 이 화면만 쓰는 저장 (사생활 모드면 읽기·쓰기가 실패해도 화면은 그대로 돈다)
   //   저장이 안 되는 기기에서는 이 화면을 연 동안만 메모리(mem)에 들고 있어, 읽는 곳과 그리는 곳이 같은 값을 본다. lsSet 은 실제로 남았는지 돌려준다
@@ -180,7 +204,7 @@
   // 새 게임: 여기에 카드 열쇠(게임 파일 이름에서 .html 을 뺀 것)만 넣으면 NEW 가 붙는다.
   //   그 카드를 한 번 눌러 들어갔거나 그 게임 기록이 (어느 난이도든) 있으면 더는 붙지 않는다
   const NEW_GAMES = ['bubble', 'brick', 'parade', 'cross', 'pinball',   // 11-23 추가분
-    'socks', 'rhythm', 'hoop', 'claw', 'stamp'];   // 11-24 추가분
+    'socks', 'bake', 'sleep', 'rhythm', 'pipe', 'pour', 'hoop', 'claw', 'stamp', 'stone'];   // 11-24 추가분
   const RECENT_MAX = 3;
 
   // ── 카드 정리: 묶음 안의 카드(원본)마다 겉상자(.cw)와 ☆ 단추를 붙인다. 즐겨찾기·최근 줄은 이 겉상자를 복제해 쓴다

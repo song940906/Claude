@@ -697,6 +697,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edScore').textContent = fmt(score); $('edMult').textContent = '×' + maxMult; $('edStar').textContent = starRows + '번';
     $('edTitle').textContent = quit ? '여기까지 했어요' : score >= 20000 ? '핀볼 달인이에요!' : '공을 다 썼어요';
+    if (!quit && score >= 20000 && KG.master) KG.master('pinball');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = score > 0 ? (bowls ? '밥그릇에 ' + bowls + '번 쏙 넣었어요. ' : '') + (orbits ? '뼈다귀 길을 ' + orbits + '바퀴 돌았어요.' : starRows ? '' : '별 다섯 개를 모두 맞히면 점수가 몇 배로 올라요.') : '날개로 공을 쳐 범퍼를 맞혀 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

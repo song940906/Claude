@@ -56,6 +56,10 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
 .rowi .who .nm { flex: 0 1 auto; }
 .rowi .who i { flex: none; padding: 1px 7px; border-radius: 999px; background: var(--pri); color: #fff; font-size: 11px; font-style: normal; font-weight: 700; white-space: nowrap; }
 .rowi .who i.wait { background: #FFF1D6; color: #9A6200; }
+.rowi .who.t { flex-direction: column; align-items: flex-start; gap: 1px; }
+.rowi .who .l1 { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.rowi .who .l1 .nm { flex: 0 1 auto; }
+.rowi .ttl { max-width: 100%; font-size: 11.5px; font-weight: 700; color: #9A6200; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rowi .rk.none { color: #B4BBC6; }
 .rowi .val { flex: none; text-align: right; font-size: 15.5px; font-weight: 700; color: var(--pri); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rowi .val small { display: block; font-size: 11.5px; font-weight: 500; color: var(--sub); }
@@ -85,6 +89,15 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
 @media (min-width: 700px) { .inner { max-width: 560px; } }
 /* 가로로 눕힌 폰: 시트를 낮게 (주소·코드 칸을 나란히) */
 @media (max-height: 430px) { .sheet .kg-card { width: min(100%, 560px); padding: 14px 18px; } .sheet .kg-card h2 { font-size: 18px; margin: 0; } .sheet .fields { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; } .sheet .lab { margin-top: 8px; } .sheet .field { height: 44px; } .sheet textarea.field { height: 64px; } .sheet .msg { margin-top: 6px; } .sheet .kg-card .row { margin-top: 10px; } .sheet .kg-btn { height: 44px; } }
+/* 요즘 조용한 게임 (11-27): 가족 누구도 1주일 넘게 새 기록을 못 낸 게임 */
+#quietCard .rowi { cursor: pointer; }
+#quietCard .rowi:active { background: var(--soft); }
+#quietCard .val { color: #8A6A00; }
+.qnote { margin: 2px 2px 8px; font-size: 12.5px; line-height: 1.45; color: var(--sub); }
+.more { display: block; width: 100%; height: 42px; margin-top: 6px; border: 0; border-radius: 12px; background: var(--soft); color: var(--pri); font-size: 14px; font-weight: 600; }
+.nobody { margin-top: 10px; padding: 10px 12px 12px; border-radius: 14px; background: var(--soft); }
+.nobody b { display: block; font-size: 13px; font-weight: 600; color: var(--sub); }
+.nobody .tg { display: inline-flex; align-items: center; gap: 4px; margin: 6px 6px 0 0; padding: 4px 10px; border-radius: 999px; background: #fff; color: var(--ink); font-size: 13px; font-weight: 600; border: 0; }
 </style>
 </head>
 <body>
@@ -120,6 +133,14 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
   <section class="panel" id="boardCard">
     <div class="ptitle"><h2 id="boardTitle"></h2><span id="boardSub"></span></div>
     <ul class="rows" id="boardRows"></ul>
+  </section>
+
+  <section class="panel" id="quietCard" hidden>
+    <div class="ptitle"><h2>🌙 요즘 조용한 게임</h2><span>1주일 넘게 새 기록 없음</span></div>
+    <p class="qnote">가족 누구도 새 기록을 못 낸 게임이에요. 모든 난이도를 함께 봐요.</p>
+    <ul class="rows" id="quietRows"></ul>
+    <div id="quietMore"></div>
+    <div id="quietNone"></div>
   </section>
 
   <div class="foot">
@@ -159,7 +180,14 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
   function rankCell(r) { if (!r) { const n = el('span', 'rk none', '–'); n.setAttribute('aria-label', '등수 없음'); return n; } const c = el('span', 'rk' + (r <= 3 ? ' medal' : ''), r <= 3 ? MEDAL[r] : String(r)); c.setAttribute('aria-label', r + '등'); return c; }
   // 내 줄: 이름 옆에 「나」. 저장소가 내 기록을 받아 주지 않았으면 「아직 안 올라감」도 붙인다 (이름만 말줄임되고 표시는 남는다)
   const notUp = () => !!upErr && !stored && !!players && !players.some(p => p.id === (rank.me() || {}).id);
-  function nameCell(name, mine) { const w = el('span', 'who'); w.appendChild(el('span', 'nm', name)); if (mine) { w.appendChild(el('i', '', '나')); if (notUp()) w.appendChild(el('i', 'wait', '아직 안 올라감')); } return w; }
+  // 칭호(11-27): 이름 아래 작은 글씨 — 칭호가 있는 줄만 두 줄
+  function nameCell(name, mine, tid) {
+    const t = tid ? KG.achv.titleOf(tid) : null, w = el('span', 'who' + (t ? ' t' : '')), l = t ? el('span', 'l1') : w;
+    l.appendChild(el('span', 'nm', name)); if (mine) { l.appendChild(el('i', '', '나')); if (notUp()) l.appendChild(el('i', 'wait', '아직 안 올라감')); }
+    if (t) { w.appendChild(l); w.appendChild(el('span', 'ttl', t.ico + ' ' + t.nm)); }
+    return w;
+  }
+  const titles = () => { const m = new Map(); for (const p of rank.withMe(players || [])) if (p.title) m.set(p.id, p.title); return m; };
   function row(cells, mine) { const li = el('li', 'rowi' + (mine ? ' me' : '')); for (const c of cells) li.appendChild(c); return li; }
   function valCell(text, sub) { const c = el('span', 'val', text); if (sub) c.appendChild(el('small', '', sub)); return c; }
 
@@ -186,13 +214,40 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
     const g = GAMES.find(x => x.key === gameKey) || GAMES[0], rows = rank.board(rank.withMe(players || []), recKey(g, diff()), g.lower);
     $('boardTitle').textContent = g.title; $('boardSub').textContent = diffLabel() + (g.lower ? ' · 적을수록 좋아요' : '');
     if (!rows.length) { ul.appendChild(el('li', 'empty', '아직 이 칸에 기록이 없어요. 먼저 해 보면 1등이에요!')); return; }
-    for (const r of rows) ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id), valCell(fmt(r.v) + g.unit, when(r.at))], !!me && r.id === me.id));
+    const tm = titles(); for (const r of rows) ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id, tm.get(r.id)), valCell(fmt(r.v) + g.unit, when(r.at))], !!me && r.id === me.id));
   }
   function paintTotal() {
     const me = rank.me(), ul = $('totalRows'); ul.textContent = '';
     const rows = rank.standings(rank.withMe(players || []));
     if (!rows.length) { ul.appendChild(el('li', 'empty', '아직 아무도 없어요. 이름을 정하고 게임을 하면 여기에 보여요.')); return; }
-    for (const r of rows) { const v = r.rank ? valCell(r.pts + '점', '1등 ' + r.firsts + '게임') : el('span', 'val none', '기록 없음'); ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id), v], !!me && r.id === me.id)); }
+    const tm = titles(); for (const r of rows) { const v = r.rank ? valCell(r.pts + '점', '1등 ' + r.firsts + '게임') : el('span', 'val none', '기록 없음'); ul.appendChild(row([rankCell(r.rank), nameCell(r.name, !!me && r.id === me.id, tm.get(r.id)), v], !!me && r.id === me.id)); }
+  }
+  // ── 요즘 조용한 게임: 게임마다 모든 사람·모든 난이도의 「새 기록 낸 때」 중 가장 늦은 때를 보고 7일이 넘은 것만 (오래된 순)
+  const DAY = 86400000, QUIET_DAYS = 7, QUIET_SHOW = 4; let quietOpen = false;
+  function quietList() {
+    const ps = players || [], now = Date.now(), out = [], none = [];
+    for (const g of GAMES) {
+      let t = 0, who = '', has = false;   // has: 날짜 없이 남은 옛 기록이라도 있으면 「기록 없음」으로 보지 않는다
+      for (const d of DIFFS) { const k = recKey(g, d.id); for (const p of ps) { if (p.recs[k] > 0) has = true; const x = (p.recs[k] > 0 && p.ts && p.ts[k]) || 0; if (x > t) { t = x; who = p.name; } } }
+      if (!has) none.push(g); else if (t && now - t > QUIET_DAYS * DAY) out.push({ g, t, who, days: Math.floor((now - t) / DAY) });
+    }
+    out.sort((a, b) => a.t - b.t); return { out, none };
+  }
+  function goGame(g) { sfx('tap'); gameKey = g.key; try { sessionStorage.setItem('kongstar.rank.game', g.key); } catch (e) {} paintChips(); paintBoard(); $('secTitle').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function paintQuiet() {
+    const { out, none } = quietList(), ul = $('quietRows'), more = $('quietMore'), nb = $('quietNone'); ul.textContent = ''; more.textContent = ''; nb.textContent = '';
+    if (!out.length) ul.appendChild(el('li', 'empty', '이번 주에는 모든 게임에서 새 기록이 나왔어요 🎉'));
+    for (const q of (quietOpen ? out : out.slice(0, QUIET_SHOW))) {
+      const gi = el('span', 'gi', q.g.ico); gi.setAttribute('aria-hidden', 'true');
+      const d = new Date(q.t), li = row([gi, el('span', 'nm', q.g.title), valCell(q.days + '일째', (d.getMonth() + 1) + '월 ' + d.getDate() + '일 · ' + q.who)], false);
+      li.addEventListener('click', () => goGame(q.g)); ul.appendChild(li);
+    }
+    if (out.length > QUIET_SHOW) { const b = el('button', 'more', quietOpen ? '접기' : (out.length - QUIET_SHOW) + '개 더 보기'); b.type = 'button'; b.addEventListener('click', () => { sfx('tap'); quietOpen = !quietOpen; paintQuiet(); }); more.appendChild(b); }
+    if (none.length) {
+      const box = el('div', 'nobody'); box.appendChild(el('b', '', '아직 아무도 기록이 없는 게임 ' + none.length + '개'));
+      for (const g of none) { const t = el('button', 'tg'); t.type = 'button'; t.appendChild(el('span', '', g.ico)); t.appendChild(el('span', '', g.title)); t.addEventListener('click', () => goGame(g)); box.appendChild(t); }
+      nb.appendChild(box);
+    }
   }
   function paint() {
     const me = rank.me(), on = !!rank.cfg(), named = !!(me && me.name);
@@ -207,6 +262,7 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
     $('stamp').textContent = !on ? '' : busy ? '순위를 받는 중이에요…' : gotAt ? (stored ? '저장된 순위 · ' : '') + '마지막으로 받은 때: ' + clock(gotAt) : '';
     $('bRefresh').disabled = busy; $('bRefresh').textContent = busy ? '받는 중…' : '새로 고침';
     if (on) { paintTotal(); paintChips(); }
+    $('quietCard').hidden = !on || !players; if (on && players) paintQuiet();   // 아직 한 번도 못 받았으면 숨긴다 (모든 게임이 「기록 없음」으로 보이지 않게)
     paintBoard();
   }
 

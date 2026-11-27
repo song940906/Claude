@@ -778,6 +778,7 @@ body .kg-top { z-index: 26; }
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edScore').textContent = fmt(score); $('edMail').textContent = fmt(mailed) + '통'; $('edPerf').textContent = fmt(perfects) + '번'; $('edCombo').textContent = fmt(maxCombo);
     $('edTitle').textContent = quit ? '여기까지 했어요' : mailed >= 40 ? '도장 달인이에요!' : '하트를 다 썼어요';
+    if (!quit && mailed >= 40 && KG.master) KG.master('stamp');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = mailed > 0 ? J(name, '이/가') + ' 편지 ' + fmt(mailed) + '통을 우편함에 넣었어요.' + (maxCombo >= 3 ? ' 퍼펙트 ' + maxCombo + '번 연속!' : '') : '점선 칸이 도장 바로 밑에 올 때 눌러 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');
