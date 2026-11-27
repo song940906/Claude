@@ -533,7 +533,7 @@ body .kg-top { z-index: 26; }
     paintTray('good'); visible = true; paintBubble(pick(['고마워요!', '맛있겠다!', '딱 맞아요!', '최고예요!'])); bubble.classList.add('good');
     sfx('match'); burst(CX, CT - R * 2, cust.regular ? 9 : 5, 'heart');
     floatText(CX, CT - R * 2.6, '+' + fmt(pts) + (cust.regular ? ' 단골' : streak >= 3 ? ' · 연속 ' + streak : ''), '#FFFFFF');
-    if (D.heal && streak % D.heal === 0 && hearts < 3) { hearts++; paintHearts(hearts - 1); sfx('heart'); say('잘하고 있어요! 하트를 하나 받았어요', 2.6); }
+    if (D.heal && streak % D.heal === 0 && hearts < 3) { hearts++; paintHearts(hearts - 1); sfx('heart'); say('잘하고 있어요! 하트를 하나 받았어요', 2.6); KG.lick(0.9, 0.25); }   // 칭찬받으면 할짝 (11-28)
     if (cust.regular || streak % 5 === 0 || Math.random() < 0.22) bark(cust.regular || streak % 5 === 0);
     paintHud();
   }
@@ -672,6 +672,7 @@ body .kg-top { z-index: 26; }
     $('edNew').hidden = !isNew;
     $('edText').textContent = served > 0 ? '강아지 손님 ' + fmt(served) + '마리가 맛있게 먹고 갔어요.' : J(name, '이랑/랑') + ' 가게를 열어 봤어요.';
     $('cardEnd').hidden = false; rbox.show(diffId); focusBtn('btnAgain'); if (isNew) sfx('win');
+    else if (served >= 5) KG.lick(0.9, 0.35);   // 손님을 많이 받은 판은 기뻐서 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
   }
   const guard = () => performance.now() - endAt < 450;   // 결과 카드가 뜬 직후에는 누름을 넘긴다 (간식을 두드리던 손가락)
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen && state === 'ready') start(); });

@@ -430,7 +430,7 @@ body .kg-top { z-index: 26; }
     addFloat(px(-0.35), fy, perf ? (combo >= 2 ? '퍼펙트! ×' + combo : '퍼펙트!') : '좋아요', perf ? '#FFE08A' : '#fff', perf);
     addFloat(px(-0.35), fy + 22, '+' + pts, perf ? '#FFE08A' : '#DDE3FF', false);
     if (!reduceMotion) for (let i = 0; i < (perf ? 10 : 5); i++) { const a = rand(-Math.PI, 0), v = rand(60, 170); parts.push({ x: px(0), y: BY, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.3, 0.55), col: perf ? pick(['#FFE08A', '#FF9DB0', '#fff']) : '#FFD0DA' }); }
-    if (perf) { tone(880 + Math.min(combo, 10) * 45, 0.12, 'triangle', 0.06); tone(1320 + Math.min(combo, 10) * 45, 0.14, 'triangle', 0.045, 0.06); setMood('joy', 0.7); }
+    if (perf) { tone(880 + Math.min(combo, 10) * 45, 0.12, 'triangle', 0.06); tone(1320 + Math.min(combo, 10) * 45, 0.14, 'triangle', 0.045, 0.06); setMood('joy', 0.7); if (combo % 10 === 0) KG.lick(0.85, 0.1); }   // 11-28: 퍼펙트 10연속마다 칭찬 핥기
     else { tone(660, 0.1, 'triangle', 0.05); setMood('happy', 0.5); }
     if (D.heal) { healN++; if (healN >= D.heal * (D.late && sent > D.late ? 2 : 1)) { healN = 0; if (hearts < MAXH) { hearts++; sfx('heart'); addFloat(px(-0.35), fy - 26, '하트 +1', '#BFF3D2', true); flashHp('heal'); } } }
     paintHud();
@@ -781,7 +781,7 @@ body .kg-top { z-index: 26; }
     if (!quit && mailed >= 40 && KG.master) KG.master('stamp');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = mailed > 0 ? J(name, '이/가') + ' 편지 ' + fmt(mailed) + '통을 우편함에 넣었어요.' + (maxCombo >= 3 ? ' 퍼펙트 ' + maxCombo + '번 연속!' : '') : '점선 칸이 도장 바로 밑에 올 때 눌러 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
-    if (isNew) sfx('win');
+    if (isNew) sfx('win'); else if (score > 0 && !quit) KG.lick(0.9, 0.35);   // 11-28: 결과 기쁨 핥기 (신기록이면 공통이 짖으니 뺀다)
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

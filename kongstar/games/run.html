@@ -462,7 +462,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     it.got = true; const x = KX + (it.x - S.x) * SZ, y = GY - it.h * SZ;
     if (it.type === 'bone') { S.pts += 5; S.treats++; sfx('coin'); sparkle(x, y, 3); emit({ kind: 'text', text: '+' + Math.round(5 * D.mul), col: '#FFF6D8', x, y: y - 10, vy: -50, max: 0.55, size: 13 }); }
     else if (it.type === 'yam') { S.pts += 20; S.treats++; sfx('coin'); sfx('munch'); sparkle(x, y, 6, '#FFB3D1'); emit({ kind: 'text', text: '+' + Math.round(20 * D.mul), col: '#FFE0EC', x, y: y - 10, vy: -50, max: 0.7, size: 15 }); }
-    else if (it.type === 'heart') { if (S.hearts < 3) S.hearts++; S.pts += 20; paintHearts(); sfx('heart'); sparkle(x, y, 8, '#FF8FA3'); say('고마워요!', '#FFD9E0'); }
+    else if (it.type === 'heart') { if (S.hearts < 3) S.hearts++; S.pts += 20; paintHearts(); sfx('heart'); if (!S.simulating) KG.lick(0.9, 0.12); sparkle(x, y, 8, '#FF8FA3'); say('고마워요!', '#FFD9E0'); }
     else if (it.type === 'star') { S.power = POWER_SEC; S.pts += 50; S.treats++; sfx('power'); sparkle(x, y, 14); say('신난다!', '#FFE9A8'); $('pow').hidden = false; }
   }
   function paintHearts() { const hs = $('hearts').children; for (let i = 0; i < hs.length; i++) hs[i].classList.toggle('off', i >= S.hearts); $('hearts').setAttribute('aria-label', '하트 ' + Math.max(0, S.hearts) + '개'); }
@@ -481,6 +481,8 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     } else if (m === 'ending') S.v = Math.max(0, S.v - dt * Math.max(2.2, S.v * 3));
     S.x += S.v * dt; if (m === 'play') S.dist = S.x - S.x0;   // 끝나며 미끄러지는 거리는 세지 않는다(점수와 맞게)
     S.phase += dt * (4.5 + S.v * 3.3);
+    // 11-28 발자국(진짜 소리): 실제로 달리는 동안(시작 카드 뒤 대기 달리기·공중 제외) 걸음 한 주기에 한 번, 작게
+    if (!S.simulating && (m === 'play' || m === 'ending') && !S.air && S.v > 0.15) { const sn = Math.floor(S.phase / TAU); if (sn !== S.stepN) { S.stepN = sn; KG.step(0.42); } }
     S.inv = Math.max(0, S.inv - dt); S.wob = Math.max(0, S.wob - dt * 1.5); S.shake = Math.max(0, S.shake - dt); S.landT = Math.max(0, S.landT - dt);
     if (S.buffer > 0) S.buffer -= dt;
 
@@ -518,7 +520,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       S.endT += dt;
       for (const ob of S.obs) if (!ob.fly && Math.abs(ob.x - S.x) < 0.5 + ob.w / 2) ob.fade = Math.min(1, (ob.fade || 0) + dt * 4);
       for (const it of S.items) if (!it.got && it.x - S.x > -0.6 && it.x - S.x < 0.75 && it.h < 1.5) it.fade = Math.min(1, (it.fade || 0) + dt * 4);
-      if (!S.sat && S.v <= 0.05 && !S.air) { S.sat = true; k.setPose('sit'); S.say = 2.2; sfx('win'); voice('bark', 0.25, 1.1); }
+      if (!S.sat && S.v <= 0.05 && !S.air) { S.sat = true; k.setPose('sit'); S.say = 2.2; sfx('win'); voice('bark', 0.25, 1.1); if (!S.simulating) KG.lick(1.0, 0.45); }   // 11-28 다 달리고 앉아 기뻐 할짝 (결과 카드·신기록 짖음은 2.6초 뒤라 겹치지 않는다)
       if (S.sat && S.endT > 2.6 && !S.simulating) showOver();
     }
     for (let i = S.parts.length - 1; i >= 0; i--) { const p = S.parts[i]; p.life += dt; if (p.life >= p.max) { S.parts.splice(i, 1); continue; } p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; }

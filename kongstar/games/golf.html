@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>콩이의 미니골프</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0B1030">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="referrer" content="no-referrer">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<style>
+/* 콩이의 미니골프: 밤하늘·잔디 코스(bg) → 물결·홀컵·장난감·공(cv) → 콩이(stage) → 조준선·글자·깃발(fx) → 점수판 순서로 겹친다 */
+#bg, #cv, #fx { position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+#cv { z-index: 1; pointer-events: none; }
+#stage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+#fx { z-index: 3; touch-action: none; }
+#hud { position: fixed; z-index: 10; display: flex; align-items: center; justify-content: center; gap: 6px; pointer-events: none; transform: translateX(-50%); }
+#hud > div { height: 32px; box-sizing: border-box; border-radius: 16px; padding: 0 11px; background: rgba(18,22,52,.62); border: 1px solid var(--glass-line); display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; letter-spacing: -.2px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#hud small { font-size: 12px; font-weight: 500; color: #C9D1F2; }
+#hud .sc.bump { animation: scBump .35s; }
+@keyframes scBump { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+#hud.tight { gap: 4px; }
+#hud.tight > div { padding: 0 8px; font-size: 13px; }
+.kg-card .how { text-align: left; background: var(--soft); border-radius: 16px; padding: 12px 14px; margin: 14px 0 0; }
+.kg-card .how p { font-size: 14px; color: #4E5968; margin: 0; }
+.kg-card .how p + p { margin-top: 6px; }
+.kg-card .how b { color: var(--ink); font-weight: 600; }
+.kg-card .dnote { margin: 8px 0 0; font-size: 13px; color: var(--sub); }
+.kg-card .rec { display: flex; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.kg-card .rec span { background: var(--soft); border-radius: 12px; padding: 7px 12px; font-size: 13px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.kg-card .rec span b { color: var(--ink); font-weight: 600; margin-left: 4px; }
+.kg-card .new { display: inline-block; margin-top: 4px; background: #FFF4D6; color: #B07A00; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 4px 10px; }
+.kg-card .big small { font-size: 18px; font-weight: 600; margin-left: 2px; letter-spacing: 0; }
+a.kg-btn { text-decoration: none; box-sizing: border-box; }
+.kg-card .row #btnRules { flex: 0 0 auto; padding: 0 16px; font-size: 15px; color: var(--sub); }
+/* 홀별 점수표 (결과 카드) */
+.card9 { margin: 12px 0 0; border-radius: 14px; background: var(--soft); padding: 8px 8px 6px; }
+.card9 table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.card9 th, .card9 td { padding: 3px 0; font-size: 12.5px; text-align: center; }
+.card9 th { color: var(--sub); font-weight: 600; font-size: 11.5px; }
+.card9 th:first-child, .card9 td:first-child { width: 34px; text-align: left; padding-left: 4px; color: var(--sub); font-size: 11.5px; font-weight: 600; }
+.card9 tr + tr td { border-top: 1px solid var(--line); }
+.card9 td.s { font-weight: 700; color: var(--ink); }
+.card9 td.s i { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 10px; font-style: normal; }
+.card9 td.s i.under { background: #DCEBFF; color: #1F5FBF; }
+.card9 td.s i.ace { background: #FFE7A8; color: #8A5A00; }
+.card9 td.s i.over { color: var(--sub); font-weight: 600; }
+.card9 td.s i.pick { color: #C0C6D0; font-weight: 600; }
+.card9 td.p { color: var(--pri); font-weight: 600; font-size: 11.5px; }
+/* 카드가 떠 있어도 위 줄(게임 고르기·소리)은 눌려야 한다 */
+body .kg-top { z-index: 26; }
+@media (max-width: 340px) { body .kg-card .kg-diff button { font-size: 12px; } .kg-card .rec span { padding: 7px 9px; } .card9 th, .card9 td { font-size: 11.5px; } .card9 th:first-child, .card9 td:first-child { width: 28px; } }
+@media (max-height: 600px) {
+  body .kg-card .how { margin-top: 10px; padding: 9px 14px; }
+  body .kg-card .how p + p { margin-top: 3px; }
+  body .kg-card .kg-diff { margin-top: 10px; }
+}
+/* 낮은 세로 화면(320×568 등): 점수표가 있어 결과 카드가 길다 → 설명 글을 빼서 단추가 첫 화면에 들어오게 */
+@media (max-height: 620px) { #edText { display: none; } body .kg-card .card9 { margin-top: 8px; } }
+@media (min-height: 431px) and (max-height: 600px) {
+  body .kg-rules .kg-card { box-sizing: border-box; padding: 16px 16px 14px; }
+  body .kg-rules .tag { display: none; }
+  body .kg-rules li { padding: 8px 10px; font-size: 14px; }
+  body .kg-rules ul { margin-top: 8px; }
+  body .kg-rules .kg-btn { margin-top: 10px; height: 48px; }
+}
+/* 낮은 화면(가로 휴대폰): 난이도 단추까지 한 화면에 들어오게 카드를 촘촘하게 */
+@media (max-height: 430px) {
+  body .kg-card { box-sizing: border-box; width: min(100%, 400px); padding: 14px 20px; }
+  body .kg-card h2 { margin-bottom: 2px; }
+  #stLead, #stKeys { display: none; }
+  body .kg-card .how { margin-top: 6px; padding: 8px 14px; }
+  body .kg-card .kg-diff { margin-top: 8px; }
+  body .kg-card .kg-diff button { height: 36px; }
+  body .kg-card .dnote { margin-top: 5px; font-size: 12px; }
+  body .kg-card .rec { margin-top: 8px; }
+  body .kg-card .row { margin-top: 10px; }
+  body .kg-card .kg-btn { height: 44px; }
+  body .kg-card .big { font-size: 34px; margin: 2px 0 0; }
+  .card9 { margin-top: 8px; padding: 4px 6px 2px; }
+  .card9 th, .card9 td { padding: 1px 0; }
+  .card9 td.s i { height: 18px; }
+}
+/* 순위 카드와 나란히 서는 아주 낮은 가로 화면: 카드가 위 줄(게임·소리 단추) 밑에서 시작하게, 결과 카드 높이를 줄인다 */
+@media (orientation: landscape) and (max-height: 360px) {
+  #cardStart, #cardEnd { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+  body .kg-rbwrap > .kg-card #edText { display: none; }
+  body .kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body .kg-rbwrap > .kg-card { padding: 12px 16px; }
+  body .kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body .kg-rbwrap > .kg-card .new { margin-top: 2px; padding: 2px 8px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .rec { margin-top: 6px; gap: 4px 6px; }
+  body .kg-rbwrap > .kg-card .rec span { padding: 4px 9px; font-size: 12px; }
+  body .kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body .kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body .kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body .kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+  body .kg-rbwrap > .kg-card .card9 { display: none; }
+  #stDNote { display: none; }
+}
+/* 순위 카드와 나란히 서는 가로 화면(361~520px 높이): 결과 카드가 위 줄 밑에서 시작하게 (「게임」 단추가 카드 머리를 덮지 않게) */
+/*   그만큼 낮아지므로 「다시 하기」가 첫 화면에 들어오게 카드를 아주 낮은 가로 화면(360px 이하) 처리처럼 촘촘하게 (점수표는 남긴다) */
+@media (orientation: landscape) and (min-height: 361px) and (max-height: 520px) {
+  #cardEnd.kg-rbwrap { padding-top: calc(var(--sat) + 58px); padding-bottom: calc(var(--sab) + 6px); }
+}
+@media (orientation: landscape) and (min-height: 361px) and (max-height: 430px) {
+  body #cardEnd.kg-rbwrap > .kg-card { padding-top: 8px; padding-bottom: 8px; }
+  body #cardEnd.kg-rbwrap > .kg-card h2 { font-size: 18px; }
+  body #cardEnd.kg-rbwrap > .kg-card .big { font-size: 30px; }
+  body #cardEnd.kg-rbwrap > .kg-card .rec { margin-top: 6px; }
+  body #cardEnd.kg-rbwrap > .kg-card .kg-diff { margin-top: 6px; }
+  body #cardEnd.kg-rbwrap > .kg-card .kg-diff button { height: 32px; }
+  body #cardEnd.kg-rbwrap > .kg-card .row { margin-top: 8px; }
+  body #cardEnd.kg-rbwrap > .kg-card .kg-btn { height: 40px; }
+}
+@media (orientation: landscape) and (max-height: 430px) { #cardEnd.kg-rbwrap .big { display: inline-block; vertical-align: middle; } #cardEnd.kg-rbwrap .new { margin: 0 0 0 8px; vertical-align: middle; } body .kg-rbwrap > .kg-card .rec { flex-wrap: nowrap; gap: 6px; } body .kg-rbwrap > .kg-card .rec span { padding: 6px 9px; font-size: 12px; white-space: nowrap; } }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="cv"></canvas>
+<div id="stage"></div>
+<canvas id="fx" aria-label="미니골프 코스 — 화면을 끌어 당겼다가 놓으면 공을 쳐요"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div id="hudHole"><span id="hudHoleN">1</span><small>/9홀</small></div>
+  <div id="hudStroke"><small>타수</small><span id="hudStrokeN">0</span><small id="hudPar">· 기준 2</small></div>
+  <div class="sc" id="hudSc"><span id="hudScore">0</span><small>점</small></div>
+</div>
+
+<div class="kg-scrim" id="cardStart" hidden>
+  <div class="kg-card">
+    <h2 id="stTitle">콩이의 미니골프</h2>
+    <p id="stLead"></p>
+    <div class="how">
+      <p>화면을 <b>끌어 당겼다가 놓으면</b> 반대쪽으로 공을 쳐요.</p>
+      <p>많이 당길수록 <b>세게</b> 굴러가요.</p>
+      <p id="stKeys" hidden><b>← →</b> 방향, <b>↑ ↓</b> 힘, <b>스페이스</b>로 쳐도 돼요.</p>
+    </div>
+    <p class="dnote" id="stDNote"></p>
+    <div class="rec" id="stRec" hidden><span>최고 기록<b id="stBest"></b></span></div>
+    <div class="row"><button class="kg-btn" id="btnRules" type="button">규칙 보기</button><button class="kg-btn pri" id="btnStart">시작</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardPause" hidden>
+  <div class="kg-card">
+    <h2>잠깐 쉬는 중이에요</h2>
+    <p id="psText"></p>
+    <div class="row"><button class="kg-btn" id="btnQuit" type="button">그만하기</button><button class="kg-btn pri" id="btnResume">이어 하기</button></div>
+  </div>
+</div>
+
+<div class="kg-scrim" id="cardEnd" hidden>
+  <div class="kg-card">
+    <h2 id="edTitle">9홀을 모두 돌았어요</h2>
+    <p id="edText"></p>
+    <div class="big"><span id="edScore">0</span><small>점</small></div>
+    <div id="edNew" class="new" hidden>새 기록이에요!</div>
+    <div class="card9" id="edCard"></div>
+    <div class="rec"><span>홀인원<b id="edAce"></b></span><span>총 타수<b id="edStrokes"></b></span><span id="edRec">최고 기록<b id="edBest"></b></span></div>
+    <div class="row"><a class="kg-btn" href="index.html">게임 고르기</a><button class="kg-btn pri" id="btnAgain">다시 하기</button></div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { name, J, kong, sfx, tone, noise, best, setBest, topbar, safe, rand, clamp, lerp, TAU, reduceMotion } = KG;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('ko-KR');
+  const KEY = 'golf', TITLE = J(name, '의') + ' 미니골프';
+  const KEYS_OK = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // ═══════ 코스: 위에서 내려다본 판. 단위 = 폭 100 · 길이 160 (세로 화면 그대로, 가로 화면은 시계 반대로 돌려 왼쪽이 출발) ═══════
+  const FW = 100, FH = 160, BT = 3;   // 판 크기 · 테두리 두께
+  const BR = 2;                       // 공 반지름
+  const VMAX = 180;                   // 끝까지 당겼을 때 공 빠르기 (단위/초)
+  const HOLES = 9;
+  // 홀마다 점수: 홀인원 50 · 그 밖은 20 + (기준 − 타수) × 10 (보기 10 · 더블 보기 0, 0 아래로는 안 내려간다)
+  const holePts = (par, s) => s === 1 ? 50 : Math.max(0, 20 + (par - s) * 10);
+
+  // ═══════ 난이도 표 (수치는 여기 한 곳에만) ═══════
+  //   cup 홀컵 반지름 · cap 홀컵에 떨어지는 최대 빠르기 · mu 잔디 구름 저항 · sand 모래 배수 · extra 기준보다 더 칠 수 있는 타수(넘기면 그 홀 0점)
+  //   guide 'path'(멈출 때까지 길) 'wall'(첫 벽까지) 'arrow'(화살표) 'short'(짧은 화살표) · ms 장난감 빠르기 배수 · magnet 홀컵 둘레 끌어당김 · bounce 벽 튕김
+  const DIFF = {
+    easy:   { cup: 4.4, cap: 80, mu: 50, sand: 3.2, extra: 4, guide: 'path',  ms: 0.6,  magnet: 1,   bounce: 0.72 },
+    normal: { cup: 3.6, cap: 66, mu: 44, sand: 3.6, extra: 3, guide: 'wall',  ms: 0.85, magnet: 0.4, bounce: 0.75 },
+    hard:   { cup: 3.1, cap: 54, mu: 38, sand: 4.2, extra: 3, guide: 'arrow', ms: 1.1,  magnet: 0,   bounce: 0.78 },
+    vhard:  { cup: 2.7, cap: 44, mu: 33, sand: 5.0, extra: 2, guide: 'short', ms: 1.45, magnet: 0,   bounce: 0.8 }
+  };
+  const DNOTE = { easy: '큰 홀컵 · 굴러갈 길이 미리 보여요 · 기준+4타까지', normal: '첫 벽까지 길 안내 · 기준+3타까지', hard: '작은 홀컵 · 방향 화살표만 · 모래·경사·물이 더 많아요', vhard: '아주 작은 홀컵 · 빠른 장난감 · 미끄러운 잔디 · 기준+2타까지' };
+  const MASTER = { easy: 250, normal: 220, hard: 200, vhard: 180 };   // 「미니골프 달인」 — 9홀 합계 (모두 기준 타수면 180점)
+  let diffId = 'normal', D = DIFF.normal, LV = 1;
+
+  // ═══════ 홀 9개: lv = 난이도 0~3 에 따라 장애물을 더한다 ═══════
+  //   blocks 사각 벽 [x,y,w,h] · bumps 둥근 쿠션 [x,y,r] · sand/water {r:[x,y,w,h]} 또는 {c:[x,y,r]} · slopes {r:[...], ax, ay}(굴러갈 때 받는 힘)
+  //   movers: bone(뼈다귀 — 미끄러져 오감) {cx,cy,len,ang,r,ax,ay,spd,ph} · toy(장난감 공) {cx,cy,r,ax,ay,spd,ph} · spin(빙글 막대) {cx,cy,len,r,om,ph}
+  function makeHole(n, lv) {
+    const h = { n, par: 3, tee: [50, 142], cup: [50, 28], blocks: [], bumps: [], sand: [], water: [], slopes: [], movers: [], name: '' };
+    const R = (x, y, w, hh) => ({ r: [x, y, w, hh] }), Cc = (x, y, r) => ({ c: [x, y, r] });
+    switch (n) {
+      case 1:
+        h.name = '쭉 곧은 길'; h.par = 2; h.tee = [50, 140]; h.cup = [50, 32];
+        if (lv >= 1) h.bumps.push([50, 88, 6]);
+        if (lv >= 2) h.sand.push(R(28, 18, 12, 28), R(60, 18, 12, 28));
+        if (lv >= 3) h.movers.push({ k: 'bone', cx: 50, cy: 60, len: 22, ang: 0, r: 3, ax: 28, ay: 0, spd: 1.4, ph: 0 });
+        break;
+      case 2:
+        h.name = '가운데 울타리'; h.par = 3; h.tee = [50, 142]; h.cup = [50, 28];
+        h.blocks.push(lv >= 2 ? [14, 74, 72, 10] : [19, 74, 62, 10]);
+        if (lv >= 1) h.bumps.push([30, 42, 5], [70, 42, 5]);
+        if (lv >= 3) { h.water.push(R(BT, 88, 20, 22)); h.movers.push({ k: 'toy', cx: 84, cy: 60, r: 4, ax: 9, ay: 0, spd: 1.6, ph: 1 }); }
+        break;
+      case 3:
+        h.name = '꺾인 길'; h.par = 3; h.tee = [22, 140]; h.cup = [80, 22];
+        h.blocks.push([0, 0, 60, 92]);
+        if (lv >= 1) h.sand.push(Cc(80, 106, lv >= 3 ? 11 : 9));
+        if (lv >= 2) h.slopes.push({ r: [60, 36, 40, 44], ax: 14 + lv * 2, ay: 0 });
+        if (lv >= 3) { h.water.push(R(61, 8, 8, 30)); h.bumps.push([92, 62, 4]); }
+        break;
+      case 4: {
+        h.name = '개울 다리'; h.par = 3; h.tee = [50, 140];
+        const bw = [30, 24, 18, 14][lv], bx = lv >= 2 ? 38 : 50;
+        h.cup = lv >= 2 ? [64, 28] : [50, 28];
+        h.water.push(R(BT, 70, bx - bw / 2 - BT, 22), R(bx + bw / 2, 70, FW - BT - bx - bw / 2, 22));
+        if (lv >= 1) h.bumps.push([38, 46, 4], [62, 46, 4]);
+        if (lv >= 3) h.movers.push({ k: 'bone', cx: bx, cy: 106, len: 20, ang: 0, r: 3, ax: 22, ay: 0, spd: 1.2, ph: 0.5 });
+        break;
+      }
+      case 5:
+        h.name = '비탈 언덕'; h.par = 3; h.tee = [78, 140]; h.cup = [22, 28];
+        h.slopes.push({ r: [BT, 50, FW - BT * 2, 60], ax: [10, 14, 18, 22][lv], ay: 0 });
+        if (lv >= 2) h.sand.push(R(70, 18, 27, 25));
+        if (lv >= 3) { h.bumps.push([45, 80, 5]); h.movers.push({ k: 'toy', cx: 30, cy: 70, r: 4, ax: 0, ay: 16, spd: 1.3, ph: 0 }); }
+        break;
+      case 6:
+        h.name = '쿠션 숲'; h.par = 3; h.tee = [50, 142]; h.cup = [50, 24];
+        { const r = lv >= 2 ? 6 : 5; h.bumps.push([25, 80, r], [50, 80, r], [75, 80, r]);
+          if (lv >= 1) h.bumps.push([37, 60, r], [63, 60, r]);
+          if (lv >= 2) h.bumps.push([37, 100, r], [63, 100, r]); }
+        if (lv >= 3) { h.movers.push({ k: 'toy', cx: 50, cy: 42, r: 4, ax: 30, ay: 0, spd: 1.8, ph: 0 }); h.sand.push(Cc(36, 22, 6), Cc(64, 22, 6)); }
+        break;
+      case 7:
+        h.name = '지그재그'; h.par = 4; h.tee = [16, 142]; h.cup = [82, 22];
+        h.blocks.push([0, 104, 66, 8], [34, 56, 66, 8]);
+        if (lv >= 1) h.bumps.push([50, 84, 5]);
+        if (lv >= 2) h.water.push(R(BT, 66, 18, 12));
+        if (lv >= 3) h.movers.push({ k: 'spin', cx: 62, cy: 32, len: 28, r: 2.6, om: 1.3, ph: 0 });
+        break;
+      case 8:
+        h.name = '장난감 문'; h.par = 3; h.tee = [50, 142]; h.cup = [50, 22];
+        h.movers.push({ k: 'bone', cx: 25, cy: 82, len: 24, ang: 0, r: 3.5, ax: 10, ay: 0, spd: 1.1, ph: 0 },   // 가운데에서 닫혔다 양옆으로 열리는 문
+                      { k: 'bone', cx: 75, cy: 82, len: 24, ang: 0, r: 3.5, ax: -10, ay: 0, spd: 1.1, ph: 0 });
+        if (lv >= 2) h.movers.push({ k: 'spin', cx: 50, cy: 48, len: 26, r: 2.6, om: 1.6, ph: 0.6 });
+        if (lv >= 3) h.water.push(R(BT, 28, 14, 30), R(FW - BT - 14, 28, 14, 30));
+        break;
+      case 9: {
+        h.name = '콩이네 섬'; h.par = 4; h.tee = [28, 142]; h.cup = [46, 35];
+        const oh = [17, 11, 8, 6][lv];
+        h.water.push(R(22, 10, 56, 8), R(22, 52, 56, 8), R(22, 10, 8, 50));
+        if (35 - oh > 18) h.water.push(R(70, 18, 8, 35 - oh - 18));
+        if (35 + oh < 52) h.water.push(R(70, 35 + oh, 8, 52 - 35 - oh));
+        if (lv >= 1) h.sand.push(R(80, 90, 17, 20));
+        if (lv >= 2) h.bumps.push([60, 100, 6]);
+        if (lv >= 3) h.movers.push({ k: 'bone', cx: 88, cy: 64, len: 16, ang: Math.PI / 2, r: 3, ax: 0, ay: 20, spd: 1.3, ph: 0 });
+        break;
+      }
+    }
+    for (const m of h.movers) { if (m.spd) m.spd *= D.ms; if (m.om) m.om *= D.ms; }
+    return h;
+  }
+
+  // ═══════ 화면 조각 ═══════
+  const bar = topbar({ title: TITLE, back: 'index.html' });
+  const btnPause = document.createElement('button');
+  btnPause.className = 'kg-pill kg-round'; btnPause.setAttribute('aria-label', '잠깐 멈추기'); btnPause.hidden = true;
+  btnPause.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.5"/><rect x="13.5" y="5" width="4" height="14" rx="1.5"/></svg>';
+  bar.right(btnPause);
+  document.title = TITLE; $('stTitle').textContent = TITLE;
+  $('stLead').textContent = '잔디 코스 9홀을 돌아요. 적은 타수로 홀컵에 넣을수록 점수가 커요.';
+  if (KEYS_OK) $('stKeys').hidden = false;
+  const bg = $('bg'), cv = $('cv'), fx = $('fx'), stage = $('stage'), hud = $('hud');
+  const g = cv.getContext('2d'), fg = fx.getContext('2d');
+  const FONT = getComputedStyle(document.body).fontFamily;
+  const K = kong(stage, 80);
+
+  // ═══════ 상태 ═══════
+  let state = 'ready';        // ready · play · pause · over · result
+  let phase = 'aim';          // intro · aim · roll · sink · splash · done
+  let H9 = null, holeN = 1, strokes = 0, total = 0, card = [], aces = 0, isNew = false, quit = false, overT = 0, overAt = 0;
+  let tW = 0, tAnim = 0, phaseT = 0, rollT = 0, lastHit = 0, doneTxt = '', doneSub = '';
+  const ball = { x: 50, y: 140, vx: 0, vy: 0, sx: 50, sy: 140, scale: 1 };
+  const react = { kind: '', t: 0 };   // 콩이 반응: ace · good · par · sad · splash · shot
+  let floats = [], parts = [];
+  let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, sc = 3, ox = 0, oy = 0, rot = false, KSZ = 80, kongX = 0, kongY = 0, low = false;
+
+  // 판 → 화면 좌표 (rot: 가로 화면은 시계 반대로 90° — 출발(아래)이 왼쪽, 홀컵(위)이 오른쪽)
+  const L2S = (x, y) => rot ? { x: ox + (FH - y) * sc, y: oy + x * sc } : { x: ox + x * sc, y: oy + y * sc };
+  const dS2L = (dx, dy) => rot ? { x: dy / sc, y: -dx / sc } : { x: dx / sc, y: dy / sc };
+  const dL2S = (dx, dy) => rot ? { x: -dy * sc, y: dx * sc } : { x: dx * sc, y: dy * sc };
+  const setL = c => { if (rot) c.setTransform(0, DPR * sc, -DPR * sc, 0, DPR * (ox + FH * sc), DPR * oy); else c.setTransform(DPR * sc, 0, 0, DPR * sc, DPR * ox, DPR * oy); };
+  const setS = c => c.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  // ═══════ 물리: 판 시간 t 에 장난감 자리가 정해진다 (그래서 미리보기도 같은 식으로 계산된다) ═══════
+  function moverAt(m, t) {
+    if (m.k === 'spin') { const a = m.om * t + m.ph, dx = Math.cos(a) * m.len / 2, dy = Math.sin(a) * m.len / 2; return { ax: m.cx - dx, ay: m.cy - dy, bx: m.cx + dx, by: m.cy + dy, r: m.r, cx: m.cx, cy: m.cy, vx: 0, vy: 0, om: m.om, a }; }
+    const s = Math.sin(m.spd * t + m.ph), co = Math.cos(m.spd * t + m.ph), cx = m.cx + m.ax * s, cy = m.cy + m.ay * s, vx = m.ax * m.spd * co, vy = m.ay * m.spd * co;
+    if (m.k === 'toy') return { ax: cx, ay: cy, bx: cx, by: cy, r: m.r, cx, cy, vx, vy, om: 0 };
+    const dx = Math.cos(m.ang) * m.len / 2, dy = Math.sin(m.ang) * m.len / 2;
+    return { ax: cx - dx, ay: cy - dy, bx: cx + dx, by: cy + dy, r: m.r, cx, cy, vx, vy, om: 0 };
+  }
+  const inR = (r, x, y) => x >= r[0] && x <= r[0] + r[2] && y >= r[1] && y <= r[1] + r[3];
+  const inZ = (z, x, y) => z.r ? inR(z.r, x, y) : (x - z.c[0]) ** 2 + (y - z.c[1]) ** 2 <= z.c[2] ** 2;
+  function slopeAt(x, y) { let ax = 0, ay = 0; for (const s of H9.slopes) if (inR(s.r, x, y)) { ax += s.ax; ay += s.ay; } return [ax, ay]; }
+  const onSand = (x, y) => H9.sand.some(z => inZ(z, x, y));
+  const inWater = (x, y) => H9.water.some(z => inZ(z, x, y));
+  // 부딪힘: 법선 n 쪽으로 밀어내고, 상대 빠르기를 되튕긴다. 반환값: 부딪힌 세기(소리용)
+  function bounceOff(b, nx, ny, pen, ovx, ovy, e) {
+    b.x += nx * pen; b.y += ny * pen;
+    const rvx = b.vx - ovx, rvy = b.vy - ovy, vn = rvx * nx + rvy * ny;
+    if (vn >= 0) return 0;
+    const tx = rvx - vn * nx, ty = rvy - vn * ny;
+    b.vx = ovx + tx * 0.96 - vn * e * nx; b.vy = ovy + ty * 0.96 - vn * e * ny;
+    return -vn;
+  }
+  function collide(b, t, hits) {
+    let hitW = 0, hitB = 0;
+    // 테두리
+    if (b.x < BT + BR) hitW = Math.max(hitW, bounceOff(b, 1, 0, BT + BR - b.x, 0, 0, D.bounce));
+    if (b.x > FW - BT - BR) hitW = Math.max(hitW, bounceOff(b, -1, 0, b.x - (FW - BT - BR), 0, 0, D.bounce));
+    if (b.y < BT + BR) hitW = Math.max(hitW, bounceOff(b, 0, 1, BT + BR - b.y, 0, 0, D.bounce));
+    if (b.y > FH - BT - BR) hitW = Math.max(hitW, bounceOff(b, 0, -1, b.y - (FH - BT - BR), 0, 0, D.bounce));
+    // 사각 벽
+    for (const r of H9.blocks) {
+      const qx = clamp(b.x, r[0], r[0] + r[2]), qy = clamp(b.y, r[1], r[1] + r[3]);
+      let dx = b.x - qx, dy = b.y - qy, d2 = dx * dx + dy * dy;
+      if (d2 >= BR * BR) continue;
+      if (d2 > 1e-9) { const d = Math.sqrt(d2); hitW = Math.max(hitW, bounceOff(b, dx / d, dy / d, BR - d, 0, 0, D.bounce)); }
+      else {   // 공 가운데가 벽 안: 가장 얕은 쪽으로
+        const l = b.x - r[0], rr2 = r[0] + r[2] - b.x, u = b.y - r[1], dd = r[1] + r[3] - b.y, m = Math.min(l, rr2, u, dd);
+        if (m === l) hitW = Math.max(hitW, bounceOff(b, -1, 0, l + BR, 0, 0, D.bounce)); else if (m === rr2) hitW = Math.max(hitW, bounceOff(b, 1, 0, rr2 + BR, 0, 0, D.bounce));
+        else if (m === u) hitW = Math.max(hitW, bounceOff(b, 0, -1, u + BR, 0, 0, D.bounce)); else hitW = Math.max(hitW, bounceOff(b, 0, 1, dd + BR, 0, 0, D.bounce));
+      }
+    }
+    // 둥근 쿠션 (잘 튕긴다)
+    for (const q of H9.bumps) {
+      const dx = b.x - q[0], dy = b.y - q[1], d = Math.hypot(dx, dy), rr2 = q[2] + BR;
+      if (d < rr2 && d > 1e-6) hitB = Math.max(hitB, bounceOff(b, dx / d, dy / d, rr2 - d, 0, 0, 0.92));
+    }
+    // 움직이는 장난감 (막대·공 = 둥근 막대)
+    for (const m of H9.movers) {
+      const s = moverAt(m, t), ex = s.bx - s.ax, ey = s.by - s.ay, L2 = ex * ex + ey * ey;
+      const u = L2 > 1e-9 ? clamp(((b.x - s.ax) * ex + (b.y - s.ay) * ey) / L2, 0, 1) : 0;
+      const qx = s.ax + ex * u, qy = s.ay + ey * u, dx = b.x - qx, dy = b.y - qy, d = Math.hypot(dx, dy), rr2 = s.r + BR;
+      if (d < rr2) {
+        let nx = 1, ny = 0; if (d > 1e-6) { nx = dx / d; ny = dy / d; } else if (L2 > 1e-9) { nx = -ey / Math.sqrt(L2); ny = ex / Math.sqrt(L2); }
+        const ovx = s.om ? -s.om * (qy - s.cy) : s.vx, ovy = s.om ? s.om * (qx - s.cx) : s.vy;
+        hitB = Math.max(hitB, bounceOff(b, nx, ny, rr2 - d, ovx, ovy, 0.85) + Math.hypot(ovx, ovy) * 0.5);
+      }
+    }
+    if (hits) { hits.w = Math.max(hits.w, hitW); hits.b = Math.max(hits.b, hitB); }
+    return hitW + hitB;
+  }
+  // 공 한 걸음. 반환: 'cup' | 'water' | 'stop' | null
+  function stepBall(b, dt, t, hits) {
+    const sp0 = Math.hypot(b.vx, b.vy);
+    const sand = onSand(b.x, b.y), mu = D.mu * (sand ? D.sand : 1), sl = slopeAt(b.x, b.y);
+    // 홀컵
+    const cdx = H9.cup[0] - b.x, cdy = H9.cup[1] - b.y, cd = Math.hypot(cdx, cdy);
+    if (cd < D.cup) {
+      if (sp0 < D.cap || (cd < D.cup * 0.45 && sp0 < D.cap * 1.6)) return 'cup';
+      const pull = 380 * (1 - cd / D.cup) + 60; b.vx += cdx / (cd || 1) * pull * dt; b.vy += cdy / (cd || 1) * pull * dt;   // 테두리를 스치면 휘청 꺾인다
+      b.vx *= Math.exp(-2.5 * dt); b.vy *= Math.exp(-2.5 * dt);
+    } else if (D.magnet && cd < D.cup * 2.4 && sp0 < 26) { const k = (mu + 25) * D.magnet; b.vx += cdx / cd * k * dt; b.vy += cdy / cd * k * dt; }   // 홀컵 둘레가 살짝 오목하다 (Easy 는 느린 공을 끌어들인다)
+    b.vx += sl[0] * dt; b.vy += sl[1] * dt;
+    const sp = Math.hypot(b.vx, b.vy);
+    if (sp > 0) { const ns = Math.max(0, sp - mu * dt) * Math.exp(-0.22 * dt); b.vx *= ns / sp; b.vy *= ns / sp; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (sand && hits) hits.s = 1;
+    collide(b, t, hits);
+    if (inWater(b.x, b.y)) return 'water';
+    const sp2 = Math.hypot(b.vx, b.vy), sla = Math.hypot(sl[0], sl[1]);
+    if (sp2 < 2.2 && sla < mu * 0.95 && !((mu + 25) * D.magnet > mu && cd < D.cup * 2.4)) return 'stop';
+    return null;
+  }
+  // 한 프레임: 공이 한 걸음에 반지름의 40% 넘게 움직이지 않게 잘게 나눈다
+  function advance(b, dt, t0, hits) {
+    const sp = Math.hypot(b.vx, b.vy) + 40, n = clamp(Math.ceil(sp * dt / (BR * 0.4)), 1, 60), h = dt / n;
+    for (let i = 0; i < n; i++) { const r = stepBall(b, h, t0 + h * (i + 1), hits); if (r) return r; }
+    return null;
+  }
+  // 미리보기: 지금 조준으로 친다면 굴러갈 길 (until 'wall' 이면 처음 부딪힐 때까지)
+  function predict(vx, vy, until) {
+    const b = { x: ball.x, y: ball.y, vx, vy }, pts = [[b.x, b.y]], hits = { w: 0, b: 0, s: 0 };
+    let t = tW, end = null;
+    for (let i = 0; i < 400; i++) {
+      const r = advance(b, 1 / 60, t, hits); t += 1 / 60;
+      if (i % 2 === 0 || r) pts.push([b.x, b.y]);
+      if (r) { end = r; break; }
+      if (until === 'wall' && (hits.w > 0 || hits.b > 0)) { end = 'wall'; break; }
+    }
+    return { pts, end };
+  }
+
+  // ═══════ 화면 맞추기 ═══════
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function layout() {
+    W = window.innerWidth; H = window.innerHeight; DPR = Math.min(window.devicePixelRatio || 1, 2); SAF = safe();
+    low = H < 500; rot = W > H * 1.05;
+    hud.style.left = (W / 2) + 'px'; hud.style.top = (SAF.t + (low ? 16 : 62)) + 'px';
+    hud.classList.toggle('tight', W < 360);
+    bar.setTitle(low ? '' : W < 360 ? '미니골프' : TITLE);   // 낮은 화면은 점수판이 위 줄 가운데에 서서 제목과 겹친다 → 제목을 비운다
+    const top = SAF.t + (low ? 62 : 104), pad = 8;
+    if (!rot) {
+      KSZ = Math.round(clamp(H * 0.11, 56, 110));
+      const bottom = H - SAF.b - KSZ * 0.92 - 6, aw = W - SAF.l - SAF.r - pad * 2, ah = bottom - top;
+      sc = Math.max(1, Math.min(aw / FW, ah / FH));
+      ox = SAF.l + pad + (aw - FW * sc) / 2; oy = top + Math.max(0, (ah - FH * sc) / 2);
+      kongX = clamp(ox + KSZ * 0.55, SAF.l + KSZ * 0.5, W / 2); kongY = H - SAF.b - 4;
+    } else {
+      KSZ = Math.round(clamp(H * 0.24, 56, 120));
+      const right = W - SAF.r - KSZ * 0.85, aw = right - SAF.l - pad * 2, ah = H - SAF.b - pad - top;
+      sc = Math.max(1, Math.min(aw / FH, ah / FW));
+      ox = SAF.l + pad + Math.max(0, (aw - FH * sc) / 2); oy = top + Math.max(0, (ah - FW * sc) / 2);
+      kongX = Math.min(W - SAF.r - KSZ * 0.42, ox + FH * sc + KSZ * 0.48); kongY = H - SAF.b - 6;
+    }
+    for (const c of [cv, fx]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+    K.setSize(KSZ);
+    buildBg();
+  }
+  let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(layout, 80); });
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+
+  // ═══════ 그리기: 밤하늘 + 고정된 코스 (홀이 바뀌거나 화면이 바뀔 때만) ═══════
+  function rr(c, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function zonePath(c, z, grow) { grow = grow || 0; c.beginPath(); if (z.r) { const r = z.r; rr(c, r[0] - grow, r[1] - grow, r[2] + grow * 2, r[3] + grow * 2, 2.2); } else c.arc(z.c[0], z.c[1], z.c[2] + grow, 0, TAU); }
+  function buildBg() {
+    bg.width = Math.round(W * DPR); bg.height = Math.round(H * DPR);
+    const c = bg.getContext('2d'); setS(c);
+    const lg = c.createLinearGradient(0, 0, 0, H); lg.addColorStop(0, '#0B1030'); lg.addColorStop(0.65, '#1B2060'); lg.addColorStop(1, '#2A2F78');
+    c.fillStyle = lg; c.fillRect(0, 0, W, H);
+    const blob = (x, y, r, col) => { const rg = c.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = rg; c.fillRect(x - r, y - r, r * 2, r * 2); };
+    blob(W * 0.2, H * 0.15, Math.max(W, H) * 0.5, 'rgba(130,130,255,.12)'); blob(W * 0.9, H * 0.9, Math.max(W, H) * 0.45, 'rgba(255,170,140,.09)');
+    const rnd = mulberry32(37), n = Math.round(clamp(W * H / 2600, 60, 420));
+    for (let i = 0; i < n; i++) { const x = rnd() * W, y = rnd() * H, r = rnd() < 0.07 ? 1.1 + rnd() * 0.7 : 0.4 + rnd() * 0.7; c.globalAlpha = 0.25 + rnd() * 0.55; c.fillStyle = rnd() < 0.3 ? '#FFE9C4' : '#EAF0FF'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); }
+    c.globalAlpha = 1;
+    if (!H9) return;
+    // 코스
+    setL(c);
+    c.fillStyle = 'rgba(0,0,0,.28)'; rr(c, -1.2, 0.2, FW + 2.4, FH + 2.4, 7); c.fill();
+    c.fillStyle = '#3E9A73'; rr(c, 0, 0, FW, FH, 6); c.fill();
+    c.save(); rr(c, 0, 0, FW, FH, 6); c.clip();
+    c.fillStyle = 'rgba(255,255,255,.045)'; for (let y = 0; y < FH; y += 20) c.fillRect(0, y, FW, 10);   // 깎은 잔디 줄
+    const lg2 = c.createRadialGradient(FW * 0.3, FH * 0.2, 0, FW * 0.3, FH * 0.2, FH * 0.9); lg2.addColorStop(0, 'rgba(255,250,220,.10)'); lg2.addColorStop(1, 'rgba(0,10,40,.18)'); c.fillStyle = lg2; c.fillRect(0, 0, FW, FH);   // 달빛
+    c.restore();
+    // 경사: 내리막 쪽 갈매기 무늬
+    for (const s of H9.slopes) {
+      const r = s.r; c.save(); c.beginPath(); c.rect(r[0], r[1], r[2], r[3]); c.clip();
+      c.fillStyle = 'rgba(20,70,50,.22)'; c.fillRect(r[0], r[1], r[2], r[3]);
+      const a = Math.atan2(s.ay, s.ax), str = Math.hypot(s.ax, s.ay);
+      c.strokeStyle = 'rgba(220,255,235,' + clamp(0.12 + str / 120, 0.14, 0.32).toFixed(2) + ')'; c.lineWidth = 1.2; c.lineCap = 'round'; c.lineJoin = 'round';
+      for (let y = r[1] + 6; y < r[1] + r[3]; y += 11) for (let x = r[0] + 6 + ((y / 11) % 2) * 5; x < r[0] + r[2]; x += 12) {
+        c.save(); c.translate(x, y); c.rotate(a); c.beginPath(); c.moveTo(-2.2, -3); c.lineTo(1.6, 0); c.lineTo(-2.2, 3); c.stroke(); c.restore();
+      }
+      c.restore();
+    }
+    // 모래
+    for (const z of H9.sand) { zonePath(c, z, 0.6); c.fillStyle = '#C9AE78'; c.fill(); }
+    for (const z of H9.sand) {
+      zonePath(c, z); c.fillStyle = '#E9D4A4'; c.fill();
+      const rn = mulberry32(Math.round((z.r ? z.r[0] + z.r[1] : z.c[0] + z.c[1]) * 7)); c.fillStyle = 'rgba(160,120,60,.35)';
+      const bx = z.r ? z.r : [z.c[0] - z.c[2], z.c[1] - z.c[2], z.c[2] * 2, z.c[2] * 2];
+      for (let i = 0; i < bx[2] * bx[3] / 9; i++) { const x = bx[0] + rn() * bx[2], y = bx[1] + rn() * bx[3]; if (inZ(z, x, y)) { c.beginPath(); c.arc(x, y, 0.35, 0, TAU); c.fill(); } }
+    }
+    // 물 (바탕 — 물결은 cv 에서)
+    for (const z of H9.water) { zonePath(c, z, 0.8); c.fillStyle = '#2C5E8C'; c.fill(); }   // 테두리를 먼저 모두 그리고 물을 덮어 이어진 물길에 금이 안 가게
+    for (const z of H9.water) { zonePath(c, z); c.fillStyle = '#3F86C9'; c.fill(); }
+    // 출발 매트
+    const T = H9.tee; c.fillStyle = 'rgba(18,60,44,.55)'; rr(c, T[0] - 7, T[1] - 5, 14, 10, 2.5); c.fill(); c.fillStyle = 'rgba(255,255,255,.5)'; c.beginPath(); c.arc(T[0] - 4.5, T[1], 0.8, 0, TAU); c.arc(T[0] + 4.5, T[1], 0.8, 0, TAU); c.fill();
+    // 사각 벽: 넓은 것은 꽃밭 울타리, 좁은 것은 나무 울타리
+    for (const r of H9.blocks) {
+      const big = r[2] * r[3] > 900;
+      c.fillStyle = 'rgba(0,0,0,.25)'; rr(c, r[0] + 0.6, r[1] + 1, r[2], r[3], 1.6); c.fill();
+      if (big) {
+        c.fillStyle = '#EADFCB'; rr(c, r[0], r[1], r[2], r[3], 1.6); c.fill();
+        c.fillStyle = '#285E4C'; rr(c, r[0] + 2, r[1] + 2, r[2] - 4, r[3] - 4, 1.2); c.fill();
+        const rn = mulberry32(r[0] * 31 + r[1]); const cols = ['#F7A8C4', '#FFE08A', '#BFD4FF', '#FFFFFF'];
+        for (let i = 0; i < r[2] * r[3] / 40; i++) { const x = r[0] + 4 + rn() * (r[2] - 8), y = r[1] + 4 + rn() * (r[3] - 8); c.fillStyle = 'rgba(70,140,100,.7)'; c.beginPath(); c.arc(x, y, 1.6 + rn() * 1.2, 0, TAU); c.fill(); if (rn() < 0.45) { c.fillStyle = cols[Math.floor(rn() * cols.length)]; c.beginPath(); c.arc(x + 0.3, y - 0.3, 0.7, 0, TAU); c.fill(); } }
+      } else {
+        c.fillStyle = '#EADFCB'; rr(c, r[0], r[1], r[2], r[3], 1.6); c.fill();
+        c.fillStyle = 'rgba(255,255,255,.55)'; rr(c, r[0] + 0.6, r[1] + 0.6, r[2] - 1.2, Math.min(2, r[3] * 0.3), 1); c.fill();
+        c.strokeStyle = 'rgba(150,120,80,.35)'; c.lineWidth = 0.4;
+        if (r[2] >= r[3]) for (let x = r[0] + 6; x < r[0] + r[2] - 2; x += 6) { c.beginPath(); c.moveTo(x, r[1] + 1); c.lineTo(x, r[1] + r[3] - 1); c.stroke(); }
+        else for (let y = r[1] + 6; y < r[1] + r[3] - 2; y += 6) { c.beginPath(); c.moveTo(r[0] + 1, y); c.lineTo(r[0] + r[2] - 1, y); c.stroke(); }
+      }
+    }
+    // 둥근 쿠션 (분홍 도넛 장난감)
+    for (const q of H9.bumps) {
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.arc(q[0] + 0.5, q[1] + 0.9, q[2], 0, TAU); c.fill();
+      c.fillStyle = '#F4A9BC'; c.beginPath(); c.arc(q[0], q[1], q[2], 0, TAU); c.fill();
+      c.fillStyle = '#FFD3DD'; c.beginPath(); c.arc(q[0] - q[2] * 0.15, q[1] - q[2] * 0.15, q[2] * 0.72, 0, TAU); c.fill();
+      c.fillStyle = '#E58AA2'; c.beginPath(); c.arc(q[0], q[1], q[2] * 0.32, 0, TAU); c.fill();
+    }
+    // 테두리 (나무 울타리)
+    c.strokeStyle = '#EADFCB'; c.lineWidth = BT; rr(c, BT / 2, BT / 2, FW - BT, FH - BT, 5); c.stroke();
+    c.strokeStyle = 'rgba(120,90,60,.35)'; c.lineWidth = 0.5; rr(c, BT, BT, FW - BT * 2, FH - BT * 2, 4); c.stroke();
+    setS(c);
+  }
+
+  // ═══════ 흐름 ═══════
+  function loadHole(n) {
+    holeN = n; H9 = makeHole(n, LV); strokes = 0; rollT = 0;
+    ball.x = ball.sx = H9.tee[0]; ball.y = ball.sy = H9.tee[1]; ball.vx = ball.vy = 0; ball.scale = 1;
+    phase = 'intro'; phaseT = 0; aimReset();
+    buildBg(); paintHud();
+  }
+  function shoot(vx, vy) {
+    if (state !== 'play' || (phase !== 'aim' && phase !== 'intro')) return false;   // 홀 소개 글이 떠 있는 동안 쳐도 된다
+    ball.sx = ball.x; ball.sy = ball.y; ball.vx = vx; ball.vy = vy;
+    strokes++; rollT = 0; phase = 'roll'; react.kind = 'shot'; react.t = 0.5; paintHud();
+    const p = Math.hypot(vx, vy) / VMAX;
+    tone(520 + p * 260, 0.07, 'triangle', 0.07); noise(0.05, 0.08, 2400, 1200);
+    aimReset();
+    return true;
+  }
+  function finishHole(inCup) {
+    phase = 'done'; phaseT = 0;
+    const par = H9.par, pts = inCup ? holePts(par, strokes) : 0;
+    card[holeN - 1] = { par, s: inCup ? strokes : null, t: strokes, pts };   // t: 벌타까지 넣은 실제 타수
+    total += pts; bumpHud();
+    const diffN = strokes - par;
+    if (!inCup) { doneTxt = '다음 홀로 가요'; doneSub = '타수를 다 썼어요 · 0점'; react.kind = 'sad'; react.t = 1.6; sfx('lose'); }
+    else if (strokes === 1) { doneTxt = '홀인원!'; aces++; react.kind = 'ace'; react.t = 2.4; sfx('win'); confetti(); KG.lick(1.0, 0.8); }   // 11-28: 홀인원·버디면 할짝
+    else {
+      doneTxt = diffN <= -2 ? '이글!' : diffN === -1 ? '버디!' : diffN === 0 ? '파' : diffN === 1 ? '보기' : diffN === 2 ? '더블 보기' : '+' + diffN;
+      react.kind = diffN < 0 ? 'good' : diffN === 0 ? 'par' : 'sad'; react.t = 1.6;
+      if (diffN < 0) { sfx('match'); sparkle(ball.x, ball.y, 16); KG.lick(1.0, 0.45); } else if (diffN === 0) sfx('coin'); else tone(440, 0.18, 'triangle', 0.05);
+    }
+    if (inCup) doneSub = (strokes === 1 ? '한 번에 쏙 · ' : strokes + '타 · ') + '+' + pts + '점';
+    paintHud();
+  }
+  function nextHole() {
+    if (holeN >= HOLES) { state = 'over'; overT = 0.5; btnPause.hidden = true; return; }
+    loadHole(holeN + 1);
+  }
+  function update(dt) {
+    tAnim += dt;
+    for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= dt * 22; if (f.life <= 0) floats.splice(i, 1); }
+    for (let i = parts.length - 1; i >= 0; i--) { const q = parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.g || 0) * dt; q.vx *= Math.exp(-1.5 * dt); if (q.life <= 0) parts.splice(i, 1); }
+    if (react.t > 0) react.t -= dt;
+    if (state === 'over') { overT -= dt; if (overT <= 0) showResult(); return; }
+    if (state !== 'play') return;
+    tW += dt; phaseT += dt;
+    if (phase === 'intro') { if (phaseT > 1.0) { phase = 'aim'; phaseT = 0; } restPush(dt); }
+    else if (phase === 'aim') restPush(dt);
+    else if (phase === 'roll') {
+      rollT += dt;
+      const hits = { w: 0, b: 0, s: 0 }, r = advance(ball, dt, tW - dt, hits);
+      if (hits.w > 12 && tAnim - lastHit > 0.06) { lastHit = tAnim; tone(260 + Math.min(hits.w, 120), 0.05, 'sine', clamp(hits.w / 900, 0.02, 0.09)); }
+      if (hits.b > 8 && tAnim - lastHit > 0.06) { lastHit = tAnim; tone(620 + Math.min(hits.b, 160), 0.07, 'triangle', clamp(hits.b / 1200, 0.03, 0.08)); }
+      if (r === 'cup') { phase = 'sink'; phaseT = 0; ball.vx = ball.vy = 0; tone(1400, 0.05, 'sine', 0.06); tone(900, 0.08, 'sine', 0.06, 0.06); tone(600, 0.12, 'triangle', 0.06, 0.13); }
+      else if (r === 'water') { phase = 'splash'; phaseT = 0; splash(ball.x, ball.y); }
+      else if (r === 'stop' || rollT > 14) { ball.vx = ball.vy = 0; if (strokes >= H9.par + D.extra) finishHole(false); else { phase = 'aim'; phaseT = 0; } }
+    } else if (phase === 'sink') {
+      const k = Math.min(1, phaseT / 0.35); ball.x = lerp(ball.x, H9.cup[0], 0.3); ball.y = lerp(ball.y, H9.cup[1], 0.3); ball.scale = 1 - k * 0.55;
+      if (phaseT > 0.4) { ball.scale = 0; finishHole(true); }
+    } else if (phase === 'splash') {
+      if (phaseT > 0.95) {
+        strokes++; paintHud();   // 물에 빠지면 1타 더 (벌타)
+        addFloat(ball.sx, ball.sy, '벌타 +1', '#CFE6FF');
+        ball.x = ball.sx; ball.y = ball.sy; ball.vx = ball.vy = 0; ball.scale = 1;
+        if (strokes >= H9.par + D.extra) finishHole(false); else { phase = 'aim'; phaseT = 0; }
+      }
+    } else if (phase === 'done') { if (phaseT > (react.kind === 'ace' ? 2.3 : 1.6)) nextHole(); }
+  }
+  // 멈춰 있는 공을 장난감이 밀면 굴러간다 (타수는 늘지 않는다)
+  function restPush(dt) {
+    if (!H9.movers.length) return;
+    const b = { x: ball.x, y: ball.y, vx: 0, vy: 0 };
+    collide(b, tW, null);
+    if (Math.hypot(b.vx, b.vy) > 1 || Math.hypot(b.x - ball.x, b.y - ball.y) > 0.01) {
+      ball.x = b.x; ball.y = b.y; ball.vx = b.vx; ball.vy = b.vy;
+      if (Math.hypot(b.vx, b.vy) > 6) { phase = 'roll'; rollT = 0; aimReset(); tone(700, 0.05, 'triangle', 0.05); }
+    }
+  }
+  function addFloat(lx, ly, text, col, big) { const p = L2S(lx, ly); floats.push({ x: p.x, y: p.y - 14, text, col: col || '#fff', life: 1.3, big: !!big }); }
+  function sparkle(lx, ly, n) {
+    const p = L2S(lx, ly); if (reduceMotion) n = Math.min(n, 8);
+    for (let i = 0; i < n; i++) { const a = rand(0, TAU), sp = rand(50, 170); parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 60, life: rand(0.5, 0.9), r: rand(2.5, 4.5), col: i % 2 ? '#FFE08A' : '#FFFFFF', star: true }); }
+  }
+  function confetti() {
+    const n = reduceMotion ? 14 : 60, cols = ['#FFC861', '#FF8EA6', '#9FD8FF', '#BFF3D2', '#FFFFFF'];
+    for (let i = 0; i < n; i++) parts.push({ x: rand(0, W), y: rand(-40, H * 0.2), vx: rand(-40, 40), vy: rand(60, 220), g: 40, life: rand(1.4, 2.4), r: rand(2.5, 4.5), col: cols[i % cols.length], conf: true, rot: rand(0, TAU) });
+    sparkle(H9.cup[0], H9.cup[1], 22);
+  }
+  function splash(lx, ly) {
+    const p = L2S(lx, ly);
+    for (let i = 0; i < 16; i++) { const a = rand(0, TAU), sp = rand(30, 120); parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, g: 300, life: rand(0.4, 0.7), r: rand(1.8, 3.6), col: i % 3 ? '#CFE6FF' : '#FFFFFF' }); }
+    noise(0.4, 0.13, 1400, 250); tone(160, 0.25, 'sine', 0.08, 0, 90);
+    addFloat(lx, ly, '퐁당!', '#CFE6FF', true);
+    react.kind = 'splash'; react.t = 1.4;
+  }
+
+  // ═══════ 조준: 화면 어디서든 끌어 당기기 · 키보드 ═══════
+  const drag = { on: false, id: null, x0: 0, y0: 0, x: 0, y: 0 };
+  const kb = { on: false, ang: -Math.PI / 2, p: 0.5 };
+  const maxDrag = () => clamp(Math.min(W, H) * 0.38, 110, 260);
+  function aimReset() { drag.on = false; drag.id = null; kb.on = false; }
+  // 지금 조준 → { vx, vy, p } (판 좌표). 없으면 null
+  function aimVec() {
+    if (drag.on) {
+      const dx = drag.x - drag.x0, dy = drag.y - drag.y0, len = Math.hypot(dx, dy), p = Math.min(1, len / maxDrag());
+      if (len < 4) return null;
+      const l = dS2L(-dx, -dy), ll = Math.hypot(l.x, l.y) || 1;
+      return { vx: l.x / ll * VMAX * p, vy: l.y / ll * VMAX * p, p, ux: l.x / ll, uy: l.y / ll };
+    }
+    if (kb.on) { const ux = Math.cos(kb.ang), uy = Math.sin(kb.ang); return { vx: ux * VMAX * kb.p, vy: uy * VMAX * kb.p, p: kb.p, ux, uy }; }
+    return null;
+  }
+  const canAim = () => state === 'play' && (phase === 'aim' || phase === 'intro');
+  fx.addEventListener('pointerdown', e => {
+    if (state !== 'play' || e.button > 0) return;
+    e.preventDefault(); if (drag.on || !canAim()) return;
+    drag.on = true; drag.id = e.pointerId; drag.x0 = drag.x = e.clientX; drag.y0 = drag.y = e.clientY; kb.on = false;
+    try { fx.setPointerCapture(e.pointerId); } catch (err) {}
+    tone(330, 0.05, 'sine', 0.03);
+  });
+  fx.addEventListener('pointermove', e => { if (!drag.on || e.pointerId !== drag.id) return; drag.x = e.clientX; drag.y = e.clientY; });
+  fx.addEventListener('pointerup', e => {
+    if (!drag.on || e.pointerId !== drag.id) return;
+    drag.x = e.clientX; drag.y = e.clientY;
+    const a = aimVec(); drag.on = false; drag.id = null;
+    if (!a || a.p < 0.05 || !canAim()) return;
+    shoot(a.vx, a.vy);
+  });
+  fx.addEventListener('pointercancel', e => { if (e.pointerId === drag.id) { drag.on = false; drag.id = null; } });
+  document.addEventListener('keydown', e => {
+    const kk = e.key;
+    if (state === 'play' && (kk === 'ArrowLeft' || kk === 'ArrowRight' || kk === 'ArrowUp' || kk === 'ArrowDown')) {
+      e.preventDefault(); if (KG.rulesOpen || !canAim() || drag.on) return;
+      if (!kb.on) { kb.on = true; const dx = H9.cup[0] - ball.x, dy = H9.cup[1] - ball.y; kb.ang = Math.atan2(dy, dx); }
+      const fine = e.shiftKey ? 0.25 : 1;
+      // 화면에서 보이는 방향대로 돌게: 가로 화면은 판이 돌아가 있어 그대로 두면 된다 (회전은 방향을 바꾸지 않는다)
+      if (kk === 'ArrowLeft') kb.ang -= 0.035 * fine; else if (kk === 'ArrowRight') kb.ang += 0.035 * fine;
+      else if (kk === 'ArrowUp') kb.p = clamp(kb.p + 0.02 * fine, 0.05, 1); else kb.p = clamp(kb.p - 0.02 * fine, 0.05, 1);
+      return;
+    }
+    if (kk === ' ' || kk === 'Enter') {
+      if (state === 'play') {
+        e.preventDefault(); if (KG.rulesOpen || e.repeat) return;
+        if (canAim()) { if (!kb.on) { kb.on = true; const dx = H9.cup[0] - ball.x, dy = H9.cup[1] - ball.y; kb.ang = Math.atan2(dy, dx); return; } const a = aimVec(); if (a) shoot(a.vx, a.vy); }
+        return;
+      }
+      if (e.repeat) { e.preventDefault(); return; }
+      if (e.target && e.target.closest && e.target.closest('button, a')) return;   // 단추 위에서는 단추가 알아서
+      e.preventDefault(); if (KG.rulesOpen) return;
+      if (state === 'ready') start(); else if (state === 'result') { if (performance.now() - overAt >= 450) start(); } else if (state === 'pause') resume();
+    } else if (kk === 'Escape' || kk === 'p' || kk === 'P') { if (state === 'play') { if (drag.on || kb.on) { aimReset(); return; } pause(); } else if (state === 'pause') resume(); }
+  });
+
+  // ═══════ 그리기 (매 프레임) ═══════
+  function star(c, x, y, r) { c.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r2 = i % 2 ? r * 0.45 : r; c.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2); } c.closePath(); c.fill(); }
+  function capsule(c, s) {
+    const ex = s.bx - s.ax, ey = s.by - s.ay, L = Math.hypot(ex, ey), a = Math.atan2(ey, ex);
+    c.save(); c.translate(s.ax, s.ay); c.rotate(a); rr(c, -s.r, -s.r, L + s.r * 2, s.r * 2, s.r); c.restore();
+  }
+  function drawMover(c, m) {
+    const s = moverAt(m, tW);
+    c.fillStyle = 'rgba(0,0,0,.25)'; c.save(); c.translate(0.5, 0.9);
+    if (m.k === 'toy') { c.beginPath(); c.arc(s.cx, s.cy, s.r, 0, TAU); c.fill(); } else { capsule(c, s); c.fill(); }
+    c.restore();
+    if (m.k === 'toy') {   // 연두 장난감 공
+      c.fillStyle = '#D6EC5C'; c.beginPath(); c.arc(s.cx, s.cy, s.r, 0, TAU); c.fill();
+      c.strokeStyle = '#FFFFFF'; c.lineWidth = 0.6;
+      c.beginPath(); c.arc(s.cx - s.r * 0.9, s.cy, s.r * 0.75, -1, 1); c.stroke(); c.beginPath(); c.arc(s.cx + s.r * 0.9, s.cy, s.r * 0.75, Math.PI - 1, Math.PI + 1); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.45)'; c.beginPath(); c.arc(s.cx - s.r * 0.35, s.cy - s.r * 0.4, s.r * 0.28, 0, TAU); c.fill();
+    } else if (m.k === 'bone') {   // 뼈다귀
+      const ex = s.bx - s.ax, ey = s.by - s.ay, L = Math.hypot(ex, ey), ux = ex / L, uy = ey / L, px = -uy, py = ux;
+      c.fillStyle = '#FFF1D6'; c.strokeStyle = '#D9B98A'; c.lineWidth = 0.5;
+      c.save(); c.translate(s.ax, s.ay); c.rotate(Math.atan2(ey, ex)); rr(c, 0, -s.r * 0.62, L, s.r * 1.24, s.r * 0.6); c.fill(); c.stroke(); c.restore();
+      for (const [x, y] of [[s.ax, s.ay], [s.bx, s.by]]) for (const sg of [-1, 1]) { c.beginPath(); c.arc(x + px * s.r * 0.5 * sg, y + py * s.r * 0.5 * sg, s.r * 0.62, 0, TAU); c.fill(); c.stroke(); }
+      c.fillStyle = '#FFF1D6'; c.save(); c.translate(s.ax, s.ay); c.rotate(Math.atan2(ey, ex)); c.fillRect(0, -s.r * 0.5, L, s.r * 1.0); c.restore();
+    } else {   // 빙글 밧줄 장난감
+      c.fillStyle = '#8EC3F2'; capsule(c, s); c.fill();
+      c.save(); capsule(c, s); c.clip(); c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.2;
+      const ex = s.bx - s.ax, ey = s.by - s.ay, L = Math.hypot(ex, ey), ux = ex / L, uy = ey / L;
+      for (let d = -s.r; d < L + s.r; d += 3.2) { const x = s.ax + ux * d, y = s.ay + uy * d; c.beginPath(); c.moveTo(x - uy * s.r + ux * 1.2, y + ux * s.r + uy * 1.2); c.lineTo(x + uy * s.r - ux * 1.2, y - ux * s.r - uy * 1.2); c.stroke(); }
+      c.restore();
+      c.fillStyle = '#FF9DB0'; c.beginPath(); c.arc(s.cx, s.cy, s.r * 1.25, 0, TAU); c.fill();
+    }
+  }
+  function drawWorld() {
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
+    if (!H9) return;
+    setL(g);
+    // 물결
+    if (H9.water.length) {
+      g.save(); g.beginPath(); for (const z of H9.water) { if (z.r) g.rect(z.r[0], z.r[1], z.r[2], z.r[3]); else { g.moveTo(z.c[0] + z.c[2], z.c[1]); g.arc(z.c[0], z.c[1], z.c[2], 0, TAU); } } g.clip();
+      g.strokeStyle = 'rgba(220,240,255,.35)'; g.lineWidth = 0.6; g.lineCap = 'round';
+      const o = reduceMotion ? 0 : tAnim * 3;
+      for (let y = 2; y < FH; y += 5) for (let x = -10 + ((y * 7) % 13) + (o % 13); x < FW; x += 13) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 1.5, y - 0.8, x + 3, y); g.stroke(); }
+      g.restore();
+    }
+    // 홀컵
+    const C = H9.cup;
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(C[0], C[1], D.cup + 1.2, 0, TAU); g.fill();
+    g.fillStyle = '#0E2A1F'; g.beginPath(); g.arc(C[0], C[1], D.cup, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.arc(C[0] + D.cup * 0.15, C[1] + D.cup * 0.15, D.cup * 0.78, 0, TAU); g.fill();
+    for (const m of H9.movers) drawMover(g, m);
+    // 공
+    if (ball.scale > 0) {
+      const r = BR * ball.scale;
+      if (phase !== 'sink') { g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(ball.x + 0.5, ball.y + 0.8, r, 0, TAU); g.fill(); }
+      if (phase === 'splash') { const k = clamp(phaseT / 0.4, 0, 1); g.globalAlpha = 1 - k; }
+      g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(ball.x, ball.y, r, 0, TAU); g.fill();
+      g.fillStyle = 'rgba(160,170,200,.45)'; g.beginPath(); g.arc(ball.x + r * 0.25, ball.y + r * 0.25, r * 0.6, 0, TAU); g.fill();
+      g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(ball.x - r * 0.15, ball.y - r * 0.15, r * 0.7, 0, TAU); g.fill();
+      g.globalAlpha = 1;
+    }
+  }
+  function drawFlag(c) {
+    const C = L2S(H9.cup[0], H9.cup[1]), near = Math.hypot(ball.x - H9.cup[0], ball.y - H9.cup[1]) < 16 && ball.scale > 0;
+    const ph = clamp(sc * 9, 22, 44), fw = clamp(ph * 0.55, 12, 22), wave = reduceMotion ? 0 : Math.sin(tAnim * 3) * 1.5;
+    c.globalAlpha = near ? 0.45 : 1;
+    c.strokeStyle = '#F3F4F8'; c.lineWidth = 1.6; c.lineCap = 'round'; c.beginPath(); c.moveTo(C.x, C.y); c.lineTo(C.x, C.y - ph); c.stroke();
+    c.fillStyle = '#FF8E9A'; c.beginPath(); c.moveTo(C.x, C.y - ph); c.quadraticCurveTo(C.x + fw * 0.5, C.y - ph - 2 + wave, C.x + fw, C.y - ph + fw * 0.32 + wave); c.quadraticCurveTo(C.x + fw * 0.5, C.y - ph + fw * 0.62, C.x, C.y - ph + fw * 0.64); c.closePath(); c.fill();
+    c.fillStyle = '#fff'; c.font = '700 ' + Math.round(fw * 0.5) + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(holeN), C.x + fw * 0.42, C.y - ph + fw * 0.32 + wave * 0.5);
+    c.globalAlpha = 1;
+  }
+  function drawAim(c) {
+    const a = aimVec(); if (!a || phase !== 'aim' && phase !== 'intro') return;
+    const B = L2S(ball.x, ball.y);
+    // 당기는 고무줄 (손가락 쪽)
+    if (drag.on) {
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 2; c.setLineDash([3, 5]); c.beginPath(); c.moveTo(drag.x0, drag.y0); c.lineTo(drag.x, drag.y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = 'rgba(255,255,255,.5)'; c.beginPath(); c.arc(drag.x0, drag.y0, 4, 0, TAU); c.fill();
+    }
+    const col = a.p > 0.85 ? '#FF9DA8' : a.p > 0.55 ? '#FFD27A' : '#BFF3D2';
+    if (D.guide === 'path' || D.guide === 'wall') {
+      const pr = predict(a.vx, a.vy, D.guide === 'wall' ? 'wall' : null);
+      c.fillStyle = 'rgba(255,255,255,.85)';
+      for (let i = 2; i < pr.pts.length; i += 2) { const P = L2S(pr.pts[i][0], pr.pts[i][1]); c.globalAlpha = clamp(1 - i / pr.pts.length * 0.6, 0.3, 1); c.beginPath(); c.arc(P.x, P.y, 2, 0, TAU); c.fill(); }
+      c.globalAlpha = 1;
+      const E = pr.pts[pr.pts.length - 1], EP = L2S(E[0], E[1]);
+      c.strokeStyle = pr.end === 'water' ? '#FF9DA8' : pr.end === 'cup' ? '#FFE08A' : 'rgba(255,255,255,.8)'; c.lineWidth = 2; c.beginPath(); c.arc(EP.x, EP.y, Math.max(5, BR * sc * 1.4), 0, TAU); c.stroke();
+    }
+    // 화살표: 길이 = 힘 (Very Hard 는 짧게)
+    const maxL = D.guide === 'short' ? clamp(sc * 9, 26, 50) : clamp(sc * 22, 60, 130);
+    const len = 10 + maxL * a.p, d = dL2S(a.ux, a.uy), dl = Math.hypot(d.x, d.y) || 1, ux = d.x / dl, uy = d.y / dl;
+    const sx0 = B.x + ux * (BR * sc + 3), sy0 = B.y + uy * (BR * sc + 3), ex = sx0 + ux * len, ey = sy0 + uy * len;
+    c.strokeStyle = 'rgba(12,16,48,.55)'; c.lineWidth = 6; c.lineCap = 'round'; c.beginPath(); c.moveTo(sx0, sy0); c.lineTo(ex, ey); c.stroke();
+    c.strokeStyle = col; c.lineWidth = 3.2; c.beginPath(); c.moveTo(sx0, sy0); c.lineTo(ex, ey); c.stroke();
+    c.fillStyle = col; c.beginPath(); c.moveTo(ex + ux * 8, ey + uy * 8); c.lineTo(ex - uy * 6, ey + ux * 6); c.lineTo(ex + uy * 6, ey - ux * 6); c.closePath(); c.fill();
+    // 힘 숫자
+    pill(c, '힘 ' + Math.round(a.p * 100) + '%', clamp(B.x, 50, W - 50), B.y + (B.y > H * 0.6 ? -BR * sc - 30 : BR * sc + 28), 13);
+  }
+  function pill(c, txt, x, y, size) {
+    c.font = '600 ' + (size || 13) + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle';
+    const tw = c.measureText(txt).width + 22, h = (size || 13) + 13;
+    x = clamp(x, tw / 2 + 6 + SAF.l, W - tw / 2 - 6 - SAF.r);
+    c.fillStyle = 'rgba(18,22,52,.78)'; rr(c, x - tw / 2, y - h / 2, tw, h, h / 2); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, x, y + 0.5);
+  }
+  function drawFx() {
+    const c = fg; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, fx.width, fx.height); setS(c);
+    if (H9 && (state === 'play' || state === 'pause' || state === 'over' || state === 'result')) drawFlag(c);
+    if (state === 'play') drawAim(c);
+    // 홀 소개 · 홀 결과 글
+    const midP = L2S(FW / 2, FH * 0.55), my = clamp(midP.y, SAF.t + 120, H - 80), mx = midP.x;
+    if (state === 'play' && phase === 'intro') {
+      const a = clamp(Math.min(phaseT / 0.15, (1.0 - phaseT) / 0.25), 0, 1); c.globalAlpha = a;
+      pill(c, holeN + '번 홀 · ' + H9.name + ' · 기준 ' + H9.par + '타', mx, my, 15); c.globalAlpha = 1;
+    }
+    if (state === 'play' && phase === 'aim' && strokes === 0 && holeN === 1 && !drag.on && !kb.on) {
+      const B = L2S(ball.x, ball.y), u = reduceMotion ? 0.5 : (tAnim % 1.4) / 1.4;
+      c.strokeStyle = 'rgba(255,255,255,' + (0.8 * (1 - u)).toFixed(3) + ')'; c.lineWidth = 2.5; c.beginPath(); c.arc(B.x, B.y, 8 + u * 22, 0, TAU); c.stroke();
+      pill(c, '화면을 끌어 당겼다 놓아요', mx, my, 14);
+    }
+    if (state === 'play' && phase === 'done') {
+      const a = clamp(Math.min(phaseT / 0.15, (1.6 - phaseT) / 0.3 + (react.kind === 'ace' ? 1 : 0)), 0, 1); c.globalAlpha = a;
+      const big = doneTxt === '홀인원!' ? 34 : 28, pop = reduceMotion ? 1 : 1 + Math.max(0, 0.25 - phaseT) * 1.2;
+      c.save(); c.translate(mx, my - 16); c.scale(pop, pop);
+      c.font = '800 ' + big + 'px ' + FONT; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+      c.strokeStyle = 'rgba(12,16,48,.75)'; c.lineWidth = 6; c.strokeText(doneTxt, 0, 0);
+      c.fillStyle = doneTxt === '홀인원!' ? '#FFE08A' : doneTxt.endsWith('!') ? '#BFF3D2' : '#FFFFFF'; c.fillText(doneTxt, 0, 0);
+      c.restore();
+      pill(c, doneSub, mx, my + 22, 14); c.globalAlpha = 1;
+    }
+    for (const q of parts) {
+      c.globalAlpha = clamp(q.life / 0.4, 0, 1); c.fillStyle = q.col;
+      if (q.star) star(c, q.x, q.y, q.r * 1.4);
+      else if (q.conf) { c.save(); c.translate(q.x, q.y); c.rotate(q.rot + q.life * 6); c.fillRect(-q.r, -q.r * 0.45, q.r * 2, q.r * 0.9); c.restore(); }
+      else { c.beginPath(); c.arc(q.x, q.y, q.r, 0, TAU); c.fill(); }
+    }
+    c.globalAlpha = 1;
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    for (const f of floats) {
+      c.font = '700 ' + (f.big ? 18 : 14) + 'px ' + FONT; c.globalAlpha = Math.min(1, f.life / 0.35);
+      const tw = c.measureText(f.text).width / 2 + 6, x = clamp(f.x, tw + SAF.l, W - tw - SAF.r), y = Math.max(f.y, SAF.t + (low ? 64 : 106));
+      c.strokeStyle = 'rgba(12,16,48,.7)'; c.lineWidth = 3.5; c.strokeText(f.text, x, y); c.fillStyle = f.col; c.fillText(f.text, x, y);
+    }
+    c.globalAlpha = 1;
+  }
+  function drawKong() {
+    let pose = 'sit', o;
+    const B = H9 ? L2S(ball.x, ball.y) : { x: W / 2, y: H / 2 };
+    const head = { x: kongX, y: kongY - KSZ * 0.7 }, lx = clamp((B.x - head.x) / (W * 0.4), -1, 1), ly = clamp((B.y - head.y) / (H * 0.5), -1, 1);
+    let hop = 0;
+    const rk = react.t > 0 ? react.kind : '';
+    if (state === 'result') {
+      const good = total > 0 && !quit;
+      pose = good && K.has('wave') ? 'wave' : 'sit';
+      o = { t: tAnim, eyes: good ? 'happy' : 'open', mouth: good ? 'open' : 'closed', blush: good ? 1 : 0, tilt: good ? 4 : -4, tailAmp: good ? 22 : 8, tailRate: good ? 3.4 : 1.6, earLift: good ? 6 : 0 };
+    } else if (rk === 'ace') {
+      pose = K.has('wave') ? 'wave' : 'sit';
+      hop = reduceMotion ? 0 : Math.abs(Math.sin(tAnim * 9)) * 50;
+      o = { t: tAnim, eyes: 'happy', mouth: 'open', blush: 1, tilt: reduceMotion ? 0 : Math.sin(tAnim * 7) * 8, tailAmp: 30, tailRate: 6, earLift: 16 };
+    } else if (rk === 'good') {
+      hop = reduceMotion ? 0 : Math.abs(Math.sin(tAnim * 8)) * 24;
+      o = { t: tAnim, eyes: 'happy', mouth: 'open', blush: 1, tilt: 5, tailAmp: 26, tailRate: 4.5, earLift: 10 };
+    } else if (rk === 'par') {
+      o = { t: tAnim, eyes: 'happy', mouth: 'closed', blush: 0.5, nod: reduceMotion ? 0 : Math.sin(tAnim * 6) * 4, tailAmp: 18, tailRate: 3, earLift: 4, look: [lx, ly] };
+    } else if (rk === 'sad' || rk === 'splash') {
+      o = { t: tAnim, eyes: 'closed', mouth: rk === 'splash' ? 'open' : 'closed', tilt: -8, tailAmp: 4, tailRate: 1, earLift: -8 };
+    } else {
+      const rolling = state === 'play' && phase === 'roll';
+      o = { t: tAnim, eyes: 'open', mouth: rolling ? 'open' : 'closed', look: [lx, ly], tilt: rolling && !reduceMotion ? Math.sin(tAnim * 4) * 3 : 0, tailAmp: rolling ? 20 : 12, tailRate: rolling ? 3.4 : 2.2, earLift: rolling ? 8 : 2 };
+    }
+    if (K.rig.pose !== pose) K.setPose(pose);
+    K.render(o);
+    K.place(kongX, kongY - hop * KSZ / 200, 1);
+  }
+  let last = 0;
+  // 절전: 놀이 중이 아니면(시작·멈춤·결과 카드) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다.
+  //        놀이 중에도 공이 멈춰 있고 움직이는 장난감·조준·글자가 없으면 초당 30번만 그린다
+  let calmKey = '', calmAt = 0, drawnAt = -1e9;
+  function calmSkip(now) {
+    const key = state + '|' + W + 'x' + H;
+    if (key !== calmKey) { calmKey = key; calmAt = now; }
+    if (state === 'play') {
+      const idle = phase === 'aim' && !drag.on && !kb.on && H9 && !H9.movers.length && !parts.length && !floats.length && react.t <= 0 && !(strokes === 0 && holeN === 1);
+      if (idle && now - drawnAt < 32) return true;
+      drawnAt = now; return false;
+    }
+    if (state === 'over' || now - calmAt < 1000 || now - drawnAt >= 200) { drawnAt = now; return false; }
+    return true;
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    if (state !== 'pause') update(dt);
+    if (calmSkip(now)) return;
+    drawWorld(); drawKong(); drawFx();
+  }
+
+  // ═══════ 점수판 ═══════
+  function paintHud() {
+    $('hudHoleN').textContent = holeN; $('hudStrokeN').textContent = strokes; $('hudPar').textContent = '· 기준 ' + (H9 ? H9.par : 2); $('hudScore').textContent = fmt(total);
+  }
+  function bumpHud() { if (reduceMotion) return; const e = $('hudSc'); e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
+
+  // ═══════ 판 흐름 ═══════
+  function showCard(id, btn) { for (const c of ['cardStart', 'cardPause', 'cardEnd']) $(c).hidden = c !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
+  function reset() {
+    diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal; LV = Math.max(0, KG.DIFFS.findIndex(d => d.id === diffId));
+    floats = []; parts = []; card = []; total = 0; aces = 0; tW = 0;
+    loadHole(1); phase = 'aim';
+  }
+  function start() {
+    reset();
+    isNew = false; quit = false; state = 'play'; phase = 'intro'; phaseT = 0; paintHud();
+    showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    KG.unlockAudio(); tone(659, 0.1, 'triangle', 0.05); tone(880, 0.18, 'triangle', 0.05, 0.1);
+  }
+  function pause() {
+    if (state !== 'play') return; state = 'pause'; aimReset();
+    $('psText').textContent = holeN + '번 홀에서 쉬고 있어요. 지금까지 ' + fmt(total) + '점이에요.';
+    showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
+  }
+  function resume() { if (state !== 'pause') return; state = 'play'; showCard(null); last = performance.now(); }
+  function end() {   // 「그만하기」: 끝낸 홀까지의 점수로 끝낸다
+    if (state === 'pause') { state = 'play'; showCard(null); }
+    if (state !== 'play') return;
+    quit = true; aimReset(); state = 'over'; overT = 0.3; btnPause.hidden = true;
+    if (phase === 'roll' || phase === 'splash' || phase === 'sink') { ball.vx = ball.vy = 0; if (ball.scale <= 0 || phase === 'splash') { ball.x = ball.sx; ball.y = ball.sy; ball.scale = 1; } phase = 'aim'; }
+  }
+  function paintCard() {
+    let h = '<table><tr><th>홀</th>'; for (let i = 0; i < HOLES; i++) h += '<th>' + (i + 1) + '</th>';
+    h += '</tr><tr><td>기준</td>'; for (let i = 0; i < HOLES; i++) h += '<td>' + makeHole(i + 1, LV).par + '</td>';
+    h += '</tr><tr><td>타수</td>';
+    for (let i = 0; i < HOLES; i++) { const r = card[i]; if (!r) { h += '<td class="s"><i class="pick">·</i></td>'; continue; } const cls = r.s == null ? 'pick' : r.s === 1 ? 'ace' : r.s < r.par ? 'under' : r.s > r.par ? 'over' : ''; h += '<td class="s"><i class="' + cls + '">' + (r.s == null ? '✕' : r.s) + '</i></td>'; }
+    h += '</tr><tr><td>점수</td>'; for (let i = 0; i < HOLES; i++) { const r = card[i]; h += '<td class="p">' + (r ? r.pts : '') + '</td>'; }
+    $('edCard').innerHTML = h + '</tr></table>';
+  }
+  function showResult() {
+    if (state !== 'over') return;
+    state = 'result'; overAt = performance.now(); react.t = 0;
+    isNew = total > 0 && setBest(KG.dkey(KEY, diffId), total);
+    const master = total >= MASTER[diffId];
+    if ((total >= MASTER[diffId]) && KG.master) KG.master('golf');   // 업적 「게임 달인」
+    const played = card.filter(Boolean), strokesSum = played.reduce((a, r) => a + (r.t || r.s || (r.par + D.extra)), 0), parSum = played.reduce((a, r) => a + r.par, 0);
+    const under = played.filter(r => r.s && r.s < r.par).length;
+    $('edScore').textContent = fmt(total); $('edAce').textContent = aces + '번'; $('edStrokes').textContent = played.length ? strokesSum + '타' : '–';
+    $('edTitle').textContent = master ? '미니골프 달인이에요!' : quit ? '여기까지 쳤어요' : aces ? '홀인원이 나왔어요!' : '9홀을 모두 돌았어요';
+    $('edText').textContent = played.length
+      ? J(name, '이/가') + ' ' + played.length + '홀을 함께 돌았어요. 기준 ' + parSum + '타' + (strokesSum <= parSum ? '보다 ' + (parSum - strokesSum) + '타 적게 쳤어요.' : '보다 ' + (strokesSum - parSum) + '타 더 쳤어요.') + (under ? ' 기준보다 적게 넣은 홀이 ' + under + '개예요.' : '')
+      : '공을 당기는 길이를 조금씩 바꿔 봐요.';
+    paintCard(); paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    if (isNew) sfx('win'); else if (total > 0 && !quit) KG.lick(1.0, 0.45);   // 11-28: 결과가 좋으면 할짝 — 신기록 때는 공통이 짖으니 겹치지 않게 뺀다
+  }
+  $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
+  $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
+  $('cardEnd').addEventListener('click', e => { if (performance.now() - overAt < 450 && e.target.closest && e.target.closest('.kg-diff, a')) { e.stopPropagation(); e.preventDefault(); } }, true);
+  $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
+  $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
+  btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.addEventListener('pagehide', pause);
+  window.addEventListener('blur', () => { if (state === 'play') aimReset(); });
+
+  // ═══════ 시작 ═══════
+  function paintBest() {
+    const b = best(KG.dkey(KEY));
+    $('stRec').hidden = !(b > 0); $('stBest').textContent = fmt(b) + '점';
+    const e = best(KG.dkey(KEY, diffId));
+    $('edRec').hidden = !(e > 0); $('edBest').textContent = fmt(e) + '점';
+    $('edRec').firstChild.nodeValue = (KG.diff() === diffId ? '' : KG.diffLabel(diffId) + ' ') + '최고 기록';
+    $('edNew').hidden = !isNew;
+    $('stDNote').textContent = DNOTE[KG.diff()] || '';
+  }
+  function onDiff() { paintBest(); if (state === 'ready') reset(); }
+  $('stDNote').before(KG.diffPicker(null, onDiff));
+  $('cardEnd').querySelector('.row').before(KG.diffPicker(null));
+  const rbox = KG.rankBox($('cardEnd').querySelector('.kg-card'), KEY);
+  KG.startRank($('cardStart'), KEY);
+  layout(); reset(); paintBest(); paintHud();
+  const RULES = { key: KEY, title: TITLE, lead: '잔디 코스 9홀을 도는 놀이예요. 9홀 점수를 더한 것이 기록이에요.', items: [
+    ['👆', '화면 어디든 눌러 끌어 당겼다가 놓으면 반대쪽으로 공을 쳐요. 많이 당길수록 세요' + (KEYS_OK ? ' (← → ↑ ↓ 와 스페이스도 돼요).' : '.')],
+    ['⛳', '홀인원 50점, 기준 타수 20점, 한 타 적을 때마다 +10점, 많을 때마다 −10점이에요.'],
+    ['💦', '물에 빠지면 1타 더하고 친 자리로 돌아와요. 모래에선 공이 금방 멈추고 비탈에선 휘어요.'],
+    ['🦴', '뼈다귀·장난감 공은 움직여요. 기준보다 너무 많이 치면 그 홀은 0점으로 넘어가요.']
+  ] };
+  const focusStart = () => { if (state === 'ready' && !$('cardStart').hidden) { try { $('btnStart').focus({ preventScroll: true }); } catch (e) {} } };
+  $('btnRules').addEventListener('click', () => { if (state !== 'ready' || KG.rulesOpen) return; sfx('tap'); KG.rules(RULES, true).then(focusStart); });
+  KG.rules(RULES).then(() => { if (state === 'ready') showCard('cardStart', 'btnStart'); });
+  requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+  // ═══════ 시험·디버그용 ═══════
+  //   GAME.best() → 지금 자리에서 넣거나(또는 가장 가까이) 갈 수 있는 샷 { vx, vy, end, dist } (미리보기와 같은 계산으로 찾는다)
+  //   GAME.shoot(vx, vy) · GAME.step(dt) 로 화면 없이 빨리 돌린다
+  function bestShot(samples) {
+    let bestS = null; const N = samples || 400;
+    for (let i = 0; i < N; i++) {
+      const a = Math.random() * TAU, p = 0.08 + Math.random() * 0.92, vx = Math.cos(a) * VMAX * p, vy = Math.sin(a) * VMAX * p;
+      const b = { x: ball.x, y: ball.y, vx, vy }; let t = tW, end = null;
+      for (let k = 0; k < 600; k++) { end = advance(b, 1 / 60, t, null); t += 1 / 60; if (end) break; }
+      const dist = end === 'cup' ? -1 : end === 'water' ? 1e9 : Math.hypot(b.x - H9.cup[0], b.y - H9.cup[1]);
+      if (!bestS || dist < bestS.dist) bestS = { vx, vy, end, dist };
+      if (end === 'cup') break;
+    }
+    return bestS;
+  }
+  window.GAME = {
+    DIFF, get state() { return state; }, get phase() { return phase; }, get hole() { return holeN; }, get strokes() { return strokes; }, get total() { return total; }, get card() { return card.slice(); }, get aces() { return aces; },
+    get diff() { return diffId; }, get ball() { return { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy }; }, get H() { return H9; },
+    field: () => ({ W, H, sc, ox, oy, rot, KSZ, kongX, kongY, field: { x: ox, y: oy, w: (rot ? FH : FW) * sc, h: (rot ? FW : FH) * sc }, hud: hud.getBoundingClientRect().toJSON(), kong: K.el.getBoundingClientRect().toJSON() }),
+    start, end, pause, resume, shoot, go: n => { loadHole(n); phase = 'aim'; }, place: (x, y) => { ball.x = x; ball.y = y; ball.vx = ball.vy = 0; }, best: bestShot, predict, makeHole,
+    aim: (dx, dy) => { drag.on = true; drag.x0 = W / 2; drag.y0 = H / 2; drag.x = W / 2 + dx; drag.y = H / 2 + dy; }, unaim: aimReset,
+    step: dt => update(dt)
+  };
+})();
+</script>
+</body>
+</html>

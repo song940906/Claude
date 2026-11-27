@@ -173,7 +173,7 @@ body .kg-top { z-index: 26; }
   let cols = 12, rows = 18, gridFixed = false;   // 판이 시작되면 칸 수는 그대로 (화면이 바뀌면 칸 크기만 다시 맞춘다)
   let body = [], prev = [], pups = [], dir = { x: 1, y: 0 }, queue = [], grow = 0;
   let food = null, gold = null, nextGold = 4, obs = new Set(), shapes = [];
-  let count = 0, eatN = 0, goldN = 0, acc = 0, stepT = 0.2, sps = 5, walkPh = 0, face = 1, isNew = false, quit = false;
+  let stepN = 0, count = 0, eatN = 0, goldN = 0, acc = 0, stepT = 0.2, sps = 5, walkPh = 0, face = 1, isNew = false, quit = false;
   let deadT = 0, deadWhy = '', deadDir = { x: 0, y: 0 }, overT = 0, overAt = 0, tAnim = 0, floats = [], crumbs = [], waitHintT = 0, eatT = 0, backHintAt = -9, kClip = '';
   let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, cell = 24, bx = 0, by = 0, fence = 8, wide = false;
   const START = () => ({ x: Math.max(1, Math.floor(cols * 0.25)), y: Math.floor(rows / 2) });
@@ -374,7 +374,7 @@ body .kg-top { z-index: 26; }
   function eat(isGold) {
     const pt = cellC(body[0].x, body[0].y), add = isGold ? GOLD_ADD : 1;
     count += add; grow += add; eatT = 0.4;
-    if (isGold) { goldN++; gold = null; schedGold(); sfx('power'); addFloat(pt.x, pt.y - cell * 0.7, '친구 ' + add + '마리!', '#FFE08A', true); burst(pt.x, pt.y, '#FFD34D', 14); if (!food && !spawnFood(false)) return finish('full'); }   // 판이 거의 차서 일반 간식이 비어 있었으면 다시 놓는다
+    if (isGold) { goldN++; gold = null; schedGold(); sfx('power'); KG.lick(0.9, 0.15); addFloat(pt.x, pt.y - cell * 0.7, '친구 ' + add + '마리!', '#FFE08A', true); burst(pt.x, pt.y, '#FFD34D', 14); if (!food && !spawnFood(false)) return finish('full'); }   // 판이 거의 차서 일반 간식이 비어 있었으면 다시 놓는다
     else { eatN++; sfx('munch'); tone(880 + Math.min(count, 30) * 12, 0.08, 'triangle', 0.05, 0.03); addFloat(pt.x, pt.y - cell * 0.7, '+1', '#fff'); burst(pt.x, pt.y, '#F6E2BE', 7); if (!spawnFood(false) && !gold) return finish('full'); }
     if (!gold && count >= nextGold) spawnGold();
     sps = speedNow(); stepT = 1 / sps;
@@ -394,7 +394,7 @@ body .kg-top { z-index: 26; }
   function finish(why) {
     if (state !== 'play') return;
     state = 'over'; overT = why === 'quit' ? 0.3 : 1.5; btnPause.hidden = true; swipe.on = false;
-    if (why === 'full') { sfx('win'); const p = cellC(body[0].x, body[0].y); addFloat(p.x, p.y - cell, '공원이 꽉 찼어요!', '#FFE08A', true); }
+    if (why === 'full') { sfx('win'); KG.lick(1.0, 0.5); const p = cellC(body[0].x, body[0].y); addFloat(p.x, p.y - cell, '공원이 꽉 찼어요!', '#FFE08A', true); }
     deadWhy = why;
   }
 
@@ -566,6 +566,7 @@ body .kg-top { z-index: 26; }
     if (state === 'over') { overT -= dt; if (overT <= 0) showResult(); return; }
     if (state !== 'play' || phase !== 'run') return;
     walkPh += dt * sps * Math.PI * 0.5;
+    { const sn = Math.floor(walkPh / Math.PI); if (sn !== stepN) { stepN = sn; KG.step(0.38); } }   // 11-28 발자국(진짜 소리): 걸음 그림 반주기마다(칸 두 개에 한 번), 실제로 걸을 때만
     if (gold) { gold.life -= dt; if (gold.life <= 0) { const p = cellC(gold.x, gold.y); addFloat(p.x, p.y - cell * 0.6, '사라졌어요', '#C9D1F2'); gold = null; schedGold(); if (!food && !spawnFood(false)) { finish('full'); return; } } }
     acc += dt; let n = 0;
     while (acc >= stepT && n < 4 && phase === 'run' && state === 'play') { acc -= stepT; step(); n++; }
@@ -602,7 +603,7 @@ body .kg-top { z-index: 26; }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
     gridFixed = false; layout(); gridFixed = true;
-    count = 0; eatN = 0; goldN = 0; acc = 0; quit = false; isNew = false; deadT = 0; deadWhy = ''; walkPh = 0; eatT = 0;
+    count = 0; eatN = 0; goldN = 0; acc = 0; quit = false; isNew = false; deadT = 0; deadWhy = ''; walkPh = 0; stepN = 0; eatT = 0;
     resetBoard(); schedGold(); sps = speedNow(); stepT = 1 / sps;
     state = 'play'; phase = 'wait'; hud.hidden = false;
     showCard(null); btnPause.hidden = false; if (document.activeElement && document.activeElement.blur) document.activeElement.blur();

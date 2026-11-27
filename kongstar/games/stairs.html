@@ -486,7 +486,8 @@ body .kg-top { z-index: 26; }
     tBar = Math.min(1, tBar + D.gain);
     const s = steps[cur];
     tone(460 + (cur % 8) * 45, 0.06, 'triangle', 0.045);
-    if (s.snack && !s.ate) { s.ate = true; snacks++; tBar = Math.min(1, tBar + D.bonus); sfx('coin'); addFloat('+시간', '#FFE08A'); happyT = 0.5; $('hSnack').textContent = snacks; }
+    if (cur % 2 === 0) KG.step(0.42);   // 11-28 발자국(진짜 소리): 새 계단에 발이 닿는 소리 — 빨리 오르는 게임이라 두 칸에 한 번만
+    if (s.snack && !s.ate) { s.ate = true; snacks++; tBar = Math.min(1, tBar + D.bonus); sfx('coin'); addFloat('+시간', '#FFE08A'); happyT = 0.5; $('hSnack').textContent = snacks; if (snacks % 3 === 1) KG.lick(0.85, 0.08); }   // 11-28 간식: 첫 번째와 세 개마다 한 번 할짝 (매번은 잦다)
     if (cur % 10 === 0) { sfx('match'); bumpPill(); if (cur % 50 === 0) addFloat(cur + '층!', '#BFF3D2'); }
     const zi = Math.floor(zoneF(cur) + 0.001);
     if (zi > maxZone) { maxZone = zi; note(ZMSG[zi] || '', 2000); }
@@ -602,6 +603,7 @@ body .kg-top { z-index: 26; }
     fall = null; kx = steps[cur].x; ky = kyB = cur; happyT = isNew || score >= 10 ? 99 : 0;   // reason 은 실제로 끝난 이유 그대로 둔다
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rb.show(diffId);
     if (isNew) { sfx('win'); voice('bark', 0.2, 1.0); }
+    else if (score >= 10) KG.lick(1.0, 0.3);   // 11-28 결과에서 기뻐하는 콩이가 할짝 — 신기록 때는 공통이 짖으니 겹치지 않게 뺀다
   }
   const RULES = { key: KEY, title: TITLE, lead: '지그재그 계단을 한 칸씩 올라가요.', items: [
     ['👆', '다음 계단이 왼쪽이면 왼쪽, 오른쪽이면 오른쪽을 눌러요. 화면 왼쪽 반·오른쪽 반이나 아래 ◀ ▶ 단추.'],

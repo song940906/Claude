@@ -182,7 +182,7 @@ body .kg-top { z-index: 26; }
   let layers = 0, points = 0, streak = 0, perfects = 0, bestStreak = 0, playT = 0;
   let tower = [], piece = null, cuts = [], bodies = [];
   const parts = [], floats = [];
-  let cam = 0, shake = 0, tAnim = 0, overT = 0, collapsed = false, munchN = 0, zone = 0, lastBark = -99, endAt = 0;
+  let cam = 0, shake = 0, tAnim = 0, overT = 0, collapsed = false, munchN = 0, zone = 0, lastBark = -99, endAt = 0, eatV = false, licked = false;   // eatV: 진짜 씹는 소리(eat)를 틀었나 · licked: 다 먹고 입 핥았나 (11-28)
   let newRec = false, keyAt = 0, blockUntil = 0;   // 이번 판이 새 기록인지 · 마지막 키 누른 때 · 연타가 멎을 때까지 다시 하기를 막는 때
   let mood = 'idle', moodT = 0;   // 콩이 기분: idle · joy · sad · shock · eat
   const topY = () => PLATE + tower.length * BH;          // 탑 꼭대기 높이
@@ -410,7 +410,7 @@ body .kg-top { z-index: 26; }
       sparkle(top.x - w / 2, ty + BH / 2, 6, ['#FFE9A8', '#FFFFFF', '#FFD1DC'], 150); sparkle(top.x + w / 2, ty + BH / 2, 6, ['#FFE9A8', '#FFFFFF', '#FFD1DC'], 150);
       const f = 660 * Math.pow(2, Math.min(streak - 1, 9) / 12);
       tone(f, 0.1, 'triangle', 0.07); tone(f * 1.5, 0.18, 'triangle', 0.06, 0.07); if (grew) tone(f * 2, 0.2, 'sine', 0.04, 0.14);
-      setMood('joy'); if (streak === 3 || (streak >= 5 && streak % 5 === 0)) bark();
+      setMood('joy'); if (streak === 3 || (streak >= 5 && streak % 5 === 0)) { bark(); KG.lick(0.8, 0.12); }   // 11-28: 연속 딱! 칭찬 때 할짝
     } else {
       const ov = p.w - ad, sg = d > 0 ? 1 : -1;
       if (ov < 2) {
@@ -437,7 +437,7 @@ body .kg-top { z-index: 26; }
     if (state !== 'play') return;
     state = 'over'; overT = miss ? 0 : 0.3; collapsed = false;
     newRec = layers > 0 && setBest(KG.dkey('stack', diffId), layers);   // 기록은 판이 끝난 바로 그때 저장 (무너지는 동안 나가도 남게)
-    munchN = 0; btnPause.hidden = true; if (piece) piece = null;
+    munchN = 0; eatV = false; licked = false; btnPause.hidden = true; if (piece) piece = null;
     setMood('shock'); sfx('wrong'); clearTimeout(bannerT); $('banner').classList.remove('show');
   }
   function collapse() {
@@ -479,7 +479,9 @@ body .kg-top { z-index: 26; }
       if (!collapsed && overT >= 0.45) collapse();
       if (collapsed) cam += (0 - cam) * (1 - Math.exp(-3.4 * dt));
       if (overT > 1.5 && mood !== 'eat') { setMood('eat'); cam = cam < 2 ? 0 : cam; }
-      if (mood === 'eat') { const k = Math.floor(moodT / 0.34); if (k >= munchN && munchN < 4) { munchN++; sfx('munch'); const m = mouthPt(); sparkle(m.x, m.wy, 4, ['#F9D48F', '#E2B990', '#FFC9D4'], 70); } }
+      if (mood === 'eat') { const k = Math.floor(moodT / 0.34); if (k >= munchN && munchN < 4) { munchN++; if (munchN === 1) eatV = KG.voice('eat', 0, 0.9) > 0; if (!eatV) sfx('munch');   // 11-28: 첫 입에 가족 동영상의 사료 씹는 소리(1.1초) 한 번 — 못 틀면 원래 합성음 4번
+        const m = mouthPt(); sparkle(m.x, m.wy, 4, ['#F9D48F', '#E2B990', '#FFC9D4'], 70); } }
+      if (mood === 'eat' && !licked && overT > 2.75) { licked = true; if (layers > 0) KG.lick(0.8); }   // 11-28: 다 먹고 입 핥기 (결과 카드·신기록 짖음 전에 끝나게)
       if (overT > 3.1) { cam = 0; showResult(); }
     }
     stepLoose(dt);
@@ -583,7 +585,7 @@ body .kg-top { z-index: 26; }
   function reset() {
     layers = points = streak = perfects = bestStreak = 0; playT = 0; zone = 0; shownL = shownP = shownS = -1;
     tower = [{ x: CX, w: D.w0, kind: 0, t: 1, glow: 0 }]; cuts = []; bodies = []; parts.length = floats.length = 0;
-    cam = camGoal(); shake = 0; overT = 0; collapsed = false; munchN = 0; setMood('idle');
+    cam = camGoal(); shake = 0; overT = 0; collapsed = false; munchN = 0; eatV = false; licked = false; setMood('idle');
     newPiece(); paintHud();
   }
   function start() {

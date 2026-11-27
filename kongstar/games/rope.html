@@ -331,12 +331,12 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       }
     } else if (m === 'ending') {
       S.endT += dt;
-      if (!S.sat && S.endT > 0.7 && !S.air) { S.sat = true; k.setPose('sit'); S.say = 2.0; sfx('win'); voice('bark', 0.2, 1.1); }
+      if (!S.sat && S.endT > 0.7 && !S.air) { S.sat = true; k.setPose('sit'); S.say = 2.0; sfx('win'); voice('bark', 0.2, 1.1); if (S.count >= 10 && !S.simulating) KG.lick(1.0, 0.5); }   // 11-28: 10번 넘게 넘었으면 앉아서 할짝
       if (S.sat && S.endT > 2.5 && !S.simulating) showOver();
     }
     if (S.air) {
       S.jt += dt; const u = S.jt / S.ja;
-      if (u >= 1) { S.y = 0; S.air = false; S.landT = 0.1; S.lastLand = S.pt; if (S.mode === 'play') { tone(130, 0.05, 'sine', 0.05); if (S.buf > 0 && S.tangle <= 0) doJump(); } }
+      if (u >= 1) { S.y = 0; S.air = false; S.landT = 0.1; S.lastLand = S.pt; if (S.mode === 'play') { if (S.simulating || !KG.step(0.5)) tone(130, 0.05, 'sine', 0.05); if (S.buf > 0 && S.tangle <= 0) doJump(); } }   // 11-28: 착지 때 진짜 발소리(못 틀면 원래 「톡」)
       else S.y = 4 * S.jA * u * (1 - u);
     }
     if (S.buf > 0) S.buf -= dt;

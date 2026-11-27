@@ -656,7 +656,7 @@ body .kg-top { z-index: 26; }
       lastStars = over <= 0 ? 3 : over <= Math.max(1, Math.floor(slack / 2)) ? 2 : 1;
       saveStage(diffId, stageNo + 1); lastNew = setBest(KG.dkey('deliver', diffId), stageNo);   // 기록은 바로 저장 (기뻐하는 중에 나가도 남게)
       if ((stageNo >= ({ hard: 30, vhard: 20 }[diffId] || 1e9)) && KG.master) KG.master('deliver');   // 업적 「게임 달인」 (11-27): Hard 30 · Very Hard 20단계
-      sfx('win'); lastBark = -99; barkVoice(0.3); setMood('cheer');
+      sfx('win'); lastBark = -99; barkVoice(0.3); setMood('cheer'); KG.lick(1.0, 0.5);   // 11-28: 배달 다 하고 기뻐 할짝
       const [x, y] = cellXY(path[path.length - 1]); burst(x, y - CELL * 0.3, 26, 'star', 220);
     } else {
       state = 'fail'; failT = 0; setMood('sad'); sfx('lose');
@@ -681,7 +681,7 @@ body .kg-top { z-index: 26; }
     for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= 26 * dt; if (f.life <= 0) floats.splice(i, 1); }
     if (state === 'run') {
       const dur = Math.max(0.085, 0.19 - runI * 0.008) * (runFast ? 0.4 : 1);
-      runT += dt; runPh += dt * 16;
+      runT += dt; const h0 = Math.floor(runPh / Math.PI); runPh += dt * 16; if (Math.floor(runPh / Math.PI) !== h0) KG.step(0.55);   // 11-28: 달리는 걸음마다 발자국
       while (state === 'run' && runT >= dur) { runT -= dur; runI++; arrive(runI); if (runI >= path.length - 1) { runT = 0; finishRun(); } }
       if (state === 'run' && !reduceMotion && Math.random() < dt * 26) { const [x, y] = kongXY(); parts.push({ x: x - facing * KS * 0.2, y: y - KS * 0.02, vx: rand(-20, 20), vy: rand(-10, 20), life: 0.35, max: 0.35, r: rand(1.6, 3.4), kind: 'flame' }); }
     } else if (state === 'fail') { failT += dt; if (failT > 1.5) { state = 'play'; runI = 0; setMood('idle'); lastCell = -1; paintHud(); } }

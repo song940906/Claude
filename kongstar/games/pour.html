@@ -476,7 +476,7 @@ body .kg-top { z-index: 26; }
       if (c.res === 'perfect') {
         perfects++; pstreak++;
         addFloat(lx, ly, '계량천재!', '#FFE08A', true); sfx('power'); setMood('perfect', 1.2);
-        if (pstreak % 3 === 0 && hearts < HEARTS) { hearts++; bumpEl('hudHp'); setTimeout(() => sfx('heart'), 380); addFloat(lx, ly + 26, '♥ 하트 보너스!', '#FFB3C1'); }
+        if (pstreak % 3 === 0 && hearts < HEARTS) { hearts++; bumpEl('hudHp'); setTimeout(() => sfx('heart'), 380); KG.lick(0.9, 0.75); addFloat(lx, ly + 26, '♥ 하트 보너스!', '#FFB3C1'); }
       } else { pstreak = 0; addFloat(lx, ly, pick(['좋아요!', '딱 맞아요!', '잘했어요!']), '#BFF3D2', true); sfx('coin'); setMood('happy', 0.9); }
       if (combo >= 2) addFloat(lx, ly - 26, combo + '콤보', '#FFFFFF');
       bumpEl('hudSc');
@@ -504,12 +504,16 @@ body .kg-top { z-index: 26; }
   function bumpEl(id) { const e = $(id); if (reduceMotion || !e) return; e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
   function addFloat(x, y, text, col, big) { floats.push({ x, y, text, col: col || '#fff', life: 1.25, big: !!big }); }
   function setMood(m, t) { mood = m; moodT = t; }
+  // 11-28 진짜 소리: 흘린 우유를 핥아 먹는 동안(mood lick) 찰박찰박 반복 — 못 틀면 drawKong 의 원래 합성음
+  let drinkOn = false, wcTimer = 0;
+  const drinkOff = () => { drinkOn = false; KG.voiceLoop('drink', false); };
 
   // ═══════ 한 걸음 ═══════
   function update(dt) {
     for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.life -= dt; f.y -= dt * 24; if (f.life <= 0) floats.splice(i, 1); }
     for (let i = drops.length - 1; i >= 0; i--) { const d = drops[i]; d.t += dt; d.vy += 600 * dt; d.x += d.vx * dt; d.y += d.vy * dt; if (d.t > d.life) drops.splice(i, 1); }
     if (moodT > 0) { moodT -= dt; if (moodT <= 0) mood = 'idle'; }
+    if (mood === 'lick' && (state === 'play' || state === 'over')) drinkOn = KG.voiceLoop('drink', true, 0.7); else if (drinkOn) drinkOff();
     if (state === 'over') { overT -= dt; if (overT <= 0) showResult(); return; }
     if (state !== 'play' || !cup) return;
     phaseT += dt;
@@ -780,7 +784,7 @@ body .kg-top { z-index: 26; }
       nod: lick && !reduceMotion ? Math.sin(tAnim * 14) * 3 : 0,
       tailAmp: sad ? 3 : happy || won || lick ? 22 : pouring ? 6 : 12, tailRate: happy || won ? 3.6 : 2.2, blush: happy || won || lick ? 1 : 0 });
     K.place(kc.x, kc.y, 1);
-    if (lick && !reduceMotion && Math.random() < dtFrame * 2.2) { const m = K.mouth(); addFloat(m.x + rand(-10, 10), m.y - 12, '할짝', '#FFE9F0'); noise(0.05, 0.05, 2400, 1600); }
+    if (lick && !reduceMotion && Math.random() < dtFrame * 2.2) { const m = K.mouth(); addFloat(m.x + rand(-10, 10), m.y - 12, '할짝', '#FFE9F0'); if (!drinkOn) noise(0.05, 0.05, 2400, 1600); }
   }
   let last = 0, dtFrame = 0, dtSum = 0, frameN = 1, skipN = 0;
   // 절전: 놀이 중이 아니면(시작·멈춤·결과 카드) 상태·화면 크기가 바뀐 뒤 1초만 매 프레임, 그 뒤로는 0.2초에 한 번만 그린다
@@ -827,6 +831,7 @@ body .kg-top { z-index: 26; }
   function showCard(id, btn) { for (const k of ['cardStart', 'cardPause', 'cardEnd']) $(k).hidden = k !== id; if (id !== 'cardEnd') rbox.hide(); if (btn) { try { $(btn).focus({ preventScroll: true }); } catch (e) {} } }
   function start() {
     diffId = KG.diff(); D = DIFF[diffId] || DIFF.normal;
+    clearTimeout(wcTimer); drinkOff();
     cups = 0; hearts = HEARTS; lv = 1; combo = 0; bestCombo = 0; perfects = 0; pstreak = 0; poured = 0; misses = 0; quit = false; isNew = false;
     floats = []; drops = []; mood = 'idle'; moodT = 0; held = false; holdId = null; holdKey = false; lastShape = '';
     state = 'play'; newCup();
@@ -836,7 +841,7 @@ body .kg-top { z-index: 26; }
   function pause() {
     if (state !== 'play') return;
     cancelPour();   // 따르던 중이면 그 잔은 없던 일로 (멈춤으로 이어 따르기는 안 된다)
-    state = 'pause';
+    state = 'pause'; drinkOff();
     $('psText').textContent = '지금 ' + cups + '잔 성공했어요. ' + J(name, '이/가') + ' 우유병을 물고 기다려요.';
     showCard('cardPause', 'btnResume'); if (document.activeElement === btnPause) btnPause.blur();
   }
@@ -861,6 +866,8 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = cups > 0 ? J(name, '이/가') + ' 우유 ' + cups + '잔을 맛있게 마셨어요.' + (perfects ? ' 계량천재 ' + perfects + '번!' : '') : '초록 띠 안에서 손을 떼 보세요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');
+    drinkOff(); clearTimeout(wcTimer);
+    if (cups > 0) { const at = overAt; wcTimer = setTimeout(() => { if (state === 'result' && overAt === at && !document.hidden) KG.voice('watercall', 0, 0.9); }, isNew ? 2300 : 350); }   // 11-28: 다 마신 뒤 「콩이 물 마실까」 — 신기록이면 공통이 0.2초 뒤 짖으니(약 1.9초) 그 뒤에
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });
@@ -868,7 +875,7 @@ body .kg-top { z-index: 26; }
   $('btnResume').addEventListener('click', () => { sfx('tap'); resume(); });
   $('btnQuit').addEventListener('click', () => { sfx('tap'); end(); });
   btnPause.addEventListener('click', () => { sfx('tap'); pause(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); drinkOff(); } });
   window.addEventListener('pagehide', pause);
   window.addEventListener('blur', () => { if (held) cancelPour(); });
 

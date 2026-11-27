@@ -750,7 +750,7 @@ body .kg-top { z-index: 26; }
     const tot = nPf + nGd + nMs;
     $('edText').textContent = score > 0 ? '맞힌 노트 ' + fmt(nPf + nGd) + '개 중 딱 맞음 ' + Math.round(nPf / Math.max(1, nPf + nGd) * 100) + '%' + (tot ? ' · 놓침 ' + fmt(nMs) + '개' : '') + '.' : '발자국이 선에 닿을 때 그 줄을 눌러 봐요.';
     paintBest(); paintHud(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
-    if (isNew) sfx('win');
+    if (isNew) sfx('win'); else if (score > 0) KG.lick(0.9, 0.35);   // 11-28: 결과 기쁨 핥기 (신기록이면 공통이 짖으니 뺀다)
   }
   function paintHud() {
     $('hudScore').textContent = fmt(score);

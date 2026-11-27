@@ -191,7 +191,7 @@ body .kg-top { z-index: 26; }
   let score = 0, thrown = 0, eaten = 0, acc = 0, rollT = 0, nextT = 0, overT = 0, shortDone = false, tAnim = 0, overAt = 0, isNew = false, quit = false;
   let wind = { dir: 1, lv: 0 };
   let lastShot = null, rollPred = null;   // 지난번 샷(갈 거리·멈춘 자리) · Easy: 놓은 직후 잠깐 보여 줄 예상 길
-  let mood = 'idle', moodT = 0, eatT = 0, lastVoice = -99;
+  let mood = 'idle', moodT = 0, eatT = 0, lastVoice = -99, lastLick = -99;
   let W = 0, H = 0, DPR = 1, S = 5, ox = 0, oy = 0, wide = false, SAF = { t: 0, b: 0, l: 0, r: 0 }, KSZ = 140, kx = 0, ky = 0;
   const stat = document.createElement('canvas'), sg = stat.getContext('2d');   // 탁자·접시·컵 (판마다 한 번 그려 둔다)
 
@@ -407,6 +407,7 @@ body .kg-top { z-index: 26; }
           anims.splice(i, 1); eaten++; eatT = Math.max(eatT, 0.95); sfx('munch'); noise(0.07, 0.11, 900, 500, 0.18); noise(0.07, 0.1, 900, 500, 0.38);
           addFloat(m.x, m.y - 18, '냠냠!', '#FFE08A');
           if (tAnim - lastVoice > 5 && Math.random() < 0.35) { lastVoice = tAnim; voice('growl', 0.1, 0.8); }
+          else if (state === 'play' && tAnim - lastLick > 6) { lastLick = tAnim; KG.lick(0.9, 0.55); }   // 11-28: 간식 먹고 입가를 할짝 (으르렁 안 낸 때만, 6초에 한 번까지; 끝난 뒤엔 결과 카드 짖기와 겹치니 뺀다)
         }
       }
     }
@@ -682,6 +683,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = score > 0 ? '접시 위 간식 점수를 모두 더했어요.' + (eaten ? ' ' + J(name, '이/가') + ' ' + eaten + '개를 냠냠했어요.' : '') : '다음엔 접시에 꼭 멈춰 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) { sfx('win'); voice('bark', 0.3, 1.0); }
+    else if (score > 0 && !quit) KG.lick(1.0, 0.4);   // 11-28: 결과 기쁨에 할짝 (새 기록이면 공통이 짖으니 뺀다)
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

@@ -365,7 +365,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     S.combo++; S.maxCombo = Math.max(S.maxCombo, S.combo); S.caught++;
     const m = mult(S.combo), gain = Math.round((it.kind === 'gold' ? 50 : 10) * m * D.mul); S.score += gain;
     S.munch = 0.45; sfx('munch');
-    if (it.kind === 'gold') { sfx('power'); sparkle(mx, my, 14); S.cheer = 1; say('맛있다!', 1.1); }
+    if (it.kind === 'gold') { sfx('power'); sparkle(mx, my, 14); S.cheer = 1; say('맛있다!', 1.1); if (!S.simulating) KG.voice('eat', 0.05, 0.6); }   // 황금 간식은 진짜 바삭 씹는 소리 (11-28)
     else tone(660 + Math.min(S.combo, 20) * 22, 0.09, 'triangle', 0.06);
     floatText('+' + gain, mx, my - SZ * 0.32, it.kind === 'gold' ? '#FFE9A8' : '#FFFFFF', it.kind === 'gold' ? clamp(SZ * 0.2, 17, 26) : 0);
     toBasket(it.e, mx, my); paintCombo();
@@ -398,6 +398,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       if (S.keyDir && !S.bot) { S.kx = clamp(S.kx + S.keyDir * KEYV * SZ * dt, KMIN, KMAX); S.target = S.kx; }
       else { const lim = (S.bot ? BOT.speed : MAXV) * SZ * dt; S.kx += clamp(S.target - S.kx, -lim, lim); }
       S.vx = lerp(S.vx, (S.kx - x0) / dt, 1 - Math.exp(-dt * 14));
+      if (!S.simulating && Math.abs(S.vx) > 1.25 * SZ) { const sp = Math.floor(S.t * 15 / Math.PI); if (sp !== S.stepPh) { S.stepPh = sp; KG.step(0.5); } }   // 발자국 (11-28): 콩이가 달려서 깡충대는 그림(hop)이 땅에 닿을 때마다
       S.spawnT -= dt; if (S.spawnT <= 0) spawn();
       const mx = S.kx + MOX, my = mouthY(), GL = GY - SZ * 0.08;
       for (const it of S.items) {
@@ -559,6 +560,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     paintBest(); $('combo').hidden = true;
     $('cardOver').hidden = false; rb.show(runDiff);
     if (ovNew) { sfx('win'); voice('bark', 0.3, 1.1); S.cheer = 2; S.hurt = 0; }
+    else if (S.caught >= 10) KG.lick(0.9, 0.35);   // 배불리 받아먹은 판은 입맛 다시며 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   // 난이도 고르기: 시작 · 결과 카드에만. 시작 카드는 고른 난이도의 기록, 결과 카드는 방금 끝난 판 난이도의 기록(다른 난이도를 골라 두었으면 이름을 붙인다)

@@ -409,6 +409,7 @@ body .kg-top { z-index: 26; }
     const isNew = KG.setBest(KG.dkey(KEY, diffId), score); if (isNew) pendingNew = true;   // 도중에 나가도 기록이 남게
     banner(round + '판 승리!', judged ? '시간 끝 · 리본이 내 쪽이에요 +' + WIN_PTS : '+' + WIN_PTS + ' · 빨리 이긴 덤 +' + bonus, 1700);
     sfx('match'); if (round % 3 === 0) voice('bark', 0.3, 1.0);
+    KG.lick(0.9, 0.85);   // 11-28: 줄을 놓고 배를 보일 때(0.8초 뒤) 할짝 — 이긴 판마다 한 번
   }
   let pendingNew = false;
   function lose(judged) {

@@ -638,7 +638,7 @@ body .kg-top { z-index: 26; }
     for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt; if (p.life <= 0) parts.splice(i, 1); }
     for (let i = outs.length - 1; i >= 0; i--) {
       const o = outs[i]; o.t += dt;
-      if (o.t >= 0.75 && !o.hugged) { o.hugged = true; hug = { kind: o.kind, t: 0, r: o.r }; setMood('hug', 1.8); if (!reduceMotion) for (let k = 0; k < 10; k++) { const a = rand(0, TAU), v = rand(60, 150), p = hugPos(); parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: rand(0.4, 0.7), col: k % 2 ? '#FFC861' : '#FFB3C7' }); } }
+      if (o.t >= 0.75 && !o.hugged) { o.hugged = true; hug = { kind: o.kind, t: 0, r: o.r }; setMood('hug', 1.8); if (state === 'play') KG.lick(1.0, 0.2); if (!reduceMotion) for (let k = 0; k < 10; k++) { const a = rand(0, TAU), v = rand(60, 150), p = hugPos(); parts.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, life: rand(0.4, 0.7), col: k % 2 ? '#FFC861' : '#FFB3C7' }); } }
       if (o.hugged) outs.splice(i, 1);
     }
     if (hug) { hug.t += dt; if (hug.t > 1.8) hug = null; }

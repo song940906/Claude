@@ -316,6 +316,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     K.prevI = iv; K.foot = side; K.lastTap = S.t; K.sameN = 0;
     if (K.react < 0) K.react = S.rt;
     tone(side === 'L' ? 540 : 640, 0.045, 'sine', 0.03); if (K.v > 2) dust(1);
+    if (!S.sim && side === 'R') KG.step(0.4);   // 11-28 발자국(진짜 소리): 번갈아 디딘 발이 땅에 닿을 때, 두 걸음에 한 번만(매번은 잦다 — 같은 발 연타·공중은 위에서 걸러진다)
   }
   function hop() {
     if (S.mode === 'set') { falseStart(); return; }
@@ -364,7 +365,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     }
     if (K.air >= 0) {   // 떠 있는 동안은 빠르기 그대로, 박자 시계는 멈춘다
       K.air += dt; const u = K.air / D.hopT;
-      if (u >= 1) { K.lastTap = Math.min(S.t, K.lastTap + K.air); K.air = -1; K.y = 0; K.foot = null; K.landT = 0.1; sfx('land'); dust(3); } else K.y = 4 * u * (1 - u);
+      if (u >= 1) { K.lastTap = Math.min(S.t, K.lastTap + K.air); K.air = -1; K.y = 0; K.foot = null; K.landT = 0.1; sfx('land'); dust(3); if (!S.sim) KG.step(0.5); } else K.y = 4 * u * (1 - u);
     }
     K.x += K.v * dt;
     if (K.fin >= 0) return;
@@ -396,6 +397,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
       else { const fins = O.filter(o => o.fin >= 0).map(o => o.fin).sort((a, b) => a - b); if (fins.length >= 3 && S.rt > fins[2] + 5) { K.dnf = true; endRace(); } }
     } else if (m === 'finish') {
       S.T += dt; S.rt += dt; stepKong(dt); for (const o of O) stepOpp(o, dt, S.T > 0.5);
+      if (!S.sim && K.v > 0.5 && K.air < 0 && K.stun <= 0) { const sn = Math.floor(S.T * 11 / TAU); if (sn !== K.trotN) { K.trotN = sn; KG.step(0.4); } }   // 11-28 결승 뒤 종종걸음 발자국
       if (S.T >= 1.7) toPodium();
     }
     for (let i = S.parts.length - 1; i >= 0; i--) { const p = S.parts[i]; p.life += dt; if (p.life >= p.max) { S.parts.splice(i, 1); continue; } p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
@@ -417,6 +419,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   }
   function toPodium() {
     S.mode = 'podium'; S.T = 0; if (S.sim) return;
+    if (S.last && S.last.rank <= 3) KG.lick(1.0, 0.4);   // 11-28 3등 안: 시상대에서 기뻐 할짝 (이 카드에선 신기록 짖음이 없다 — 짖음은 마지막 결과 카드에서만)
     k.setPose('sit'); S.parts.length = 0; clearTimeout(noteT); $('note').classList.remove('show'); $('pad').hidden = true; $('hud').hidden = true;
     showRaceCard();
   }

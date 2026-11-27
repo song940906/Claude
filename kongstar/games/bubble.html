@@ -479,7 +479,7 @@ body .kg-top { z-index: 26; }
     const bonus = 300 + level * 100; score += bonus; bumpScore();
     addFloat(W / 2, sy(DL * 0.45), level + '판 깨끗!', '#FFE08A', true);
     addFloat(W / 2, sy(DL * 0.45) + 26, '+' + fmt(bonus), '#fff', true);
-    sfx('win'); setMood('happy', 1.6); if (tAnim - lastVoice > 3) { lastVoice = tAnim; voice('bark', 0.3, 1.0); }
+    sfx('win'); setMood('happy', 1.6); if (tAnim - lastVoice > 3) { lastVoice = tAnim; voice('bark', 0.3, 1.0); } KG.lick(1.0, 0.5);   // 11-28: 판을 비우면 할짝
     paintHud();
   }
   function nextLevel() { level++; newBoard(); phase = 'aim'; paintHud(); sfx('power'); addFloat(W / 2, sy(DL * 0.6), level + '판 시작', '#fff', true); }
@@ -645,7 +645,7 @@ body .kg-top { z-index: 26; }
     if (!quit && level >= 5 && KG.master) KG.master('bubble');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = score > 0 ? (level > 1 ? (level - 1) + '판을 깨끗이 비웠어요.' : '다음엔 병을 다 비워 봐요.') + (dropped ? ' 와르르 떨어뜨린 방울 ' + fmt(dropped) + '개!' : '') : '같은 색 셋을 붙이면 팡 터져요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
-    if (isNew) { sfx('win'); voice('bark', 0.3, 1.0); }
+    if (isNew) { sfx('win'); voice('bark', 0.3, 1.0); } else if (score > 0 && !quit) KG.lick(1.0, 0.45);   // 11-28: 결과가 좋으면 할짝 — 신기록 때는 공통이 짖으니 겹치지 않게 뺀다
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

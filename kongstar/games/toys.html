@@ -360,7 +360,7 @@ body .kg-top { z-index: 26; }
   function done(c, hold) { c.it.phase = 'done'; c.it.t = 0; c.it.hold = hold; }
   function expire(c) {
     const it = c.it; c.el.classList.remove('up');
-    if (it.kind === 'kong') { score += PTS.spare; stats.spared++; floatText(c, '+' + PTS.spare, '잘 참았어요', '#BFF3D2'); tone(784, 0.1, 'triangle', 0.04); peekMood = 'glad'; setMood('happy', 0.7); }
+    if (it.kind === 'kong') { score += PTS.spare; stats.spared++; floatText(c, '+' + PTS.spare, '잘 참았어요', '#BFF3D2'); tone(784, 0.1, 'triangle', 0.04); peekMood = 'glad'; setMood('happy', 0.7); lickJoy(0.85); }   // 11-28 안 눌러 줘서 고마워 할짝
     else { stats.missed++; if (combo > 0) combo = 0; }
     done(c, 0.2);
   }
@@ -372,6 +372,8 @@ body .kg-top { z-index: 26; }
   }
   let peekMood = 'up';
   function setMood(m, t) { mood = m; moodT = t; }
+  let lastLick = -99;
+  function lickJoy(vol) { if (tAnim - lastLick > 4) { lastLick = tAnim; KG.lick(vol, 0.1); } }   // 11-28 의미 있는 순간에만 할짝 (4초에 한 번까지)
   function maybeVoice(p, list) { if (tAnim - lastVoice > 6 && Math.random() < p) { lastVoice = tAnim; voice(pick(list), 0, 1.0); } }
 
   function tap(i) {
@@ -393,7 +395,7 @@ body .kg-top { z-index: 26; }
     const fast = clamp(1 - it.t / it.up, 0, 1), mul = 1 + Math.min(combo - 1, PTS.comboMax) * PTS.comboStep;
     const pts = Math.round((it.kind === 'gold' ? PTS.gold : PTS.toy + PTS.fast * fast) * mul);
     score += pts; c.el.classList.add('hit');
-    if (it.kind === 'gold') { stats.gold++; floatText(c, '+' + pts, '황금 뼈다귀', '#FFE08A'); sfx('power'); setMood('happy', 1.0); maybeVoice(1, ['bark']); }
+    if (it.kind === 'gold') { stats.gold++; floatText(c, '+' + pts, '황금 뼈다귀', '#FFE08A'); sfx('power'); setMood('happy', 1.0); maybeVoice(1, ['bark']); lickJoy(0.9); }   // 11-28 황금 뼈다귀: 할짝
     else { floatText(c, '+' + pts, fast > 0.72 ? '빨라요' : ''); sfx(combo % 5 === 0 ? 'coin' : 'pop'); if (it.kind === 'duck') tone(1500, 0.07, 'square', 0.02, 0.02, 1900); setMood('happy', 0.45); maybeVoice(0.2, ['growl', 'bark']); }
     done(c, 0.24);
     return it.kind === 'gold' ? 'gold' : 'toy';
@@ -481,7 +483,7 @@ body .kg-top { z-index: 26; }
     if ((score >= ({ easy: 1500, normal: 1900, hard: 1700, vhard: 1500 })[diffId]) && KG.master) KG.master('toys');   // 업적 「게임 달인」 (11-27): 난이도별 1500·1900·1700·1500점
     $('edText').textContent = stats.bonk === 0 && stats.spared > 0 ? J(name, '을/를') + ' 한 번도 안 눌렀어요. 최고예요!' : stats.bonk > 0 ? J(name, '을/를') + ' ' + stats.bonk + '번 눌렀어요. 다음엔 살살!' : J(name, '이랑/랑') + ' 잘 놀았어요.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
-    if (isNew) sfx('win'); if (score > 0) { lastVoice = tAnim; voice('bark', 0.2, 1.0); }
+    if (isNew) sfx('win'); if (score > 0) { lastVoice = tAnim; voice('bark', 0.2, 1.0); { const at = endAt; setTimeout(() => { if (state === 'result' && endAt === at) KG.lick(0.9, 0); }, isNew ? 2400 : 400); } }   // 11-28 결과 기쁨에 할짝 (신기록이면 공통이 짖는 소리 뒤로). 그 사이 다시 하기를 누르면 내지 않는다
   }
   const RULES = { key: KEY, title: TITLE, lead: '이불 속에서 올라오는 장난감을 잡는 놀이예요.', items: [
     ['🧸', '장난감이 쏙 올라오면 내려가기 전에 얼른 눌러요.'],

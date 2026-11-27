@@ -560,7 +560,7 @@ body .kg-top { z-index: 26; }
     const bonus = 200 + level * 100 + lives * 30; score += bonus; bumpScore();
     addFloat(sx(FW / 2), sy(FH * 0.45), level + '판 깨끗!', '#FFE08A', true);
     addFloat(sx(FW / 2), sy(FH * 0.45) + 26, '+' + fmt(bonus), '#fff', true);
-    sfx('win'); setMood('happy', 1.6); paintHud();
+    sfx('win'); setMood('happy', 1.6); paintHud(); KG.lick(1.0, 0.5);   // 11-28: 판을 비우면 할짝
   }
   function nextLevel() {
     level++; newBoard(); padMulT = 1; longT = shortT = slowT = 0; combo = 0; serveBall(); paintHud();
@@ -748,7 +748,7 @@ body .kg-top { z-index: 26; }
     if (!quit && level >= 6 && KG.master) KG.master('brick');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = score > 0 ? (cleared > 0 ? cleared + '판을 깨끗이 비웠어요.' : '다음엔 판을 다 비워 봐요.') + (bestCombo >= 5 ? ' 가장 긴 연속 ' + bestCombo + '개!' : '') : '받침대 끝에 맞히면 비스듬히 튀어요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
-    if (isNew) sfx('win');
+    if (isNew) sfx('win'); else if (score > 0 && !quit) KG.lick(1.0, 0.45);   // 11-28: 결과가 좋으면 할짝 — 신기록 때는 공통이 짖으니 겹치지 않게 뺀다
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

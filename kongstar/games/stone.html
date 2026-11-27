@@ -317,7 +317,7 @@ body .kg-top { z-index: 26; }
       k.off = clamp(dx, -p.w / 2 + 0.12, p.w / 2 - 0.12); k.x = p.x + k.off; k.y = topOf(p); startFall('moss'); return;
     }
     k.pi = p.i; k.off = clamp(dx, -p.w / 2 + 0.12, p.w / 2 - 0.12); k.x = p.x + k.off; k.y = topOf(p); k.phase = 'stand'; k.landT = 0.18; k.j = null;
-    sfx('land');
+    sfx('land'); KG.step(p.type === 'lily' ? 0.45 : 0.6);   // 11-28: 돌에 발이 닿는 소리 (진짜 발자국)
     if (p.type === 'lily') { ripples.push({ x: k.x, t: 0 }); noise(0.12, 0.05, 900, 400); }
     else noise(0.05, 0.05, 500, 250);
     if (p.i > from) {
@@ -328,7 +328,7 @@ body .kg-top { z-index: 26; }
         sparkle(sx(p.x), sy(topOf(p)), 14 + Math.min(combo, 6) * 3);
         addFloat(sx(p.x), sy(topOf(p)) - KSZ * 1.3 - 18, combo >= 2 ? '퍼펙트! 콤보 ' + combo : '퍼펙트!', '#FFE08A', true);
         sfx('coin'); if (combo >= 2) tone(988 + Math.min(combo, 8) * 60, 0.12, 'triangle', 0.05, 0.12);
-        if (combo % COMBO_BONUS === 0 && hearts < maxHearts + 1) { hearts++; addFloat(sx(p.x), sy(topOf(p)) - KSZ * 1.3 - 42, '콤보 보너스 · 하트 +1', '#FFB3C7', true); sfx('heart'); }
+        if (combo % COMBO_BONUS === 0 && hearts < maxHearts + 1) { hearts++; addFloat(sx(p.x), sy(topOf(p)) - KSZ * 1.3 - 42, '콤보 보너스 · 하트 +1', '#FFB3C7', true); sfx('heart'); KG.lick(1.0, 0.25); }   // 11-28: 콤보 보너스에 할짝
         bumpHud('hudCb');
       } else { combo = 0; k.happyT = 0.35; }
       if (score > 0 && score % 10 === 0) { addFloat(W / 2, waterY - S * 5, score + '개째!', '#BFF3D2', true); sfx('power'); }
@@ -687,6 +687,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = score > 0 ? J(name, '이/가') + ' 돌 ' + score + '개를 건넜어요.' + (perfects ? ' 한가운데에 ' + perfects + '번 내려앉았어요.' : '') : '꾹 누르는 시간을 조금씩 바꿔 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');
+    else if (score > 0 && !quit) KG.lick(1.0, 0.4);   // 11-28: 결과 기쁨에 할짝 (새 기록이면 공통이 짖으니 겹치지 않게 뺀다)
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

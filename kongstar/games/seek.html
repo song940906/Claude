@@ -646,7 +646,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
     const k = cur.kong; k.found = true; addScore(PTS.kong);
     const p = toPx(k.grp, k.vis.rep[0], k.vis.rep[1]);
     burst(p.x, p.y, 22, 220); rings.push({ x: p.x, y: p.y, t: 0, d: 0.6, k: 'o' }); { const q = toPx(k.grp, kongAt(k.sp, k.hide).x, kongAt(k.sp, k.hide).y); floatText(q.x, Math.max($('hud').getBoundingClientRect().bottom + 16, q.y - (k.sp.size || 110) * S * 1.5), J(name, '을/를') + ' 찾았어요!  +' + PTS.kong, '#FFF3C4'); }
-    sfx('match'); barkVoice(true); kMode = 'pop'; kT = 0; stage.classList.add('out'); if (k.el) { const el = k.el; el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 500); }
+    sfx('match'); barkVoice(true); KG.lick(0.9, 0.3); kMode = 'pop'; kT = 0; stage.classList.add('out'); if (k.el) { const el = k.el; el.classList.add('pop'); setTimeout(() => el.classList.remove('pop'), 500); }   // 11-28 찾아 줘서 반가워 할짝 (방마다 한 번)
     afterFind();
   }
   function useHint() {
@@ -695,7 +695,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
     $('edText').textContent = all ? '방 ' + D.rooms + '개에서 숨은 것을 모두 찾았어요.' : (roomsDone > 0 ? '방 ' + roomsDone + '개를 다 찾았어요. ' : '') + '다음엔 더 잘 찾을 수 있어요.';
     $('edScore').textContent = fmt(score); $('edFound').textContent = foundN + '/' + totalN + '개'; paintBest();
     showMood = all ? 'happy' : 'sad'; kMode = 'show'; if (cur && cur.kong.found && cur.kong.el) cur.kong.el.classList.add('found', 'away'); stage.classList.add('out');
-    $('cardEnd').hidden = false; rbox.show(diffId); if (all) { sfx('win'); barkVoice(true); }
+    $('cardEnd').hidden = false; rbox.show(diffId); if (all) { sfx('win'); barkVoice(true); { const at = endAt; setTimeout(() => { if (state === 'result' && endAt === at) KG.voice('lickrun', 0, 0.8); }, endNew ? 2400 : 450); } }   // 11-28 모두 찾은 결과: 여러 번 핥기 (신기록이면 공통이 짖는 소리 뒤로). 그 사이 다시 하기를 누르면 내지 않는다
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   function update(dt) {

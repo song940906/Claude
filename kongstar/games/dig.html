@@ -549,7 +549,7 @@ body .kg-top { z-index: 26; }
     clearInfo = { base: pts(base), fast: pts(fast), clean: pts(clean), healed, add };
     const bits = ['완료 +' + fmt(pts(base))]; if (fast > 0) bits.push('빨리 +' + fmt(pts(fast))); if (clean) bits.push('실수 없이 +' + fmt(pts(clean))); if (healed) bits.push('하트 +1');
     banner('유적 ' + site + ' 발굴 완료!', bits.join(' · '), CLEAR_DUR * 1000 - 300);
-    setMood('carry'); sfx('win'); voice('bark', 0.25); if (healed) { sfx('heart'); popHeart(); }
+    setMood('carry'); sfx('win'); voice('bark', 0.25); KG.lick(0.9, 0.4); if (healed) { sfx('heart'); popHeart(); }   // 발굴 완료 — 찾은 뼈를 물고 와서 할짝 (11-28)
     paintHud(); dirty = true;
   }
   function nextSite() { site++; state = 'play'; setMood('idle'); newSite(); say('유적 ' + site + ' · 아무 칸이나 삽으로 파 보세요'); }
@@ -568,6 +568,7 @@ body .kg-top { z-index: 26; }
     $('edTitle').textContent = sitesDone > 0 ? '발굴을 잘 마쳤어요' : '발굴을 마쳤어요';
     $('edText').textContent = sitesDone > 0 ? '유적 ' + sitesDone + '곳에서 뼈와 보물 ' + found + '개를 찾았어요.' : found > 0 ? '뼈와 보물 ' + found + '개를 찾았어요.' : J(name, '이랑/랑') + ' 잘 놀았어요.';
     $('cardEnd').hidden = false; rbox.show(diffId); endAt = performance.now(); dirty = true; if (isNew) sfx('win');
+    else if (sitesDone > 0) KG.lick(0.9, 0.35);   // 유적을 하나라도 마친 판은 기뻐서 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   function start() {

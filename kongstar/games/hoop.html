@@ -558,7 +558,7 @@ body .kg-top { z-index: 26; }
     if (!quit && laps >= 60 && KG.master) KG.master('hoop');   // 업적 「게임 달인」 (11-27)
     $('edText').textContent = laps > 0 ? J(name, '이/가') + ' 후프를 ' + fmt(laps) + '바퀴 돌렸어요.' + (perfects ? ' 퍼펙트 ' + fmt(perfects) + '번!' : '') : '구슬이 반짝이는 칸에 왔을 때 눌러 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
-    if (isNew) sfx('win'); else if (!quit) sfx('lose');
+    if (isNew) sfx('win'); else if (!quit) { sfx('lose'); if (laps >= 30) KG.lick(1.0, 0.5); }   // 11-28: 잘 돌렸으면(30바퀴 이상 — 콩이가 손 흔드는 때) 할짝 — 신기록 때는 공통이 짖으니 뺀다
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

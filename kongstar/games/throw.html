@@ -384,7 +384,7 @@ body .kg-top { z-index: 26; }
     if (center && first) float(x, y - 46, '한 번에 한가운데!', '#fff'); else if (center) float(x, y - 46, '한가운데!', '#fff'); else if (first) float(x, y - 46, '한 번에!', '#fff');
     burst(x, y, center ? 18 : 10, center ? '#FFE08A' : '#fff');
     sfx(center ? 'power' : 'match');
-    if (streak > 0 && streak % D.bonus === 0) { balls++; popBalls(); float(PX(OX), PY(-60), '공 +1', '#D8F36A'); sfx('heart'); }
+    if (streak > 0 && streak % D.bonus === 0) { balls++; popBalls(); float(PX(OX), PY(-60), '공 +1', '#D8F36A'); sfx('heart'); KG.lick(1.0, 0.3); }   // 11-28: 공 +1 에 할짝
     if (tAnim - lastBark > 5 && (center || Math.random() < 0.45)) { lastBark = tAnim; voice('bark', 0.1, 1.1); }
     lastTrail = trail; nextLv = null; paintHud();
   }
@@ -435,7 +435,7 @@ body .kg-top { z-index: 26; }
       const dx = HOME - kx;
       if (Math.abs(dx) > 2) { kface = dx > 0 ? 1 : -1; kx += kface * Math.min(Math.abs(dx), RUN * HT); kmove = true; } else settle();
     } else if (phase === 'set') { setT -= HT; if (setT <= 0) advance(); }
-    if (kmove) walkPh += HT * 17;
+    if (kmove) { const h0 = Math.floor(walkPh / Math.PI); walkPh += HT * 17; if (Math.floor(walkPh / Math.PI) !== h0) KG.step(0.5); }   // 11-28: 공 주우러 뛰는 걸음마다 발자국
   }
   function update(dt) {
     acc += dt; let n = 0;
@@ -655,7 +655,7 @@ body .kg-top { z-index: 26; }
     if ((made >= 8) && KG.master) KG.master('throw');   // 업적 「게임 달인」 (11-27): 한 판에 바구니 8번 넣기
     $('edText').textContent = made > 0 ? '공 ' + thrown + '개를 던져 바구니에 ' + made + '번 넣었어요.' : quit ? '다음에 또 던져요.' : J(name, '이/가') + ' 공을 다 물어 왔어요.';
     $('edScore').textContent = fmt(score); $('edStage').textContent = bestStage + '단계'; paintBest();
-    $('cardEnd').hidden = false; rbox.show(diffId); if (isNew) { sfx('win'); voice('bark', 0.3, 1.1); }
+    $('cardEnd').hidden = false; rbox.show(diffId); if (isNew) { sfx('win'); voice('bark', 0.3, 1.1); } else if (made > 0) KG.lick(1.0, 0.4);   // 11-28: 결과 기쁨에 할짝 (새 기록이면 공통이 짖으니 뺀다)
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });

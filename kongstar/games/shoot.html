@@ -497,7 +497,7 @@ body .kg-top { z-index: 26; }
   }
   function take(p) {
     const ky = groundY(kx);
-    score += 15; paintScore(); sfx('power'); barkVoice(); burst(p.x, p.y, 10, 130, ['glowG', 'spark']);
+    score += 15; paintScore(); sfx('power'); barkVoice(); KG.lick(0.85, 0.12); burst(p.x, p.y, 10, 130, ['glowG', 'spark']);
     if (p.kind === 'rapid') rapid = POW.rapid.dur;
     else if (p.kind === 'triple') triple = POW.triple.dur;
     else if (p.kind === 'shield') shield = true;
@@ -534,7 +534,7 @@ body .kg-top { z-index: 26; }
     if (keys.l) target -= 330 * dt; if (keys.r) target += 330 * dt;
     target = clamp(target, KMIN, KMAX);
     const px = kx; kx += (target - kx) * (1 - Math.exp(-20 * dt)); if (dt > 0) kv = lerp(kv, (kx - px) / dt, 1 - Math.exp(-12 * dt));
-    if (Math.abs(kv) > 30) walkPh += dt * 13; else walkPh = 0;
+    if (Math.abs(kv) > 30) { const ph0 = walkPh; walkPh += dt * 13; if (Math.floor(walkPh / Math.PI) !== Math.floor(ph0 / Math.PI)) KG.step(0.45); } else walkPh = 0;   // 11-28: 좌우로 달릴 때 발이 땅에 닿을 때마다 발자국
     inv = Math.max(0, inv - dt); hurtT = Math.max(0, hurtT - dt); shieldPop = Math.max(0, shieldPop - dt * 3);
     barkPulse *= Math.exp(-13 * dt);
     if (rapid > 0 || triple > 0) { rapid = Math.max(0, rapid - dt); triple = Math.max(0, triple - dt); paintBuffs(); }
@@ -788,7 +788,7 @@ body .kg-top { z-index: 26; }
     if ((wave - (clearT > 0 ? 0 : 1) >= ({ easy: 16, normal: 12, hard: 8, vhard: 8 })[diffId]) && KG.master) KG.master('shoot');   // 업적 「게임 달인」 (11-27): 난이도별 16·12·8·8단계 깨기
     $('edNew').hidden = !isNew;
     $('edText').textContent = kills > 0 ? '무서운 것들을 ' + fmt(kills) + '번 쫓아냈어요.' : J(name, '이랑/랑') + ' 잘 놀았어요.';
-    $('cardEnd').hidden = false; rb.show(diffId); if (isNew) sfx('win');
+    $('cardEnd').hidden = false; rb.show(diffId); if (isNew) sfx('win'); else if (score > 0) KG.lick(0.9, 0.35);   // 11-28: 결과 기쁨 핥기 (신기록이면 공통이 짖으니 겹치지 않게 뺀다)
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) start(); });
   $('btnAgain').addEventListener('click', start);

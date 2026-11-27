@@ -635,7 +635,7 @@ body .kg-top { z-index: 26; }
     splash(pierEnd + 26, waterY, 16, 190); ring(pierEnd + 26, 28);
     if (c.sp.kind === 'junk') { sfx('land'); tone(300, 0.2, 'sine', 0.06, 0, 180); }
     else if (fish && c.sp.r < 2 && !gotNew) { sfx('coin'); barkVoice(); }
-    else { sfx('win'); barkVoice(true); }
+    else { sfx('win'); barkVoice(true); KG.lick(0.9, 0.3); }   // 처음 잡은 종류·귀한 것·보물은 입맛 다시며 할짝 (11-28)
   }
 
   function press() {
@@ -899,6 +899,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = caught > 0 ? '미끼 ' + casts + '개로 ' + caught + '번 잡았어요.' : '오늘은 물고기가 잘 숨었네요. 다음엔 꼭 잡아요.';
     $('edBigBox').hidden = !biggest; if (biggest) $('edBig').textContent = biggest.name + ' ' + biggest.cm + 'cm';
     paintBest(); $('cardEnd').hidden = false; rbox.show(diffId); if (isNew) sfx('win');
+    else if (caught >= 3) KG.lick(0.9, 0.35);   // 많이 잡은 판은 기뻐서 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
   const guardOk = () => performance.now() - resultAt > 450;   // 결과 카드가 뜬 직후의 누름은 넘긴다 (두드리던 손가락)

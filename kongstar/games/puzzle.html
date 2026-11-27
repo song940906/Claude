@@ -1047,7 +1047,7 @@ var M3E = (function () {
     if (fired) sfx('power'); if (hard) noise(0.09, 0.07, 2600, 1200, 0.03);
     kongHappy(1.4); hearts(chain >= 2 || fired ? 3 : 1);
     if (chain >= 3 || fired || ev.n >= 5) kongHop(chain >= 4 ? 80 : 56);
-    if (chain === 4) voice('bark', 0.1, 1.2);
+    if (chain === 4) { voice('bark', 0.1, 1.2); KG.lick(0.9, 0.1); }   // 11-28: 4연속 칭찬 핥기 (게임 속 짖기는 공통이 무시)
     if (color) showCombo('무지개 간식!'); else if (chain >= 2) showCombo(chain + '연속!' + (chain >= 4 ? ' 최고예요' : chain === 3 ? ' 멋져요' : '')); else if (fired) showCombo('반짝 간식!');
   }
   // 떨어져 채우는 모습. 가장 오래 걸리는 시간(초)을 돌려준다
@@ -1104,7 +1104,7 @@ var M3E = (function () {
       '<small class="note" style="display:block">' + (M.scoreRec && M.prevScore > 0 ? '내 최고 점수를 넘었어요 (' + fmt(sb) + '점)' : sb > 0 ? '내 최고 점수 ' + fmt(sb) + '점' : '') + '</small>';
     const act = a => { if (a === 'next') startM3(M.n + 1); else if (a === 'again') startM3(M.n); else if (a === 'pick') openM3(M.n); else goMenu(); };
     if (M.win) {
-      sfx('win'); kongHappy(3); kongHop(70); hearts(4); if (M.stars >= 3) voice('bark', 0.5, 1.2);
+      sfx('win'); kongHappy(3); kongHop(70); hearts(4); if (M.stars >= 3) voice('bark', 0.5, 1.2); if (M.rec !== 2) KG.lick(0.95, 0.45);   // 11-28: 단계 완료 기쁨 핥기 (이전 기록을 넘으면 공통이 짖으니 뺌)
       showCard((M.rec ? '<div class="newrec">새 기록이에요!</div>' : '') + '<h2>' + M.n + '단계 완료!</h2>' + starsHtml(M.stars) + '<div class="big">' + fmt(B.score) + '<small>점</small></div><p>남은 이동 ' + M.left + '번 보너스 +' + fmt(M.bonus) + '점</p><p>' + recLine + '</p>' + winRow, act, 'end');
     } else {
       sfx('lose'); kongWrong();
@@ -1257,7 +1257,7 @@ var M3E = (function () {
     const flipLine = P.n === 1 ? (P.flipRec ? (prev > 0 ? '1단계 내 기록 ' + fmt(prev) + '번보다 적게 뒤집었어요' : '1단계 내 기록을 남겼어요') : '1단계 내 기록 ' + fmt(b) + '번') : (b > 0 ? '1단계 내 기록 ' + fmt(b) + '번' : '');
     const act = a => { if (a === 'next') startPairs(P.n + 1); else if (a === 'again') startPairs(P.n); else if (a === 'pick') openPairs(P.n); else goMenu(); };
     if (P.win) {
-      sfx('win'); kongHappy(3); kongHop(70); hearts(4); voice('bark', 0.5, 1.2);
+      sfx('win'); kongHappy(3); kongHop(70); hearts(4); voice('bark', 0.5, 1.2); if (rec !== 2) KG.lick(0.95, 0.45);   // 11-28: 단계 완료 기쁨 핥기 (이전 기록을 넘으면 공통이 짖으니 뺌)
       showCard((rec ? '<div class="newrec">새 기록이에요!</div>' : '') + '<h2>' + P.n + '단계 완료!</h2>' + starsHtml(P.stars) + '<div class="big">' + P.tries + '<small>번</small></div><p>' + KG.diffLabel(P.diff) + ' · 걸린 시간 ' + mmss(P.time) + '</p><p>' +
         (rec ? top + '단계까지 깼어요' : '최고 ' + top + '단계까지') + '</p>' + (flipLine ? '<p class="note">' + flipLine + '</p>' : '') + winRow, act, 'end');
     } else {

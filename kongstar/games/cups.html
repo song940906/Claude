@@ -446,7 +446,7 @@ body .kg-top { z-index: 26; }
         liftStep(() => c, 0.26, true),
         call(() => { const f = cupFoot(c); floatAt(f.x, f.y - cupH - LIFT - 10, '+1', '냠냠', '#FFE08A'); sfx('match'); setMood('happy', 1.4); }),
         wait(0.22),
-        tween(0.42, p => { treat.fly.p = p; }, () => { treat.fly = null; treat.on = false; treat.cup = null; chewT = 0.9; sfx('munch'); noise(0.07, 0.12, 900, 500, 0.22); noise(0.07, 0.12, 900, 500, 0.44); if (hits % 5 === 0 && tAnim - lastVoice > 5) { lastVoice = tAnim; voice('bark', 0.4, 1.0); } },
+        tween(0.42, p => { treat.fly.p = p; }, () => { treat.fly = null; treat.on = false; treat.cup = null; chewT = 0.9; if (!KG.voice('eat', 0, 0.6, 1.15)) { sfx('munch'); noise(0.07, 0.12, 900, 500, 0.22); noise(0.07, 0.12, 900, 500, 0.44); } /* 찾은 간식은 진짜 바삭 씹는 소리 (11-28), 못 틀면 원래 합성음. 1.15배속(약 0.98초)이라 다음 판 첫 컵 들기 소리(가장 빨라도 약 1.03초 뒤) 전에 끝난다 */ if (hits % 5 === 0 && tAnim - lastVoice > 5) { lastVoice = tAnim; voice('bark', 0.4, 1.0); } },
           () => { treat.fly = { from: c, to: 'mouth', p: 0 }; tone(600, 0.1, 'sine', 0.04, 0, 900); }),
         liftStep(() => c, 0.24, false),
         wait(0.55, newRound)
@@ -553,6 +553,7 @@ body .kg-top { z-index: 26; }
     if ((hits >= 10) && KG.master) KG.master('cups');   // 업적 「게임 달인」 (11-27): 한 판에 10번 맞히기
     $('edText').textContent = hits === 0 ? J(name, '이/가') + ' 간식을 다시 숨길게요.' : J(name, '이/가') + ' 간식을 ' + hits + '개 먹었어요' + (D.lives > 1 ? ' (틀린 횟수 ' + misses + '번)' : '') + '.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
+    if (!isNew && hits >= 3) KG.lick(0.9, 0.35);   // 많이 찾아 먹은 판은 입맛 다시며 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
     if (isNew) sfx('win'); if (hits > 0 && tAnim - lastVoice > 3) { lastVoice = tAnim; voice('bark', 0.2, 1.0); }
   }
   // 시작 전·그만둔 뒤: 고른 난이도의 컵 수로 탁자를 차려 둔다

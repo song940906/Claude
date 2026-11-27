@@ -847,7 +847,7 @@ body .kg-top { z-index: 26; }
       gain = Math.round((BASE + TIME_BONUS * clamp(cur.t / cur.limit, 0, 1) + STREAK_BONUS * Math.min(streak, STREAK_CAP)) * D.mult);
       score += gain; streak++; correct++; maxStreak = Math.max(maxStreak, streak); saveRec();
       mood = 'happy'; moodT = 0;
-      if (streak % 5 === 0) { sfx('power'); voice('bark', 0.15); } else { sfx('coin'); if (Math.random() < 0.16) voice('bark', 0.1); }
+      if (streak % 5 === 0) { sfx('power'); voice('bark', 0.15); KG.lick(0.9, 0.3); /* 5문제 연속 정답이면 기뻐서 할짝 (11-28) */ } else { sfx('coin'); if (Math.random() < 0.16) voice('bark', 0.1); }
     } else { hearts = Math.max(0, hearts - 1); streak = 0; mood = 'sad'; moodT = 0; sfx('wrong'); if (hearts <= 0) saveRec(); }
     phase = 'show'; showLen = showT = ok ? D.show * 0.6 : D.show; showAt = performance.now();
     paintResult(i, ok, gain);
@@ -893,6 +893,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = correct > 0 ? J(name, '이/가') + ' 낸 문제 ' + fmt(asked) + '개 가운데 ' + fmt(correct) + '개를 맞혔어요.' : J(name, '이랑/랑') + ' 다시 한번 풀어 봐요.';
     $('cardEnd').hidden = false; rbox.show(diffId, modeId === 'all' ? null : { note: '가족 순위는 「모두 섞기」 기록으로 겨뤄요' }); mood = correct > 0 ? 'happy' : 'idle'; moodT = 0;
     if (isNew) sfx('win'); else sfx('lose');
+    if (!isNew && correct >= 5) KG.lick(0.9, 0.35);   // 많이 맞힌 판은 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
     try { $('btnAgain').focus({ preventScroll: true }); } catch (e) {}
   }
 

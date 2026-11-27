@@ -666,7 +666,7 @@ body .kg-top { z-index: 26; }
     if (owner) owner.busy = false;
     const anyone = owner || custs.some(fits);
     ov.res = 0.9; ov.outP = burnt ? 1 : it.p;
-    if (!anyone) { ov.mark = '😋'; floatAt(ovenEls[o], J(name, '이/가') + ' 냠냠', '#FFE08A'); sfx('munch'); setMood('happy', 0.8); paintAll(); return false; }
+    if (!anyone) { ov.mark = '😋'; floatAt(ovenEls[o], J(name, '이/가') + ' 냠냠', '#FFE08A'); if (fast || !KG.voice('eat', 0, 0.6)) sfx('munch'); /* 콩이가 먹는 자리는 진짜 바삭 씹는 소리 (11-28), 못 틀면 원래 합성음 */ setMood('happy', 0.8); paintAll(); return false; }
     fails++; streak = 0; ov.mark = burnt ? '💨' : '❌';
     const msg = burnt ? '앗, 탔어요!' : z === -1 ? '덜 익었어요' : '굽기가 달라요';
     floatAt(ovenEls[o], msg, '#FFD2D6'); sfx('wrong'); setMood('oops', 0.9);
@@ -915,6 +915,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = served > 0 ? '친구들에게 간식 ' + fmt(served) + '개를 구워 줬어요.' + (spills + fails ? ' (엎은 그릇·실패한 굽기 ' + (spills + fails) + '번)' : '') : '주문표 순서대로 담고, 막대가 굽기 칸에 오면 꺼내요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');
+    else if (served >= 12) KG.lick(0.9, 0.35);   // 장사가 잘된 판은 기뻐서 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

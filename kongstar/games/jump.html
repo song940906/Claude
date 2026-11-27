@@ -299,6 +299,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   function bounce(p) {
     S.y = p.y; S.jumpY = p.y; S.bounces++; S.landT = 0.1; p.sq = 1; BOT.tgt = null; S.lastP = p; S.skipP = null;
     const X = sx(S.x), Y = sy(p.y);
+    if (!S.simulating) KG.step(0.45);   // 11-28 발자국(진짜 소리): 발판에 발이 닿을 때만 (공중에서는 안 낸다)
     if (p.type === 's') { S.vy = VS; S.happy = 1.4; tone(300, 0.28, 'sine', 0.1, 0, 1250); tone(600, 0.2, 'triangle', 0.04, 0.05, 1600); sparkle(X, Y, 8, '#FFE9A8'); sayUp(pick(['슈웅!', '높이높이!', '우와!']), '#FFE9A8'); }
     else { S.vy = VJ; tone(rand(400, 440), 0.11, 'sine', 0.07, 0, 680); puff(X, Y, 3); }
     if (p.type === 'v') { p.gone = true; sfx('pop'); puff(sx(pxAt(p, S.t)), Y + 4, 7, 'rgba(255,205,222,.9)'); }
@@ -306,7 +307,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   function eat(it) {
     it.got = true; S.bones++; S.munch = 0.35; S.happy = Math.max(S.happy, 0.7); sfx('coin'); sfx('munch');
     const X = sx(it.x), Y = sy(it.y); sparkle(X, Y, 4); emit({ kind: 'text', text: '+' + BONE_PT, col: '#FFF6D8', x: X, y: Y - 10, vy: -50, max: 0.6, size: 14 });
-    if (S.bones % 5 === 0) { sayUp('냠냠!', '#FFF1D6'); voice('bark', 0, 0.9); }
+    if (S.bones % 5 === 0) { sayUp('냠냠!', '#FFF1D6'); voice('bark', 0, 0.9); if (!S.simulating) KG.lick(0.9, 0.15); }   // 11-28 뼈다귀 다섯 개마다 「냠냠!」 할짝
   }
 
   // ── 방해하는 새: 콩이보다 조금 위 높이에서, 가장자리 ❗ 예고 뒤 놀이 칸을 가로질러 날아간다 (좌우로 이어지지 않고 반대쪽으로 빠져나간다)

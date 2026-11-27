@@ -185,7 +185,7 @@ body .kg-top { z-index: 26; }
   let state = 'ready', phase = 'play';      // state: ready · play · pause · over · result   phase: play · clear(더미를 다 치우고 다음 더미를 기다림)
   let socks = [], kinds = [], grid = { c: 3, r: 3 }, hidden = [], balls = [], floats = [], parts = [], recent = [];
   let score = 0, dump = 1, timeLeft = 60, rescued = 0, mistakes = 0, cleared = 0, clearT = 0, overT = 0, overAt = 0, isNew = false, quit = false, zTop = 0, nid = 1, lastTick = 99;
-  let sel = null, drag = null, cursor = null, kbMode = false, hintOn = true, basketBump = 0, cushBump = 0, tAnim = 0, lastCall = -99, lastGrowl = -99;
+  let sel = null, drag = null, cursor = null, kbMode = false, hintOn = true, basketBump = 0, cushBump = 0, tAnim = 0, lastCall = -99, lastGrowl = -99, lastLick = -99;
   let W = 0, H = 0, DPR = 1, SAF = { t: 0, b: 0, l: 0, r: 0 }, wide = false, F = { x: 0, y: 0, w: 1, h: 1 }, S = 60, CELL = 70, KSZ = 100;
   let gridN = 0, hintY = 0;
   const HUD_H = 32, HINT_GAP = 32;   // 점수판 높이, 점수판과 러그 사이 틈(안내 말풍선 자리)
@@ -488,6 +488,7 @@ body .kg-top { z-index: 26; }
     const dx = tx - th.x, dy = ty - th.y, d = Math.hypot(dx, dy);
     if (Math.abs(dx) > 2) th.facing = dx > 0 ? 1 : -1;
     const stepL = spd * dt; th.ph += dt * (6 + spd / Math.max(30, S) * 2.2);
+    { const k = Math.floor(th.ph / Math.PI); if (k !== th.stepK) { th.stepK = k; if ((state === 'play' || state === 'over') && !KG.rulesOpen) KG.step(th.st === 'roam' ? 0.55 : 0.45); } }   // 11-28 발이 땅에 닿을 때(걸음 반주기마다) 발자국
     if (d <= stepL) { th.x = tx; th.y = ty; return true; }
     th.x += dx / d * stepL; th.y += dy / d * stepL; return false;
   }
@@ -564,7 +565,7 @@ body .kg-top { z-index: 26; }
       if (th.st === 'home') setMood('oops', 1);
       return true;
     }
-    if (th.st === 'home') { setMood('happy', 1); sfx('heart'); addFloat(home.x, home.y - KSZ * 0.85, '♥', '#FFB9CB', true); return true; }
+    if (th.st === 'home') { setMood('happy', 1); sfx('heart'); addFloat(home.x, home.y - KSZ * 0.85, '♥', '#FFB9CB', true); if (tAnim - lastLick > 5) { lastLick = tAnim; KG.lick(0.9, 0.12); } return true; }   // 11-28 방석의 콩이를 쓰다듬으면 할짝 (5초에 한 번까지)
     return false;
   }
 
@@ -791,6 +792,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = score > 0 ? '양말 ' + score + '켤레를 바구니에 담았어요.' + (rescued ? ' ' + name + '에게서 ' + rescued + '짝을 되찾았어요.' : '') : '같은 양말 두 짝을 차례로 눌러 보세요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');
+    if (!quit && score > 0) { const at = overAt; setTimeout(() => { if (state === 'result' && overAt === at) KG.lick(0.9, 0); }, isNew ? 2400 : 400); }   // 11-28 결과 기쁨에 할짝 (신기록이면 공통이 짖는 소리 뒤로 미룬다). 그 사이 다시 하기를 누르면 내지 않는다
   }
   $('btnStart').addEventListener('click', () => { if (!KG.rulesOpen) { sfx('tap'); start(); } });
   $('btnAgain').addEventListener('click', () => { if (performance.now() - overAt < 450) return; sfx('tap'); start(); });

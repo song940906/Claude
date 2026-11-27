@@ -492,7 +492,7 @@ body .kg-top { z-index: 26; }
     // 콩이·곰돌이·말풍선을 가리지 않게 콩이 옆(낮은 가로 화면은 말풍선 반대쪽)에 띄운다
     floatText(kx + (low ? -1 : 1) * KS * 0.9, ky - KS * 0.45, '+' + pts, roundCaught === 0 ? '안 걸렸어요' : '', '#FFF2A8');
     kmood = 'happy'; kmoodT = 1.8;
-    if (Math.random() < 0.5) voice('call', 0.5, 1.0);
+    if (!(Math.random() < 0.5 && voice('call', 0.5, 1.0))) KG.lick(1.0, 0.45);   // 11-28: 「콩아」 를 안 부른 판엔 간지러워 할짝
   }
   function timeUp() {
     // 시간이 다 되면 그 판에서 바로 끝 (하트는 들켰을 때만 준다)

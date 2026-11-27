@@ -724,7 +724,7 @@ body .kg-top { z-index: 26; }
     const sec = Math.ceil(tLeft), bonus = sec * PTS.sec; score += bonus; paintHint();
     say('다 찾았어요! 남은 시간 보너스 +' + fmt(bonus) + '점', 0);
     floatText(PICS[1], LW / 2, LH / 2, '+' + fmt(bonus) + ' 시간 보너스', '#BFF3D2');
-    sfx('power'); setMood('cheer', 1.6); voice('bark', 0.25, 0.9);
+    sfx('power'); setMood('cheer', 1.6); voice('bark', 0.25, 0.9); KG.lick(0.9, 0.4);   // 한 장을 다 찾으면 기뻐서 할짝 (11-28)
     saveProgress();   // 판을 거듭하는 게임이라 판을 깰 때마다 기록해 둔다 (도중에 나가도 남게)
   }
   function saveProgress() { if (score > 0 && setBest(KG.dkey(KEY, diffId), score)) newRec = true; }
@@ -793,6 +793,7 @@ body .kg-top { z-index: 26; }
     $('edText').textContent = stats.found === 0 ? '다음엔 천천히 구석구석 살펴봐요.' : stats.wrong === 0 ? '한 번도 안 틀렸어요. ' + J(name, '이/가') + ' 깜짝 놀랐어요!' : J(name, '이랑/랑') + ' 함께 다른 곳을 ' + stats.found + '군데 찾았어요.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win'); if (score > 0) voice('bark', 0.2, 1.0);
+    if (!isNew && stats.rounds >= 1) KG.lick(0.9, 0.35);   // 한 장이라도 깬 판은 할짝 (11-28) — 신기록 판은 공통이 짖으니 뺀다
   }
   const RULES = { key: KEY, title: TITLE, lead: '똑같아 보이는 그림 두 장에서 다른 곳을 찾는 놀이예요.', items: [
     ['🔎', '다른 곳을 누르면 동그라미가 생겨요.'],
