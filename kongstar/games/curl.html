@@ -678,6 +678,7 @@ body .kg-top { z-index: 26; }
     const c100 = pucks.filter(p => p.pts === 100).length;
     $('edScore').textContent = fmt(score); $('edCenter').textContent = c100 + '개'; $('edEat').textContent = eaten + '개';
     $('edTitle').textContent = score >= 300 ? '간식컬링 명수예요!' : quit ? '여기까지 밀었어요' : score > 0 ? '간식을 다 밀었어요' : J(name, '이/가') + ' 간식을 다 먹었어요';
+    if ((score >= 300) && KG.master) KG.master('curl');   // 업적 「게임 달인」 (11-27): 한 판에 300점
     $('edText').textContent = score > 0 ? '접시 위 간식 점수를 모두 더했어요.' + (eaten ? ' ' + J(name, '이/가') + ' ' + eaten + '개를 냠냠했어요.' : '') : '다음엔 접시에 꼭 멈춰 봐요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) { sfx('win'); voice('bark', 0.3, 1.0); }

@@ -655,6 +655,7 @@ body .kg-top { z-index: 26; }
       lastClear = stageNo; lastSteps = steps(); lastOpt = S.opt; const over = lastSteps - S.opt, slack = S.fuel - S.opt;
       lastStars = over <= 0 ? 3 : over <= Math.max(1, Math.floor(slack / 2)) ? 2 : 1;
       saveStage(diffId, stageNo + 1); lastNew = setBest(KG.dkey('deliver', diffId), stageNo);   // 기록은 바로 저장 (기뻐하는 중에 나가도 남게)
+      if ((stageNo >= ({ hard: 30, vhard: 20 }[diffId] || 1e9)) && KG.master) KG.master('deliver');   // 업적 「게임 달인」 (11-27): Hard 30 · Very Hard 20단계
       sfx('win'); lastBark = -99; barkVoice(0.3); setMood('cheer');
       const [x, y] = cellXY(path[path.length - 1]); burst(x, y - CELL * 0.3, 26, 'star', 220);
     } else {

@@ -574,6 +574,7 @@ body .kg-top { z-index: 26; }
   function stageClear() {
     state = 'clear'; clearT = 0; munchT = 0; sel = -1; stuck = ''; say(''); btnPause.hidden = true; lastClear = stageNo; lastMoves = moves; cleared++;
     saveStage(diffId, stageNo + 1); lastNew = setBest(KG.dkey('bowl', diffId), stageNo);   // 기록도 바로 저장 (먹는 연출 중에 나가도 남게)
+    if ((stageNo >= ({ hard: 70, vhard: 50 }[diffId] || 1e9)) && KG.master) KG.master('bowl');   // 업적 「게임 달인」 (11-27): Hard 70 · Very Hard 50단계
     sfx('win'); lastBark = -99; barkVoice(0.35); setMood('run'); paintHud();
     if (!reduceMotion) {
       const r = clamp(LH * 0.26, 4, 7);

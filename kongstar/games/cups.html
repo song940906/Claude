@@ -550,6 +550,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = hits; $('edMoves').textContent = roundMoves + '번';
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = hits >= 10 ? '눈이 정말 좋아요!' : hits >= 3 ? '잘 찾았어요' : hits >= 1 ? '아쉬워요' : '다음엔 꼭 찾아요';
+    if ((hits >= 10) && KG.master) KG.master('cups');   // 업적 「게임 달인」 (11-27): 한 판에 10번 맞히기
     $('edText').textContent = hits === 0 ? J(name, '이/가') + ' 간식을 다시 숨길게요.' : J(name, '이/가') + ' 간식을 ' + hits + '개 먹었어요' + (D.lives > 1 ? ' (틀린 횟수 ' + misses + '번)' : '') + '.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win'); if (hits > 0 && tAnim - lastVoice > 3) { lastVoice = tAnim; voice('bark', 0.2, 1.0); }

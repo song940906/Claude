@@ -857,6 +857,7 @@ body .kg-top { z-index: 26; }
     isNew = cups > 0 && setBest(KG.dkey(KEY, diffId), cups);
     $('edScore').textContent = fmt(cups); $('edPerf').textContent = perfects + '번'; $('edCombo').textContent = bestCombo + '잔';
     $('edTitle').textContent = cups >= 20 ? '진짜 계량천재예요!' : quit ? '여기까지 따랐어요' : cups > 0 ? '우유를 다 따랐어요' : '다음엔 꼭 맞춰 봐요';
+    if ((cups >= 20) && KG.master) KG.master('pour');   // 업적 「게임 달인」 (11-27): 한 판에 20잔
     $('edText').textContent = cups > 0 ? J(name, '이/가') + ' 우유 ' + cups + '잔을 맛있게 마셨어요.' + (perfects ? ' 계량천재 ' + perfects + '번!' : '') : '초록 띠 안에서 손을 떼 보세요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

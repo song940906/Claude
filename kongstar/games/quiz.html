@@ -887,6 +887,7 @@ body .kg-top { z-index: 26; }
     if (state !== 'play' && state !== 'pause') return;
     state = 'result'; endAt = performance.now(); btnPause.hidden = true; $('cardPause').hidden = true; game.classList.remove('veil'); fitTitle();
     const isNew = saveRec();
+    if ((score >= 5000) && KG.master) KG.master('quiz');   // 업적 「게임 달인」 (11-27): 한 판에 5,000점
     $('edScore').textContent = fmt(score); $('edCorrect').textContent = fmt(correct) + '문제'; $('edStreak').textContent = fmt(maxStreak) + '번'; paintBest();
     $('edNew').hidden = !isNew;
     $('edText').textContent = correct > 0 ? J(name, '이/가') + ' 낸 문제 ' + fmt(asked) + '개 가운데 ' + fmt(correct) + '개를 맞혔어요.' : J(name, '이랑/랑') + ' 다시 한번 풀어 봐요.';

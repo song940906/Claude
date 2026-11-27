@@ -42,6 +42,16 @@
 .tt.on { border-color: #E3A33B; background: #FFF6E3; color: #8A5A00; }
 .tt.lock { color: #B4BBC6; background: var(--soft); border-color: transparent; }
 .tt.off { border-style: dashed; color: var(--sub); }
+/* 칭호 등급 테두리: 동 · 은 · 금 · 전설(무지개) */
+.tt.t1 { border-color: #D9A774; } .tt.t2 { border-color: #AEB9C5; } .tt.t3 { border-color: #E8B931; }
+.tt.t4 { border-color: transparent; background: linear-gradient(#fff, #fff) padding-box, linear-gradient(90deg, #FF7A93, #FFC861, #5FD3AE, #6FA8FF, #B98CFF) border-box; }
+.tt.on.t1 { background: #FFF4E8; color: #9A5B1E; } .tt.on.t2 { background: #F2F5F8; color: #4E5B69; } .tt.on.t3 { background: #FFF8DC; color: #8A6500; }
+.tt.on.t4 { background: linear-gradient(#FBF7FF, #FBF7FF) padding-box, linear-gradient(90deg, #FF7A93, #FFC861, #5FD3AE, #6FA8FF, #B98CFF) border-box; color: #6A55E0; }
+.tt .tier { font-size: 11px; font-weight: 800; opacity: .75; }
+.now.t1 { background: #FFF4E8; box-shadow: inset 0 0 0 2px #D9A774; } .now.t2 { background: #F2F5F8; box-shadow: inset 0 0 0 2px #AEB9C5; } .now.t3 { background: #FFF8DC; box-shadow: inset 0 0 0 2px #E8B931; }
+.now.t4 { border: 2px solid transparent; background: linear-gradient(#FBF7FF, #FBF7FF) padding-box, linear-gradient(90deg, #FF7A93, #FFC861, #5FD3AE, #6FA8FF, #B98CFF) border-box; }
+.now.t2 b { color: #4E5B69; } .now.t4 b { color: #6A55E0; }
+.now .tg { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.8); font-size: 11.5px; font-weight: 800; vertical-align: 2px; }
 /* 배지 */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .bd { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 12px 4px 10px; border: 0; border-radius: 16px; background: var(--soft); color: var(--ink); min-width: 0; }
@@ -60,6 +70,7 @@
 .masters .top span { font-size: 12px; color: var(--sub); font-weight: 500; text-align: right; }
 .mi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 10px; }
 .mi button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; border: 0; background: none; font-size: 10.5px; color: var(--sub); text-align: center; word-break: keep-all; min-width: 0; }
+@media (max-width: 340px) { .mi button { font-size: 10px; letter-spacing: -.2px; } }
 .mi button em { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 20px; background: linear-gradient(140deg, #FFE7A8, #FFC861); }
 .mi button.off em { background: #E4E7EE; filter: grayscale(1); opacity: .55; }
 .hint { margin: 10px 2px 0; font-size: 12px; line-height: 1.45; color: var(--sub); }
@@ -122,17 +133,18 @@
 
     // 내 칭호
     const tp = el('section', 'panel'), tt = el('div', 'ptitle'); tt.appendChild(el('h2', '', '내 칭호')); tt.appendChild(el('span', '', '순위의 내 이름 아래에 붙어요')); tp.appendChild(tt);
-    const now = el('div', 'now' + (cur ? '' : ' none'));
-    if (cur) { const from = cur.by ? all.find(a => a.id === cur.by) : null; now.appendChild(el('span', 'ic', cur.ico)); const d = el('div'); d.appendChild(el('b', '', cur.nm)); d.appendChild(el('small', '', from ? obj(from.nm) + ' 깨서 얻었어요' : '업적을 ' + A.legend() + '개 넘게 깨서 얻었어요')); now.appendChild(d); }
+    const now = el('div', 'now' + (cur ? ' t' + (cur.tier || 1) : ' none'));
+    if (cur) { const from = cur.by ? all.find(a => a.id === cur.by) : null; now.appendChild(el('span', 'ic', cur.ico)); const d = el('div'), nb = el('b', '', cur.nm); nb.appendChild(el('span', 'tg', A.tier(cur) + ' 칭호')); d.appendChild(nb); d.appendChild(el('small', '', from ? obj(from.nm) + ' 깨서 얻었어요' : '업적을 ' + A.legend() + '개 이상 깨서 얻었어요')); now.appendChild(d); }
     else { now.appendChild(el('span', 'ic', '🏷️')); const d = el('div'); d.appendChild(el('b', '', own.length ? '칭호를 안 붙였어요' : '아직 칭호가 없어요')); d.appendChild(el('small', '', own.length ? '아래에서 하나를 골라 보세요' : '업적을 깨면 칭호를 얻어요')); now.appendChild(d); }
     tp.appendChild(now);
     const ts = el('div', 'titles');
     for (const t of A.titles) {
       const has = own.some(o => o.id === t.id), src = t.by ? all.find(a => a.id === t.by) : null, hid = !has && src && src.g === 'secret' && !got[src.id];
-      const has_ = has, b = el('button', 'tt' + (cur && cur.id === t.id ? ' on' : has ? '' : ' lock'), has ? t.ico + ' ' + t.nm : hid ? '🔒 숨은 칭호' : '🔒 ' + t.nm); b.type = 'button'; b.dataset.id = t.id;
+      const has_ = has, b = el('button', 'tt' + (cur && cur.id === t.id ? ' on' : has ? '' : ' lock') + (has ? ' t' + (t.tier || 1) : ''), has ? t.ico + ' ' + t.nm + ' ' : hid ? '🔒 숨은 칭호' : '🔒 ' + t.nm); b.type = 'button'; b.dataset.id = t.id;
+      if (has) b.appendChild(el('span', 'tier', A.tier(t)));
       b.addEventListener('click', () => {
         sfx('tap');
-        if (!has_) { toast(hid ? '숨은 업적을 깨면 얻어요' : src ? obj(src.nm) + ' 깨면 얻어요' : '업적을 ' + A.legend() + '개 넘게 깨면 얻어요'); return; }
+        if (!has_) { toast(hid ? '숨은 업적을 깨면 얻어요' : src ? obj(src.nm) + ' 깨면 얻어요' : '업적을 ' + A.legend() + '개 이상 깨면 얻어요'); return; }
         if (cur && cur.id === t.id) return;
         A.setTitle(t.id); refocus(t.id); toast('칭호를 「' + t.nm + '」' + KG.J(t.nm, '으로/로').slice(t.nm.length) + ' 바꿨어요');
       });
@@ -157,14 +169,14 @@
   function refocus(id) { paint(); const b = document.querySelector('.tt[data-id="' + id + '"]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) {} }
   function masterBox(got) {
     const ms = A.masters(), ok = ms.filter(m => got['m:' + m.key]).length, box = el('div', 'masters'), top = el('div', 'top');
-    top.appendChild(document.createTextNode('게임 달인')); top.appendChild(el('span', '', ok + ' / ' + ms.length + ' · 결과 화면에 「달인」이 뜨면')); box.appendChild(top);
+    top.appendChild(document.createTextNode('게임 달인')); top.appendChild(el('span', '', ok + ' / ' + ms.length + ' · 눌러서 조건 보기')); box.appendChild(top);
     const mi = el('div', 'mi');
     for (const m of ms) {
       const g = GAMES.find(y => y.key === m.key); if (!g) continue;
       const has = !!got['m:' + m.key], b = el('button', has ? '' : 'off'); b.type = 'button';
-      const e = el('em', '', g.ico); e.setAttribute('aria-hidden', 'true'); b.appendChild(e); b.appendChild(document.createTextNode(g.title));
+      const e = el('em', '', g.ico); e.setAttribute('aria-hidden', 'true'); b.appendChild(e); const tn = Array.from(g.title); b.appendChild(document.createTextNode(tn.length >= 5 ? tn.slice(0, Math.ceil(tn.length / 2)).join('') + '​' + tn.slice(Math.ceil(tn.length / 2)).join('') : g.title));   // 긴 이름은 가운데서만 줄을 바꿀 수 있게
       b.setAttribute('aria-label', g.title + ' 달인' + (has ? ', ' + md(got['m:' + m.key]) + ' 깸' : ', 아직 못 깸'));
-      b.addEventListener('click', () => { sfx('tap'); detailMaster(g, has ? got['m:' + m.key] : 0); });
+      b.addEventListener('click', () => { sfx('tap'); detailMaster(g, has ? got['m:' + m.key] : 0, m.cd); });
       mi.appendChild(b);
     }
     box.appendChild(mi); return box;
@@ -196,8 +208,8 @@
     const tl = A.titles.find(y => y.by === a.id); if (tl) lines.push([[t ? '칭호 ' : '깨면 칭호 '], ['「' + tl.nm + '」', 1], [KG.J(tl.nm, '을/를').slice(tl.nm.length) + (t ? ' 얻었어요' : ' 얻어요')]]);
     sheet(a.ico, t ? '' : 'off', a.nm, t ? '깼어요! 🎉' : '아직 못 깼어요', lines, !t && gg ? gg.href : '');
   }
-  function detailMaster(g, t) {
-    const lines = [[['조건: 결과 화면에 「' + g.title + ' 달인이에요!」가 뜨는 판']]];
+  function detailMaster(g, t, cd) {
+    const lines = [[['조건: '], [cd || '결과 화면에 「' + g.title + ' 달인이에요!」가 뜨는 판', 1]]];
     if (t) lines.push([['깬 날: '], [md(t), 1]]);
     sheet(g.ico, t ? '' : 'off', g.title + ' 달인', t ? '깼어요! 🎉' : '아직 못 깼어요', lines, t ? '' : g.href);
   }

@@ -628,6 +628,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edWins').textContent = wins + '판'; $('edFast').textContent = stats.fastest ? stats.fastest.toFixed(1) + '초' : '없음'; $('edSlip').textContent = stats.slips + '번';
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = wins >= 5 ? '줄다리기 왕이에요!' : wins >= 2 ? wins + '판이나 이겼어요' : wins === 1 ? '1판 이겼어요' : '줄을 빼앗겼어요';
+    if ((wins >= 5) && KG.master) KG.master('tug');   // 업적 「게임 달인」 (11-27): 한 판에 5판 연속 이기기
     $('edText').textContent = lastLose ? '시간이 끝났을 때 리본이 ' + J(name, '의') + ' 쪽이었어요.' : stats.slips >= 3 ? '으르렁거릴 때 손을 멈추면 덜 밀려요.' : J(name, '이/가') + ' 줄을 물고 꼬리를 흔들어요.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

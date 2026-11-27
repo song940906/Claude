@@ -672,6 +672,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edRounds').textContent = stats.rounds + '판'; $('edCaught').textContent = stats.caught + '번';
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = stats.rounds >= 5 ? '살금살금 고수예요!' : stats.rounds >= 1 ? '꼬리를 톡! 잘했어요' : '아쉬워요, 한 번 더!';
+    if ((stats.rounds >= 5) && KG.master) KG.master('flower');   // 업적 「게임 달인」 (11-27): 한 판에 5번 성공
     $('edText').textContent = stats.rounds === 0 ? J(name, '이/가') + ' 눈이 너무 밝았나 봐요.' : stats.caught === 0 ? '한 번도 안 들켰어요. 대단해요!' : J(name, '이랑/랑') + ' 신나게 놀았어요.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (score > 0) voice('call', 0.25, 1.0);   // 짖는 소리는 들켰을 때만

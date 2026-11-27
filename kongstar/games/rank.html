@@ -59,7 +59,9 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
 .rowi .who.t { flex-direction: column; align-items: flex-start; gap: 1px; }
 .rowi .who .l1 { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
 .rowi .who .l1 .nm { flex: 0 1 auto; }
-.rowi .ttl { max-width: 100%; font-size: 11.5px; font-weight: 700; color: #9A6200; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowi .ttl { max-width: 100%; box-sizing: border-box; margin-top: 2px; padding: 0 7px; border: 1.5px solid #D9A774; border-radius: 999px; background: #FFF4E8; font-size: 11.5px; line-height: 17px; font-weight: 700; color: #9A5B1E; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowi .ttl.t2 { border-color: #AEB9C5; background: #F2F5F8; color: #4E5B69; } .rowi .ttl.t3 { border-color: #E8B931; background: #FFF8DC; color: #8A6500; }
+.rowi .ttl.t4 { border-color: transparent; background: linear-gradient(#FBF7FF, #FBF7FF) padding-box, linear-gradient(90deg, #FF7A93, #FFC861, #5FD3AE, #6FA8FF, #B98CFF) border-box; color: #6A55E0; }
 .rowi .rk.none { color: #B4BBC6; }
 .rowi .val { flex: none; text-align: right; font-size: 15.5px; font-weight: 700; color: var(--pri); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rowi .val small { display: block; font-size: 11.5px; font-weight: 500; color: var(--sub); }
@@ -184,7 +186,7 @@ textarea.field { height: 96px; padding: 10px 14px; font-size: 13px; line-height:
   function nameCell(name, mine, tid) {
     const t = tid ? KG.achv.titleOf(tid) : null, w = el('span', 'who' + (t ? ' t' : '')), l = t ? el('span', 'l1') : w;
     l.appendChild(el('span', 'nm', name)); if (mine) { l.appendChild(el('i', '', '나')); if (notUp()) l.appendChild(el('i', 'wait', '아직 안 올라감')); }
-    if (t) { w.appendChild(l); w.appendChild(el('span', 'ttl', t.ico + ' ' + t.nm)); }
+    if (t) { w.appendChild(l); const s = el('span', 'ttl t' + (t.tier || 1), t.ico + ' ' + t.nm); s.title = KG.achv.tier(t) + ' 칭호'; w.appendChild(s); }
     return w;
   }
   const titles = () => { const m = new Map(); for (const p of rank.withMe(players || [])) if (p.title) m.set(p.id, p.title); return m; };

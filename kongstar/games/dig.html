@@ -562,6 +562,7 @@ body .kg-top { z-index: 26; }
     if (state === 'result' || state === 'ready') return;
     state = 'result'; $('say').classList.remove('show'); btnPause.hidden = true; $('cardPause').hidden = true; $('banner').classList.remove('show');
     const isNew = score > 0 && setBest(KG.dkey('dig', diffId), score);
+    if ((score >= ({ easy: 4000, normal: 6000, hard: 7500, vhard: 8000 }[diffId] || 1e9)) && KG.master) KG.master('dig');   // 업적 「게임 달인」 (11-27): 난이도별 4,000·6,000·7,500·8,000점
     $('edScore').textContent = fmt(score); $('edSite').textContent = sitesDone + '곳'; $('edFound').textContent = found + '개'; paintBest();
     $('edNew').hidden = !isNew;
     $('edTitle').textContent = sitesDone > 0 ? '발굴을 잘 마쳤어요' : '발굴을 마쳤어요';

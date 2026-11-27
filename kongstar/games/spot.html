@@ -789,6 +789,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edRounds').textContent = stats.rounds + '판'; $('edFound').textContent = stats.found + '곳';
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = quitting ? '여기까지 했어요' : stats.rounds >= 1 ? stats.rounds + '판을 깼어요' : '시간이 다 됐어요';
+    if ((stats.rounds >= ({ easy: 12, normal: 10, hard: 8, vhard: 6 }[diffId] || 10)) && KG.master) KG.master('spot');   // 업적 「게임 달인」 (11-27): 한 판에 난이도별 12·10·8·6장 깨기
     $('edText').textContent = stats.found === 0 ? '다음엔 천천히 구석구석 살펴봐요.' : stats.wrong === 0 ? '한 번도 안 틀렸어요. ' + J(name, '이/가') + ' 깜짝 놀랐어요!' : J(name, '이랑/랑') + ' 함께 다른 곳을 ' + stats.found + '군데 찾았어요.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win'); if (score > 0) voice('bark', 0.2, 1.0);

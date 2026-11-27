@@ -531,6 +531,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now();
     ovNew = S.count > 0 && KG.setBest(roundKey, S.count);
     $('ovTitle').textContent = S.count >= 30 ? '줄넘기 선수예요!' : S.count >= 10 ? '잘 넘었어요!' : '아쉬워요, 한 번 더!';
+    if ((S.count >= 30) && KG.master) KG.master('rope');   // 업적 「게임 달인」 (11-27): 한 판에 30번
     $('ovSub').textContent = S.count > 0 ? J(name, '이/가') + ' 폴짝폴짝 ' + S.count.toLocaleString() + '번 넘었어요' : '줄이 발밑에 오기 조금 전에 눌러 보세요';
     $('ovCount').textContent = S.count.toLocaleString(); $('ovPerf').textContent = S.perfect.toLocaleString() + '번'; $('ovCombo').textContent = S.maxCombo.toLocaleString() + '번';
     paintBest();

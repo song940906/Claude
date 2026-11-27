@@ -785,6 +785,7 @@ body .kg-top { z-index: 26; }
     state = 'result';
     const isNew = score > 0 && setBest(KG.dkey('shoot', diffId), score);
     $('edScore').textContent = fmt(score); $('edWave').textContent = wave + '단계'; paintBest();
+    if ((wave - (clearT > 0 ? 0 : 1) >= ({ easy: 16, normal: 12, hard: 8, vhard: 8 })[diffId]) && KG.master) KG.master('shoot');   // 업적 「게임 달인」 (11-27): 난이도별 16·12·8·8단계 깨기
     $('edNew').hidden = !isNew;
     $('edText').textContent = kills > 0 ? '무서운 것들을 ' + fmt(kills) + '번 쫓아냈어요.' : J(name, '이랑/랑') + ' 잘 놀았어요.';
     $('cardEnd').hidden = false; rb.show(diffId); if (isNew) sfx('win');

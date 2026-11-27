@@ -766,6 +766,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
   function showOver() {
     if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now();
     const isNew = S.score > 0 && KG.setBest(runKey, S.score);
+    if ((S.score >= ({ easy: 4000, normal: 3500, hard: 3500, vhard: 3000 })[runDiff]) && KG.master) KG.master('run');   // 업적 「게임 달인」 (11-27): 난이도별 4000·3500·3500·3000점
     ovNew = isNew;
     $('ovSub').textContent = J(name, '이/가') + ' 신나게 달리고 헥헥 쉬고 있어요';
     $('ovScore').textContent = S.score.toLocaleString(); $('ovDist').textContent = Math.floor(S.dist).toLocaleString() + 'm'; $('ovTreat').textContent = S.treats.toLocaleString() + '개'; paintBest();

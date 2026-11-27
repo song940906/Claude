@@ -499,6 +499,7 @@ body .kg-top { z-index: 26; }
     if (nights > 0) isNew = setBest(KG.dkey(KEY, diffId), nights) || isNew;
     $('edScore').textContent = nights; $('edHush').textContent = hushed + '번'; $('edPet').textContent = Math.round(petTime) + '초';
     $('edTitle').textContent = quit ? '여기까지 재웠어요' : nights >= 10 ? '꿀잠 지킴이예요!' : nights > 0 ? J(name, '이/가') + ' 깨 버렸어요' : '잠이 다 달아났어요';
+    if ((!quit && nights >= 10) && KG.master) KG.master('sleep');   // 업적 「게임 달인」 (11-27): 한 판에 10밤 재우기
     $('edText').textContent = nights > 0 ? J(name, '을/를') + ' ' + nights + '밤 푹 재웠어요.' + (missed ? ' 못 끈 소리 ' + missed + '번.' : ' 소리를 하나도 안 놓쳤어요!') : '꾹 눌러 쓰다듬고, 흔들리는 물건은 톡 눌러 꺼요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

@@ -242,8 +242,9 @@
   // 더 좋은 기록이면 저장하고 true (lower: 작을수록 좋은 기록 — 걸린 시간·횟수)
   let recFlag = false;   // 이번 판에 새 기록이 났다 → 결과 순위 카드를 띄울 때 추억 사진 한 장
   let recBase = {};      // 열쇠마다 이번 판에서 처음 setBest 를 부를 때의 기록 — 판 도중 여러 번 저장하는 게임도 「판 시작 때 기록」과 비교한다
+  const achVals = {};    // 이번 판에 setBest 로 넘긴 값 (열쇠마다 마지막 값) — 업적 「딱 맞는 숫자」 (11-27)
   let recBeat = false;   // 그 새 기록이 「이미 있던 기록」을 넘은 것이다 → 결과 카드에서 콩이가 한 번 짖는다 (첫 기록은 안 짖음, 11-23 사용자 요청)
-  function setBest(k, v, lower) { const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (!(k in recBase)) recBase[k] = b != null && isFinite(cur) ? cur : null;
+  function setBest(k, v, lower) { achVals[k] = v; const b = ls.get('kongstar.game.' + k), cur = parseFloat(b); if (!(k in recBase)) recBase[k] = b != null && isFinite(cur) ? cur : null;
     if (b == null || !isFinite(cur) || (lower ? v < cur : v > cur)) { const base = recBase[k]; if (base != null && (lower || base > 0) && (lower ? v < base : v > base)) recBeat = true; ls.set('kongstar.game.' + k, String(v)); rankPush(); recFlag = true; return true; } return false; }
 
   // ── 난이도: 게임 세 개가 함께 쓴다 (한 번 고르면 다른 게임에서도 그대로)
@@ -636,8 +637,9 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   // 폰 열쇠: 이 폰만 아는 무작위 값. 저장소는 이 열쇠를 가진 폰만 내 id 의 기록을 올리거나 지우게 한다 (me() 로는 내보내지 않는다)
   function meKey() { const m = lsJSON(RK.me); if (!m || !rankMe()) return ''; if (typeof m.key === 'string' && /^[a-z0-9]{16,64}$/.test(m.key)) return m.key; m.key = newId(); ls.set(RK.me, JSON.stringify(m)); return m.key; }
   function newId() { const a = new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a, x => (x < 16 ? '0' : '') + x.toString(16)).join(''); }
-  function setCfg(o) { const url = cleanUrl(o && o.url), code = o && typeof o.code === 'string' ? o.code.trim() : ''; if (!url || !code || code.length > 100) return false; ls.set(RK.cfg, JSON.stringify({ url, code })); lsDel(RK.last); ls.set(RK.dirty, '1'); rankStatus.state = 'idle'; rankStatus.msg = ''; return true; }
-  function clearCfg() { lsDel(RK.cfg); lsDel(RK.cache); lsDel(RK.last); lsDel(RK.dirty); rankStatus.state = 'off'; rankStatus.msg = ''; }
+  function crownReset() { try { const c = lsJSON('kongstar.achv.cnt'); if (c && (c.top || c.lost)) { c.top = {}; c.lost = {}; ls.set('kongstar.achv.cnt', JSON.stringify(c)); } } catch (e) {} }   // 업적 왕관 탈환: 가족이 바뀌면 1등 기억을 새로
+  function setCfg(o) { const url = cleanUrl(o && o.url), code = o && typeof o.code === 'string' ? o.code.trim() : ''; if (!url || !code || code.length > 100) return false; const old = rankCfg(); if (!old || old.url !== url || old.code !== code) crownReset(); ls.set(RK.cfg, JSON.stringify({ url, code })); lsDel(RK.last); ls.set(RK.dirty, '1'); rankStatus.state = 'idle'; rankStatus.msg = ''; return true; }
+  function clearCfg() { crownReset(); lsDel(RK.cfg); lsDel(RK.cache); lsDel(RK.last); lsDel(RK.dirty); rankStatus.state = 'off'; rankStatus.msg = ''; }
   function setName(n) { n = cleanName(n); if (!n) return false; const m = rankMe() || { id: newId() }; m.name = n; m.key = meKey() || newId(); ls.set(RK.me, JSON.stringify(m)); ls.set(RK.dirty, '1'); if (syncing) syncAgain = true; return true; }   // 올리는 도중에 바꿨으면 끝난 뒤 한 번 더 보낸다
   // 이 폰의 최고 기록 모으기 (기록이 있는 칸만)
   function myRecs() { const r = {}; for (const g of GAMES) for (const d of DIFFS) { const k = recKey(g, d.id), v = Math.round(best(k)); if (v > 0) r[k] = v; } return r; }   // 저장소는 정수만 받는다
@@ -891,7 +893,7 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     const rb = rankBox(card, gameKey, true), opt = () => (o && o.note ? { note: typeof o.note === 'function' ? o.note() : o.note } : undefined);
     let on = false;
     const vis = () => !scrim.hidden && card.getClientRects().length > 0;
-    function tick() { if (document.hidden) return; const v = vis(); if (v && !on) { on = true; recFlag = false; recBeat = false; recBase = {}; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
+    function tick() { if (document.hidden) return; const v = vis(); if (v && !on) { on = true; recFlag = false; recBeat = false; recBase = {}; for (const k in achVals) delete achVals[k]; rb.show(diffId, opt()); } else if (!v && on) { on = false; rb.hide(); } }
     diffWatch.push(id => { if (on) rb.show(id, opt()); });
     setInterval(tick, 300); requestAnimationFrame(tick);
     return { rb, refresh() { if (on) rb.show(diffId, opt()); } };
@@ -918,8 +920,54 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   const AK = { got: 'kongstar.achv.got', cnt: 'kongstar.achv.cnt', title: 'kongstar.achv.title', since: 'kongstar.achv.since', fresh: 'kongstar.achv.new' };
   const dayOf = t => { const d = new Date(t); return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000); };
   // 게임 달인: 결과 카드에 「○○ 달인이에요!」가 뜨는 판. 기록과 같은 값으로 재는 게임은 기록으로 소급(숫자·난이도별 표), 아닌 게임(0)은 그 뒤 달인 판에서 KG.master 로
-  const MASTER = [['claw', { easy: 250, normal: 230, hard: 170, vhard: 130 }], ['pinball', 20000], ['hoop', 60], ['stone', 50], ['cross', 100], ['socks', { easy: 60, normal: 40, hard: 32, vhard: 26 }], ['stamp', 0], ['brick', 0], ['bubble', 0], ['rhythm', 0]];
+  const MASTER = [   // [게임, 기록 소급 기준(숫자·난이도별·0=소급 없음), 업적 화면 조건 글] — 소급 없는 게임은 결과 판정 줄의 KG.master 로만
+    ['claw', { easy: 250, normal: 230, hard: 170, vhard: 130 }, '난이도별 250·230·170·130점'],
+    ['pinball', 20000, '한 판에 20,000점'],
+    ['hoop', 60, '한 판에 60바퀴'],
+    ['stone', 50, '한 판에 50개'],
+    ['cross', 100, '한 판에 100칸'],
+    ['socks', { easy: 60, normal: 40, hard: 32, vhard: 26 }, '난이도별 60·40·32·26켤레'],
+    ['stamp', 0, '한 판에 봉투 40통'],
+    ['brick', 0, '6단계까지 깨기'],
+    ['bubble', 0, '5단계까지 깨기'],
+    ['rhythm', 0, '5구간까지 가기'],
+    ['spot', 0, '한 판에 난이도별 12·10·8·6장 깨기'],
+    ['flower', 0, '한 판에 5번 성공'],
+    ['cups', 10, '한 판에 10번 맞히기'],
+    ['tug', 0, '한 판에 5판 연속 이기기'],
+    ['stairs', { easy: 300, normal: 250, hard: 150, vhard: 100 }, '난이도별 300·250·150·100층'],
+    ['curl', 300, '한 판에 300점'],
+    ['parade', 30, '친구 30마리 모으기'],
+    ['m3stage', { hard: 40, vhard: 30 }, 'Hard 40 · Very Hard 30단계'],
+    ['pairstage', { hard: 20, vhard: 15 }, 'Hard 20 · Very Hard 15단계'],
+    ['bowl', { hard: 70, vhard: 50 }, 'Hard 70 · Very Hard 50단계'],
+    ['deliver', { hard: 30, vhard: 20 }, 'Hard 30 · Very Hard 20단계'],
+    ['pipe', { hard: 30, vhard: 20 }, 'Hard 30 · Very Hard 20단계'],
+    ['bake', 30, '한 판에 간식 30개'],
+    ['sleep', 10, '한 판에 10밤 재우기'],
+    ['pour', 20, '한 판에 20잔'],
+    ['throw', 0, '한 판에 바구니 8번 넣기'],
+    ['rope', 30, '한 판에 30번'],
+    ['shop', { easy: 8000, normal: 5000, hard: 3000, vhard: 2000 }, '난이도별 8,000·5,000·3,000·2,000점'],
+    ['quiz', 5000, '한 판에 5,000점'],
+    ['fish', 1500, '한 판에 1,500점'],
+    ['dig', { easy: 4000, normal: 6000, hard: 7500, vhard: 8000 }, '난이도별 4,000·6,000·7,500·8,000점'],
+    ['race', 0, '한 대회에서 4경기 통과'],
+    ['run', { easy: 4000, normal: 3500, hard: 3500, vhard: 3000 }, '난이도별 4,000·3,500·3,500·3,000점'],
+    ['shoot', 0, '난이도별 16·12·8·8단계 깨기'],
+    ['basket', { easy: 15000, normal: 10000, hard: 5000, vhard: 4000 }, '난이도별 15,000·10,000·5,000·4,000점'],
+    ['jump', { easy: 3000, normal: 2000, hard: 1500, vhard: 1500 }, '난이도별 3,000·2,000·1,500·1,500점'],
+    ['toys', { easy: 1500, normal: 1900, hard: 1700, vhard: 1500 }, '난이도별 1,500·1,900·1,700·1,500점'],
+    ['stack', { easy: 40, normal: 30, hard: 25, vhard: 20 }, '난이도별 40·30·25·20층'],
+    ['seek', { easy: 3900, normal: 3300, hard: 3100, vhard: 3000 }, '모두 찾기, 난이도별 3,900·3,300·3,100·3,000점']
+  ];
   const masters = () => MASTER.filter(([k]) => GAMES.some(g => g.key === k));
+  //   묶음: games/index.html 의 <details class="grp"> 네 개와 같은 구성 (puzzle.html 은 m3stage·pairstage 둘). 목록 묶음을 바꾸면 여기도
+  const GROUPS = [['fast', '신나게 달려요', '🔥', ['run', 'race', 'cross', 'parade', 'shoot', 'basket', 'toys', 'stairs', 'stamp'], '신나게 정복'],
+    ['aim', '딱 맞춰요', '🎯', ['jump', 'rope', 'stack', 'throw', 'curl', 'brick', 'pinball', 'bubble', 'flower', 'tug', 'rhythm', 'pour', 'hoop', 'stone'], '타이밍 정복'],
+    ['think', '곰곰이 생각해요', '🧠', ['m3stage', 'pairstage', 'bowl', 'quiz', 'dig', 'deliver', 'shop', 'spot', 'bake', 'pipe'], '곰곰이 정복'],
+    ['calm', '느긋하게 쉬어요', '😌', ['seek', 'cups', 'fish', 'socks', 'sleep', 'claw'], '느긋하게 정복']];
+  const grpGames = i => GAMES.filter(g => GROUPS[i][3].includes(g.key));
   const recMaster = (k, th) => !!th && DIFFS.some(d => { const t = typeof th === 'number' ? th : th[d.id]; return t > 0 && best(recKey(k, d.id)) >= t; });
   const ACH = [
     { id: 'first', g: 'rec', ico: '🐾', nm: '첫 발자국', cd: () => '아무 게임이나 기록 1개', p: x => [x.any, 1] },
@@ -932,8 +980,10 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { id: 'bowl1', g: 'rec', ico: '🥣', nm: '사료그릇 박사\u00a0Ⅰ', cd: () => '사료그릇 50단계 (어느 난이도든)', p: x => [x.bowl, 50], go: 'bowl' },
     { id: 'bowl2', g: 'rec', ico: '🥣', nm: '사료그릇 박사\u00a0Ⅱ', cd: () => '사료그릇 100단계 (어느 난이도든)', p: x => [x.bowl, 100], go: 'bowl' },
     { id: 'bowl3', g: 'rec', ico: '🥣', nm: '사료그릇 박사\u00a0Ⅲ', cd: () => '사료그릇 130단계 (어느 난이도든)', p: x => [x.bowl, 130], go: 'bowl' },
+    { id: 'allrnd', g: 'rec', ico: '🎲', nm: '올라운더', cd: () => '한 게임을 네 난이도 모두 기록', p: x => [Math.min(1, x.four), 1] },
+    ...GROUPS.map(([id, label, ico, , gnm], i) => ({ id: 'grp_' + id, g: 'rec', ico, nm: gnm, cd: x => '「' + label + '」 게임 ' + x.grp[i][1] + '개 모두 기록', p: x => x.grp[i] })),
     { id: 'stage', g: 'rec', ico: '🧩', nm: '단계 수집가', cd: x => '단계 게임 ' + x.stg + '종 모두 20단계', p: x => [x.stg20, x.stg] },
-    { id: 'msum', g: 'rec', ico: '👑', nm: '달인 모음', cd: x => '게임 달인 ' + Math.min(5, x.ms) + '개', p: x => [x.mOk, Math.min(5, x.ms)] },
+    { id: 'msum', g: 'rec', ico: '🎓', nm: '달인 모음', cd: x => '게임 달인 ' + Math.min(5, x.ms) + '개', p: x => [x.mOk, Math.min(5, x.ms)] },
     { id: 'mall', g: 'rec', ico: '🎖️', nm: '달인 정복', cd: x => '게임 달인 ' + x.ms + '개 모두', p: x => [x.mOk, x.ms] },
     { id: 'gold1', g: 'fam', ico: '🥇', nm: '첫 금메달', cd: () => '아무 게임에서 가족 1등 (Very Hard)', p: x => [x.fam ? x.fam.first : 0, 1] },
     { id: 'gold5', g: 'fam', ico: '🏅', nm: '금메달 수집가\u00a0Ⅰ', cd: () => '1등인 게임 5개 (Very Hard)', p: x => [x.fam ? x.fam.first : 0, 5] },
@@ -942,6 +992,9 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { id: 'champ', g: 'fam', ico: '🏆', nm: '콩이별 챔피언', cd: () => '종합 순위 1등', p: x => [x.fam ? x.fam.champ : 0, 1] },
     { id: 'podium', g: 'fam', ico: '🎗️', nm: '골고루 시상대', cd: () => '10개 게임에서 3등 안 (4명 넘게 한 게임, Very Hard)', p: x => [x.fam ? x.fam.pod : 0, 10] },
     { id: 'family', g: 'fam', ico: '👨‍👩‍👧', nm: '온 가족 출동', cd: () => '가족 모두가 Very Hard 기록을 남긴 게임 하나', p: x => [x.fam ? x.fam.all : 0, 1] },
+    { id: 'crown', g: 'fam', ico: '👑', nm: '왕관 탈환', cd: () => '뺏긴 1등을 다시 되찾기 (Very Hard)', p: x => [x.c.regain, 1] },
+    { id: 'hunter', g: 'fam', ico: '⚔️', nm: '가족 기록 사냥꾼', cd: () => '가족의 최고 기록을 10번 넘기', p: x => [x.c.hunt, 10] },
+    { id: 'dust', g: 'fam', ico: '🧹', nm: '먼지 털기', cd: () => '1주일 넘게 아무도 새 기록이 없던 게임에서 새 기록', p: x => [x.c.dust, 1] },
     { id: 'play100', g: 'day', ico: '🎮', nm: '콩이별 단골\u00a0Ⅰ', cd: () => '모두 합쳐 100판', p: x => [x.c.plays, 100] },
     { id: 'play500', g: 'day', ico: '🎮', nm: '콩이별 단골\u00a0Ⅱ', cd: () => '모두 합쳐 500판', p: x => [x.c.plays, 500] },
     { id: 'play1000', g: 'day', ico: '🎮', nm: '콩이별 단골\u00a0Ⅲ', cd: () => '모두 합쳐 1,000판', p: x => [x.c.plays, 1000] },
@@ -949,25 +1002,37 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     { id: 'streak7', g: 'day', ico: '📅', nm: '개근상\u00a0Ⅱ', cd: () => '7일 연속 한 판 이상', p: x => [x.c.sBest, 7] },
     { id: 'streak30', g: 'day', ico: '📅', nm: '개근상\u00a0Ⅲ', cd: () => '30일 연속 한 판 이상', p: x => [x.c.sBest, 30] },
     { id: 'one100', g: 'day', ico: '🕳️', nm: '한 우물', cd: () => '한 게임만 100판', p: x => [x.one, 100] },
+    { id: 'rec50', g: 'day', ico: '✨', nm: '신기록 제조기\u00a0Ⅰ', cd: () => '새 기록 50번', p: x => [x.c.recN, 50] },
+    { id: 'rec200', g: 'day', ico: '✨', nm: '신기록 제조기\u00a0Ⅱ', cd: () => '새 기록 200번', p: x => [x.c.recN, 200] },
+    { id: 'weekend', g: 'day', ico: '🗓️', nm: '주말 집사', cd: () => '토·일 이틀 모두 한 판 이상, 주말 4번', p: x => [x.c.wkN, 4] },
     { id: 'dayrec', g: 'day', ico: '✨', nm: '오늘도 새 기록', cd: () => '하루에 게임 3개에서 새 기록', p: x => [x.c.dRB, 3] },
     { id: 'near', g: 'secret', ico: '😮', nm: '아슬아슬', cd: () => '내 최고 기록을 딱 1 차이로 넘기기', p: x => [x.c.near, 1] },
     { id: 'owl', g: 'secret', ico: '🦉', nm: '올빼미 집사', cd: () => '밤 12시~새벽 4시에 10판', p: x => [x.c.night, 10] },
     { id: 'again', g: 'secret', ico: '🔁', nm: '다시 한 판만', cd: () => '같은 게임을 쉬지 않고 10판 연속', p: x => [x.c.rBest, 10] },
+    { id: 'morning', g: 'secret', ico: '🌅', nm: '아침형 집사', cd: () => '아침 6시~9시에 10판', p: x => [x.c.morn, 10] },
+    { id: 'bday', g: 'secret', ico: '🎂', nm: name + ' 생일 축하', cd: () => '일상 앱에 적은 ' + name + ' 생일에 한 판', p: x => [x.c.bday, 1] },
+    { id: 'lucky', g: 'secret', ico: '🔢', nm: '딱 맞는 숫자', cd: () => '한 판 기록이 777 이나 1,000 단위로 딱 떨어지기', p: x => [x.c.lucky, 1] },
+    { id: 'more30', g: 'secret', ico: '🔂', nm: '한 번만 더…', cd: () => '같은 게임을 하루에 30판', p: x => [x.c.dPB, 30] },
+    { id: 'world', g: 'secret', ico: '🌍', nm: '세계 여행', cd: () => '하루에 네 묶음 게임을 모두 한 판 이상', p: x => [x.c.world, 1] },
+    { id: 'together', g: 'secret', ico: '🤝', nm: '가족 동시 출동', cd: () => '나와 가족이 같은 날 같은 게임에서 새 기록', p: x => [x.c.tog, 1] },
+    { id: 'midnight', g: 'secret', ico: '🌙', nm: '자정의 기적', cd: () => '밤 12시를 넘기며 끝난 판', p: x => [x.c.mid, 1] },
     { id: 'explore', g: 'secret', ico: '🧭', nm: '탐험가', cd: () => '하루에 서로 다른 게임 10개', p: x => [x.c.dGB, Math.min(10, x.n)] }
   ];
   const TITLES = [
-    { id: 'newbie', ico: '🐣', nm: '새내기 집사', by: 'first' }, { id: 'allround', ico: '🌈', nm: '골고루 집사', by: 'all2' }, { id: 'vhpro', ico: '🔥', nm: 'Very Hard 장인', by: 'vh2' },
-    { id: 'gold', ico: '🥇', nm: '금메달 수집가', by: 'gold10' }, { id: 'bowl', ico: '🥣', nm: '사료그릇 박사', by: 'bowl2' }, { id: 'champ', ico: '🏆', nm: '콩이별 챔피언', by: 'champ' },
-    { id: 'streak', ico: '📅', nm: '개근 집사', by: 'streak7' }, { id: 'owl', ico: '🦉', nm: '올빼미 집사', by: 'owl' }, { id: 'doctor', ico: '📚', nm: '콩이별 박사', by: 'all3' },
-    { id: 'legend', ico: '🌟', nm: '콩이별 전설', by: '' }   // 업적 80% 이상
+    { id: 'newbie', ico: '🐣', nm: '새내기 집사', by: 'first', tier: 1 }, { id: 'allround', ico: '🌈', nm: '골고루 집사', by: 'all2', tier: 1 }, { id: 'vhpro', ico: '🔥', nm: 'Very Hard 장인', by: 'vh2', tier: 2 },
+    { id: 'gold', ico: '🥇', nm: '금메달 수집가', by: 'gold10', tier: 3 }, { id: 'bowl', ico: '🥣', nm: '사료그릇 박사', by: 'bowl2', tier: 2 }, { id: 'champ', ico: '🏆', nm: '콩이별 챔피언', by: 'champ', tier: 3 },
+    { id: 'streak', ico: '📅', nm: '개근 집사', by: 'streak7', tier: 2 }, { id: 'owl', ico: '🦉', nm: '올빼미 집사', by: 'owl', tier: 2 }, { id: 'doctor', ico: '📚', nm: '콩이별 박사', by: 'all3', tier: 3 },
+    { id: 'legend', ico: '🌟', nm: '콩이별 전설', by: '', tier: 4 }   // 업적 80% 이상
   ];
+  const TIER = ['', '동', '은', '금', '전설'];   // 칭호 등급 (테두리 색: 동·은·금·무지개)
   const LEGEND = () => Math.ceil(ACH.length * 0.8);
   const achGot = () => lsJSON(AK.got) || {};
-  function achCnt() { return Object.assign({ plays: 0, per: {}, d: 0, dG: [], dR: [], dGB: 0, dRB: 0, sLast: 0, sN: 0, sBest: 0, night: 0, rG: '', rN: 0, rT: 0, rBest: 0, near: 0 }, lsJSON(AK.cnt) || {}); }
+  function achCnt() { return Object.assign({ bday: 0, lucky: 0, dP: {}, dPB: 0, world: 0, tog: 0, mid: 0, recN: 0, morn: 0, wk: 0, wkM: 0, wkN: 0, hunt: 0, dust: 0, regain: 0, top: {}, lost: {}, plays: 0, per: {}, d: 0, dG: [], dR: [], dGB: 0, dRB: 0, sLast: 0, sN: 0, sBest: 0, night: 0, rG: '', rN: 0, rT: 0, rBest: 0, near: 0 }, lsJSON(AK.cnt) || {}); }
   function achCtx(got) {
     got = got || achGot(); const c = achCnt(), mx = g => Math.max(0, ...DIFFS.map(d => best(recKey(g, d.id)))), stg = GAMES.filter(g => g.unit === '단계'), bowlG = GAMES.find(g => g.key === 'bowl'), ms = masters();
     const x = { c, got, n: GAMES.length, any: GAMES.filter(g => mx(g) > 0).length, vh: GAMES.filter(g => best(recKey(g, 'vhard')) > 0).length, bowl: bowlG ? mx(bowlG) : 0,
-      stg: stg.length, stg20: stg.filter(g => mx(g) >= 20).length, ms: ms.length, mOk: ms.filter(([k]) => got['m:' + k]).length, one: Math.max(0, ...Object.values(c.per || {}).map(v => +v || 0)), fam: null };
+      stg: stg.length, stg20: stg.filter(g => mx(g) >= 20).length, ms: ms.length, mOk: ms.filter(([k]) => got['m:' + k]).length, one: Math.max(0, ...Object.values(c.per || {}).map(v => +v || 0)), fam: null,
+      four: GAMES.filter(g => DIFFS.every(d => best(recKey(g, d.id)) > 0)).length, grp: GROUPS.map((_, i) => { const gs = grpGames(i); return [gs.filter(g => mx(g) > 0).length, gs.length]; }) };
     const me = rankMe(), rc = rankCache();
     if (rankCfg() && me && me.name && rc) {
       const ps = withMe(rc.players); let first = 0, pod = 0;
@@ -984,8 +1049,17 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   function achEval() {
     const got = achGot(), now = Date.now(), out = [], t0 = myTitleId();
     for (const [k, th] of masters()) if (!got['m:' + k] && recMaster(k, th)) { got['m:' + k] = now; out.push('m:' + k); }
+    const me = rankMe(), rc = rankCache();
+    if (rankCfg() && me && me.name && rc && Date.now() - rc.at < 30 * 60000) {   // 왕관 1등 기억은 최근(30분 안) 받은 순위로만
+      const c = achCnt(), ps = withMe(rc.players); let ch = false;
+      for (const g of GAMES) { const k = recKey(g, TOTAL_DIFF), rows = board(ps, k, g.lower), r = rows.find(y => y.id === me.id), first = !!r && rows.length >= 2 && r.rank === 1;
+        if (c.top[k] && !first && rows.length >= 2) { c.lost[k] = 1; ch = true; } if (rows.length < 2 && c.lost[k]) { delete c.lost[k]; ch = true; } if (first && c.lost[k]) { delete c.lost[k]; c.regain++; ch = true; } if (!!c.top[k] !== first) { if (first) c.top[k] = 1; else delete c.top[k]; ch = true; } }
+      if (!c.tog) { const today = dayOf(Date.now()); for (const g of GAMES) { const who = new Set(); for (const p of rc.players) for (const dd of DIFFS) { const t = p.ts && p.ts[recKey(g, dd.id)]; if (t && dayOf(t) === today) who.add(p.id); } if (who.has(me.id) && who.size >= 2) { c.tog = 1; ch = true; break; } } }
+      if (ch) ls.set(AK.cnt, JSON.stringify(c));
+    }
     const x = achCtx(got);
     for (const a of ACH) { if (got[a.id]) continue; const [v, goal] = a.p(x); if (goal > 0 && v >= goal) { got[a.id] = now; out.push(a.id); } }
+    if (!got['t:legend'] && ACH.filter(a => got[a.id]).length >= LEGEND()) { got['t:legend'] = now; if (!out.length) ls.set(AK.got, JSON.stringify(got)); }
     if (out.length) { ls.set(AK.got, JSON.stringify(got)); achFresh(out); if (myTitleId() !== t0) titleChanged(); }
     return out;
   }
@@ -994,15 +1068,38 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   // 판 하나가 끝났다: 판 수·하루 기록·연속 일수·숨은 업적 세기 (같은 결과를 두 번 띄우면 2.5초 안은 한 번으로)
   let achLast = { g: '', t: 0 };
   let achHint = false;   // KG.markNew 로 알린 새 기록 (setBest 를 안 쓰는 puzzle)
-  function achRound(gk, base, hint) {
+  let achMark = Date.now();   // 지난 판 끝 시각 (처음엔 이 화면을 연 때) — 「자정의 기적」
+  function achRound(gk, base, hint, vals) {
+    vals = vals || {};
     const now = Date.now(), c = achCnt(), d = dayOf(now), keys = rankKeys();
     c.plays++; c.per[gk] = (c.per[gk] || 0) + 1;
-    if (c.d !== d) { c.d = d; c.dG = []; c.dR = []; }
+    if (c.d !== d) { c.d = d; c.dG = []; c.dR = []; c.dP = {}; }
     if (!c.dG.includes(gk)) c.dG.push(gk);
     let rec = false;
     const stg = new Set(); for (const g of GAMES) if (g.unit === '단계') for (const d of DIFFS) stg.add(recKey(g, d.id));   // 단계 게임은 한 단계씩 오르니 「딱 1 차이」에서 뺀다
     for (const k in base) { const b = base[k], v = best(k), lower = k.startsWith('pairs.') || !!keys.get(k); if (!(v > 0)) continue; if (b == null || (lower ? v < b : v > b)) { rec = true; if (b > 0 && !stg.has(k) && Math.abs(Math.round(v) - Math.round(b)) === 1) c.near++; } }
     if ((rec || hint) && !c.dR.includes(gk)) c.dR.push(gk);
+    if (rec || hint) c.recN++;
+    c.dP[gk] = (c.dP[gk] || 0) + 1; c.dPB = Math.max(c.dPB, c.dP[gk]);
+    if (!c.world && GROUPS.every((gr, i) => grpGames(i).some(g => c.dG.includes(g.key)))) c.world = 1;
+    { const md = new Date(now), mmdd = String(md.getMonth() + 1).padStart(2, '0') + '-' + String(md.getDate()).padStart(2, '0'); let bd = share.bday; const y = md.getFullYear(); if (bd === '02-29' && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) bd = '02-28';   /* 일상 앱처럼 평년엔 2/28 */ if (bd && bd === mmdd) c.bday = 1; }
+    for (const k in vals) { const v = Math.round(+vals[k]); if (v >= 777 && (v % 1000 === 777 || v % 1000 === 0)) c.lucky = 1; }
+    if (new Date(now).getHours() === 0 && dayOf(achMark) < d) c.mid = 1;   // 지난 판 끝(또는 이 화면을 연 때)이 어제였고 지금이 0시대 → 자정을 넘긴 판
+    achMark = now;
+    const hr = new Date(now).getHours(), dow = new Date(now).getDay(); if (hr >= 6 && hr < 9) c.morn++;
+    if (dow === 0 || dow === 6) { const wk = Math.floor((d - 2) / 7); if (c.wk !== wk) { c.wk = wk; c.wkM = 0; } const was = c.wkM === 3; c.wkM |= dow === 6 ? 1 : 2; if (!was && c.wkM === 3) c.wkN++; }   // 토·일을 같은 주로 (1970-01-03 토요일 = d 2)
+    const me = rankMe(), rc = rankCache();
+    if (me && rc && rankCfg() && now - rc.at < 30 * 60000) {
+      const k2g = new Map(); for (const g of GAMES) for (const dd of DIFFS) k2g.set(recKey(g, dd.id), g);
+      let dusted = false;
+      for (const k in base) {
+        const b = base[k], v = best(k), g = k2g.get(k); if (!g || !(v > 0) || !(b == null || (g.lower ? v < b : v > b))) continue;
+        const oth = rc.players.filter(p => p.id !== me.id && p.recs[k] > 0).map(p => p.recs[k]), ob = oth.length ? (g.lower ? Math.min(...oth) : Math.max(...oth)) : 0;
+        if (ob > 0 && (g.lower ? v < ob : v > ob) && !(b != null && (g.lower ? b < ob : b > ob))) c.hunt++;   // 이번 판에 처음 가족 최고를 넘었다
+        if (k === recKey(g, TOTAL_DIFF) && c.top[k] && ob > 0 && (b == null || (g.lower ? b > ob : b < ob))) c.lost[k] = 1;   // 판 전엔 1등이 아니었다 → 뺏겼던 것 (알고 바로 되찾는 판도 왕관 탈환으로)
+        if (!dusted) { let last = 0, any = false; for (const p of rc.players) for (const dd of DIFFS) { const kk = recKey(g, dd.id); if (p.recs[kk] > 0) { any = true; last = Math.max(last, (p.ts && p.ts[kk]) || 0); } } if (any && last > 0 && now - last > 7 * 86400000) { c.dust++; dusted = true; } }
+      }
+    }
     c.dGB = Math.max(c.dGB, c.dG.length); c.dRB = Math.max(c.dRB, c.dR.length);
     if (c.sLast !== d) { c.sN = c.sLast === d - 1 ? c.sN + 1 : 1; c.sLast = d; c.sBest = Math.max(c.sBest, c.sN); }
     if (new Date(now).getHours() < 4) c.night++;
@@ -1031,11 +1128,11 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
     const now = Date.now(); if (achLast.g === gk && now - achLast.t < 400) return; achLast = { g: gk, t: now };   // 같은 순간 두 번 부른 것만 하나로 (게임은 판마다 한 번 부른다 — 38개 확인, 다시 하기는 0.45초 막이)
     if (card && card.querySelectorAll) card.querySelectorAll('.kg-achv').forEach(e => e.remove());
     document.querySelectorAll('.kg-achv.float').forEach(e => e.remove());
-    const base = Object.assign({}, recBase);
-    setTimeout(() => { try { achRound(gk, base, achHint); achHint = false; const ids = achPend.splice(0).concat(achEval()); if (ids.length && card && card.classList && card.classList.contains('kg-card')) achBanner(card, ids); } catch (e) {} }, 40);   // 게임이 결과 글(달인 등)을 다 쓴 뒤에
+    const base = Object.assign({}, recBase), vals = Object.assign({}, achVals); for (const k in achVals) delete achVals[k];
+    setTimeout(() => { try { achRound(gk, base, achHint, vals); achHint = false; const ids = achPend.splice(0).concat(achEval()); if (ids.length && card && card.classList && card.classList.contains('kg-card')) achBanner(card, ids); } catch (e) {} }, 40);   // 게임이 결과 글(달인 등)을 다 쓴 뒤에
   }
   // 칭호: 고른 것('-' 는 안 붙이기). 고른 적 없으면 얻은 칭호 중 목록에서 가장 뒤의 것
-  function titlesOwned() { const got = achGot(), n = ACH.filter(a => got[a.id]).length; return TITLES.filter(t => t.by ? !!got[t.by] : n >= LEGEND()); }
+  function titlesOwned() { const got = achGot(), n = ACH.filter(a => got[a.id]).length; return TITLES.filter(t => t.by ? !!got[t.by] : !!got['t:legend'] || n >= LEGEND()); }   // 전설은 한 번 얻으면 업적이 늘어도 그대로
   function myTitle() { const own = titlesOwned(), v = ls.get(AK.title); if (v === '-') return null; return own.find(t => t.id === v) || own[own.length - 1] || null; }
   function myTitleId() { const t = myTitle(); return t ? t.id : ''; }
   function titleChanged() { if (!rankCfg()) return; ls.set(RK.dirty, '1'); if (syncing) syncAgain = true; else rankSync(true); }
@@ -1044,8 +1141,8 @@ button { font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-colo
   const achNew = () => { try { const v = JSON.parse(ls.get(AK.fresh) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
   // 처음 한 번: 이미 있는 기록으로 깬 업적을 조용히 채운다 (띠 없이, 업적 화면에 NEW)
   if (!ls.get(AK.since)) { ls.set(AK.since, String(Date.now())); try { achEval(); } catch (e) {} }
-  const achv = { list: ACH, titles: TITLES, legend: LEGEND, masters: () => masters().map(([k, th]) => ({ key: k, rec: !!th })), got: achGot, cnt: achCnt, ctx: achCtx, eval: achEval, since: () => +ls.get(AK.since) || 0,
-    fresh: achNew, clearFresh: () => lsDel(AK.fresh), owned: titlesOwned, myTitle, setTitle, titleOf, info: achInfo };
+  const achv = { list: ACH, titles: TITLES, legend: LEGEND, masters: () => masters().map(([k, th, cd]) => ({ key: k, rec: !!th, cd: cd || '' })), got: achGot, cnt: achCnt, ctx: achCtx, eval: achEval, since: () => +ls.get(AK.since) || 0,
+    fresh: achNew, clearFresh: () => lsDel(AK.fresh), owned: titlesOwned, myTitle, setTitle, titleOf, info: achInfo, tier: t => TIER[(t && t.tier) || 0] || '', groups: () => GROUPS.map(([id, label, ico], i) => ({ id, label, ico, n: grpGames(i).length })) };
   const rank = { me: rankMe, setName, cfg: rankCfg, setCfg, clearCfg, sync: rankSync, fetchAll, inviteLink, status: rankStatus, check: rankCheck, leave: rankLeave, cache: rankCache, myRecs, withMe, board, standings, parseInvite, cleanName, flush: rankFlush };
   // 밀린 기록: 화면을 열었을 때·앱이 다시 보일 때 (60초에 한 번). 화면을 떠날 때 보내려던 것이 남았으면 바로 보낸다 (keepalive)
   if (rankCfg()) setTimeout(() => { if (ls.get(RK.dirty) === '1') rankSync(false); }, 1500);

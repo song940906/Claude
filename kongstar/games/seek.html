@@ -691,6 +691,7 @@ body.tall .kg-toast { top: calc(var(--sat) + 102px); }
     state = 'result'; phase = 'idle'; btnPause.hidden = true; paintTitle(); hint = null; paintHint(); endAll = all; endAt = performance.now();
     endNew = score > 0 && setBest(KG.dkey('seek', diffId), score);
     $('edTitle').textContent = all ? '모두 찾았어요!' : '시간이 다 됐어요';
+    if ((all && score >= ({ easy: 3900, normal: 3300, hard: 3100, vhard: 3000 })[diffId]) && KG.master) KG.master('seek');   // 업적 「게임 달인」 (11-27): 모두 찾기, 난이도별 3900·3300·3100·3000점
     $('edText').textContent = all ? '방 ' + D.rooms + '개에서 숨은 것을 모두 찾았어요.' : (roomsDone > 0 ? '방 ' + roomsDone + '개를 다 찾았어요. ' : '') + '다음엔 더 잘 찾을 수 있어요.';
     $('edScore').textContent = fmt(score); $('edFound').textContent = foundN + '/' + totalN + '개'; paintBest();
     showMood = all ? 'happy' : 'sad'; kMode = 'show'; if (cur && cur.kong.found && cur.kong.el) cur.kong.el.classList.add('found', 'away'); stage.classList.add('out');

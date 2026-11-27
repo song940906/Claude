@@ -641,6 +641,7 @@ body .kg-top { z-index: 26; }
     isNew = count > 0 && setBest(KG.dkey(KEY, diffId), count);
     $('edN').textContent = count; $('edEat').textContent = eatN + '개'; $('edGold').textContent = goldN + '개';
     $('edTitle').textContent = deadWhy === 'full' ? '공원이 친구들로 꽉 찼어요!' : quit ? '여기까지 산책했어요' : count >= 30 ? '동네 최고 산책 대장!' : count > 0 ? '산책 끝!' : '앗, 금방 넘어졌어요';
+    if ((count >= 30) && KG.master) KG.master('parade');   // 업적 「게임 달인」 (11-27): 친구 30마리 모으기
     $('edText').textContent = deadWhy === 'full' || quit ? '친구 ' + count + '마리와 함께 걸었어요.' : (WHY[deadWhy] || '') + ' ' + (count > 0 ? '친구 ' + count + '마리와 함께 걸었어요.' : '다음엔 간식을 먹어 친구를 모아 봐요.');
     paintBest(); paintHud(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');   // 짖는 소리는 공통이 「이전 기록을 넘었을 때」 한 번만 낸다

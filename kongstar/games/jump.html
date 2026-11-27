@@ -696,6 +696,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now(); S.birds.length = 0;   // 결과 카드 뒤에 공중에 멈춘 새가 남지 않게
     ovNew = S.score > 0 && KG.setBest(runKey, S.score);
     $('ovTitle').textContent = ovNew ? '하늘 높이 올라갔어요!' : S.score >= 100 ? '높이 올라갔어요!' : '아쉬워요, 한 번 더!';
+    if ((S.score >= ({ easy: 3000, normal: 2000, hard: 1500, vhard: 1500 })[S.diffId]) && KG.master) KG.master('jump');   // 업적 「게임 달인」 (11-27): 난이도별 3000·2000·1500·1500점
     $('ovSub').textContent = ovNew ? J(name, '이/가') + ' 신나서 꼬리를 흔들어요' : J(name, '이/가') + ' 다시 올라가고 싶대요';
     $('ovScore').textContent = S.score.toLocaleString(); $('ovHigh').textContent = Math.floor(S.high).toLocaleString() + 'm'; $('ovBone').textContent = S.bones.toLocaleString() + '개'; paintBest();
     $('cardOver').hidden = false; rb.show(S.diffId);

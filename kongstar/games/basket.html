@@ -553,6 +553,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     if (S.mode === 'over') return; S.mode = 'over'; overAt = performance.now();
     ovNew = S.score > 0 && KG.setBest(runKey, S.score);
     $('ovTitle').textContent = S.caught >= 30 ? '배부르게 먹었어요!' : S.caught > 0 ? '맛있게 먹었어요!' : '다음엔 꼭 받아요!';
+    if ((S.score >= ({ easy: 15000, normal: 10000, hard: 5000, vhard: 4000 })[runDiff]) && KG.master) KG.master('basket');   // 업적 「게임 달인」 (11-27): 난이도별 15000·10000·5000·4000점
     $('ovSub').textContent = '바구니에 간식 ' + S.caught.toLocaleString() + '개를 담았어요';
     $('ovScore').textContent = S.score.toLocaleString(); $('ovTreat').textContent = S.caught.toLocaleString() + '개'; $('ovCombo').textContent = S.maxCombo.toLocaleString();
     paintBest(); $('combo').hidden = true;

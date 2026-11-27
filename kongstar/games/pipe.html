@@ -665,6 +665,7 @@ body .kg-top { z-index: 26; }
       lastClear = stageNo; lastRot = rots(); lastOpt = S.opt;
       lastStars = lastRot <= S.opt ? 3 : lastRot <= S.opt + Math.max(2, Math.ceil(S.opt * 0.5)) ? 2 : 1;
       saveStage(diffId, stageNo + 1); lastNew = setBest(KG.dkey('pipe', diffId), stageNo);   // 기록은 바로 저장 (마시는 중에 나가도 남게)
+      if ((stageNo >= ({ hard: 30, vhard: 20 }[diffId] || 1e9)) && KG.master) KG.master('pipe');   // 업적 「게임 달인」 (11-27): Hard 30 · Very Hard 20단계
       sfx('win'); setMood('cheer'); voice('call', 0.1, 0.9);
       S.bowls.forEach(b => { const g = bowlGeo(b); burst(g.x, g.rim, 14, 'star', 180); });
     } else {

@@ -593,6 +593,7 @@ body .kg-top { z-index: 26; }
     const isNew = score > 0 && score > runBest0;
     $('edNew').hidden = !isNew;
     $('edTitle').textContent = reason === 'fall' ? '앗, 헛디뎠어요' : '헥헥, 힘들어요';
+    if ((score >= ({ easy: 300, normal: 250, hard: 150, vhard: 100 }[diffId] || 250)) && KG.master) KG.master('stairs');   // 업적 「게임 달인」 (11-27): 난이도별 300·250·150·100층
     $('edSub').textContent = score === 0 ? '첫 계단부터 다시 가 봐요.' : reason === 'fall' ? J(name, '이/가') + ' ' + fmt(score) + '층에서 발을 헛디뎠어요.' : J(name, '이/가') + ' ' + fmt(score) + '층에서 주저앉았어요.';
     $('edScore').textContent = fmt(score); $('edSnack').textContent = fmt(snacks) + '개'; $('edTime').textContent = Math.round(elapsed) + '초';
     paintBest();

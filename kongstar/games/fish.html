@@ -894,6 +894,7 @@ body .kg-top { z-index: 26; }
     if (state !== 'over') return;
     state = 'result'; resultAt = performance.now();
     const isNew = (score > 0 && setBest(KG.dkey('fish', diffId), score)) || recNew;
+    if ((score >= 1500) && KG.master) KG.master('fish');   // 업적 「게임 달인」 (11-27): 한 판에 1,500점
     $('edScore').textContent = fmt(score); $('edNew').hidden = !isNew;
     $('edText').textContent = caught > 0 ? '미끼 ' + casts + '개로 ' + caught + '번 잡았어요.' : '오늘은 물고기가 잘 숨었네요. 다음엔 꼭 잡아요.';
     $('edBigBox').hidden = !biggest; if (biggest) $('edBig').textContent = biggest.name + ' ' + biggest.cm + 'cm';

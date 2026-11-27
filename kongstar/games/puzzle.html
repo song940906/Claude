@@ -1092,6 +1092,7 @@ var M3E = (function () {
     M.win = E.goalInfo(B).done; M.left = Math.max(0, B.moves); M.bonus = 0; M.stars = 0; M.rec = false;
     if (M.win) { M.bonus = M.left * 50; B.score += M.bonus; M.stars = M.left >= B.max * 0.3 ? 3 : M.left >= B.max * 0.12 ? 2 : 1; saveStage('match3', M.diff, M.n, M.stars); M.rec = stageRec('match3', M.diff); fail = { key: '', n: 0 }; }
     else fail = { key: id, n: fail.key === id ? fail.n + 1 : 1 };
+    if ((M.win && M.n >= ({ hard: 40, vhard: 30 }[M.diff] || 1e9)) && KG.master) KG.master('m3stage');   // (else 짝을 깨지 않게 if/else 뒤에) 업적 「게임 달인」 (11-27): Hard 40 · Very Hard 30단계
     M.prevScore = best(M.key); M.scoreRec = B.score > 0 && keepBest(M.key, B.score);
   }
   async function m3End(g) {
@@ -1248,6 +1249,7 @@ var M3E = (function () {
     P.stars = P.tries <= Math.ceil(P.sets * k3[0]) + P.st.frozen ? 3 : P.tries <= Math.ceil(P.sets * k3[1]) + P.st.frozen ? 2 : 1;
     if (P.n === 1) P.flipRec = keepBest(k, P.tries, true);
     saveStage('pairs', P.diff, P.n, P.stars); P.rec = stageRec('pairs', P.diff);
+    if ((P.win && P.n >= ({ hard: 20, vhard: 15 }[P.diff] || 1e9)) && KG.master) KG.master('pairstage');   // 업적 「게임 달인」 (11-27): Hard 20 · Very Hard 15단계
   }
   function pairsEnd() {
     pairsSave(); S.paused = false; if (cardKind === 'pause') hideCard();

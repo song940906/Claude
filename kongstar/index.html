@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<script>window.KONG_PWA = true; window.KONG_VER = '406d116612';</script>
+<script>window.KONG_PWA = true; window.KONG_VER = 'b0d2a1cfd5';</script>
 <title>콩이별</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
@@ -960,7 +960,7 @@ let PHOTOS = [];    // { id, at, takenAt, caption, blob, thumb, w, h }
 let storeOk = true;
 let saveT = 0;
 // 미니게임(games/*.html)이 읽을 것만 localStorage 에 비춰 둔다 — 게임은 IndexedDB 를 열지 않는다 (먼저 열면 빈 저장소가 생긴다)
-function shareOut() { try { localStorage.setItem('kongstar.share', JSON.stringify({ name: S.name, outfit: S.outfit, ribbon: !!S.ribbon, sound: !!S.sound })); } catch (e) {} }
+function shareOut() { try { localStorage.setItem('kongstar.share', JSON.stringify({ name: S.name, outfit: S.outfit, ribbon: !!S.ribbon, sound: !!S.sound, bday: /^\d{4}-\d{2}-\d{2}$/.test(S.birthday || '') ? S.birthday.slice(5) : '' })); } catch (e) {} }   // bday: 게임 업적 「생일 축하」용 월-일 (11-27)
 function saveSettings() { shareOut(); clearTimeout(saveT); saveT = setTimeout(() => { DB.set('settings', S).catch(() => {}); }, 250); }
 function saveStats() { DB.set('stats', ST).catch(() => {}); }
 function bumpStat(k) { ST[k] = (ST[k] || 0) + 1; saveStats(); }

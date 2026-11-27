@@ -602,6 +602,7 @@ body .kg-top { z-index: 26; }
     $('edFloor').textContent = fmt(layers); $('edScore').textContent = fmt(points) + '점'; $('edPerf').textContent = fmt(perfects) + '번'; paintBest();
     $('edNew').hidden = !isNew;
     $('edTitle').textContent = layers >= 30 ? '우와, 정말 높이 쌓았어요!' : '간식 탑이 와르르!';
+    if ((layers >= ({ easy: 40, normal: 30, hard: 25, vhard: 20 })[diffId]) && KG.master) KG.master('stack');   // 업적 「게임 달인」 (11-27): 난이도별 40·30·25·20층
     $('edText').textContent = layers > 0 ? J(name, '이/가') + ' 떨어진 간식을 맛있게 먹었어요.' : '괜찮아요, ' + J(name, '이랑/랑') + ' 다시 쌓아 봐요.';
     $('cardEnd').hidden = false; endAt = performance.now(); focusBtn('btnAgain'); rbox.show(diffId);
     if (isNew) { sfx('win'); bark(true); }

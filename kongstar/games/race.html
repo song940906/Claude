@@ -483,6 +483,7 @@ a.kg-btn { text-decoration: none; box-sizing: border-box; }
     ovNew = (S.total > 0 && KG.setBest(runKey, S.total)) || ovNew;
     const passed = S.hist.filter(h => h.rank <= 3).length;
     $('ovTitle').textContent = passed >= 4 ? '달리기왕이에요!' : passed >= 1 ? '잘 달렸어요!' : '수고했어요!';
+    if ((passed >= 4) && KG.master) KG.master('race');   // 업적 「게임 달인」 (11-27): 한 대회에서 4경기 통과
     $('ovSub').textContent = passed ? J(name, '이/가') + ' ' + raceName(passed - 1) + '까지 통과했어요' : '다음에는 꼭 3등 안에 들어 봐요';
     $('ovScore').textContent = S.total.toLocaleString(); $('ovRaces').textContent = passed + '경기'; $('ovTop').textContent = S.topRank <= 5 ? ORD[S.topRank - 1] : '-';
     paintBest(); $('cardOver').hidden = false; rb.show(runDiff); $('cardOver').scrollTop = 0;   // 이번 대회 난이도의 가족 순위 (겉상자는 지난번 스크롤 자리를 기억하므로 맨 위로) (기록은 바로 위에서 저장)

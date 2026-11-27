@@ -911,6 +911,7 @@ body .kg-top { z-index: 26; }
     isNew = served > 0 && setBest(KG.dkey(KEY, diffId), served);
     $('edScore').textContent = fmt(served); $('edLv').textContent = level + '단계'; $('edStreak').textContent = fmt(maxStreak) + '개';
     $('edTitle').textContent = quit ? '여기까지 했어요' : served >= 30 ? '최고의 파티시에예요!' : served >= 12 ? '빵집이 북적였어요!' : '오늘 장사 끝!';
+    if ((!quit && served >= 30) && KG.master) KG.master('bake');   // 업적 「게임 달인」 (11-27): 한 판에 간식 30개
     $('edText').textContent = served > 0 ? '친구들에게 간식 ' + fmt(served) + '개를 구워 줬어요.' + (spills + fails ? ' (엎은 그릇·실패한 굽기 ' + (spills + fails) + '번)' : '') : '주문표 순서대로 담고, 막대가 굽기 칸에 오면 꺼내요.';
     paintBest(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win');

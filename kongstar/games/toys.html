@@ -478,6 +478,7 @@ body .kg-top { z-index: 26; }
     $('edScore').textContent = fmt(score); $('edCaught').textContent = fmt(stats.caught) + '개'; $('edCombo').textContent = stats.maxCombo + '번';
     $('edNew').hidden = !isNew; paintBest();
     $('edTitle').textContent = stats.caught >= 1 ? '장난감을 잘 잡았어요' : '시간이 다 됐어요';
+    if ((score >= ({ easy: 1500, normal: 1900, hard: 1700, vhard: 1500 })[diffId]) && KG.master) KG.master('toys');   // 업적 「게임 달인」 (11-27): 난이도별 1500·1900·1700·1500점
     $('edText').textContent = stats.bonk === 0 && stats.spared > 0 ? J(name, '을/를') + ' 한 번도 안 눌렀어요. 최고예요!' : stats.bonk > 0 ? J(name, '을/를') + ' ' + stats.bonk + '번 눌렀어요. 다음엔 살살!' : J(name, '이랑/랑') + ' 잘 놀았어요.';
     endAt = performance.now(); showCard('cardEnd', 'btnAgain'); rbox.show(diffId);
     if (isNew) sfx('win'); if (score > 0) { lastVoice = tAnim; voice('bark', 0.2, 1.0); }

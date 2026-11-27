@@ -1,5 +1,5 @@
 // node make.js 가 생성 — 직접 고치지 말 것
-const CACHE = 'kongstar-406d116612';
+const CACHE = 'kongstar-b0d2a1cfd5';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './games/common.js', './games/achv.html', './games/bake.html', './games/basket.html', './games/bowl.html', './games/brick.html', './games/bubble.html', './games/claw.html', './games/cross.html', './games/cups.html', './games/curl.html', './games/deliver.html', './games/dig.html', './games/fish.html', './games/flower.html', './games/hoop.html', './games/index.html', './games/jump.html', './games/parade.html', './games/pinball.html', './games/pipe.html', './games/pour.html', './games/puzzle.html', './games/quiz.html', './games/race.html', './games/rank.html', './games/rhythm.html', './games/rope.html', './games/run.html', './games/seek.html', './games/shoot.html', './games/shop.html', './games/sleep.html', './games/socks.html', './games/spot.html', './games/stack.html', './games/stairs.html', './games/stamp.html', './games/stone.html', './games/throw.html', './games/toys.html', './games/tug.html'];
 
 self.addEventListener('install', e => {

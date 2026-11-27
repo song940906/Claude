@@ -652,6 +652,7 @@ body .kg-top { z-index: 26; }
     state = 'result'; overAt = performance.now();
     isNew = score > 0 && setBest(KG.dkey(KEY, diffId), score);
     $('edTitle').textContent = made >= 8 ? '정말 잘 던졌어요!' : quit ? '여기까지 던졌어요' : made > 0 ? '공을 다 던졌어요' : '다음엔 꼭 넣어요!';
+    if ((made >= 8) && KG.master) KG.master('throw');   // 업적 「게임 달인」 (11-27): 한 판에 바구니 8번 넣기
     $('edText').textContent = made > 0 ? '공 ' + thrown + '개를 던져 바구니에 ' + made + '번 넣었어요.' : quit ? '다음에 또 던져요.' : J(name, '이/가') + ' 공을 다 물어 왔어요.';
     $('edScore').textContent = fmt(score); $('edStage').textContent = bestStage + '단계'; paintBest();
     $('cardEnd').hidden = false; rbox.show(diffId); if (isNew) { sfx('win'); voice('bark', 0.3, 1.1); }

@@ -667,6 +667,7 @@ body .kg-top { z-index: 26; }
     if (state !== 'over') return;
     state = 'result'; endAt = performance.now();
     const isNew = score > 0 && setBest(KG.dkey('shop', diffId), score);
+    if ((score >= ({ easy: 8000, normal: 5000, hard: 3000, vhard: 2000 }[diffId] || 1e9)) && KG.master) KG.master('shop');   // 업적 「게임 달인」 (11-27): 난이도별 8,000·5,000·3,000·2,000점
     $('edScore').textContent = fmt(score); $('edServed').textContent = fmt(served) + '번'; $('edStreak').textContent = fmt(maxStreak) + '번'; paintBest();
     $('edNew').hidden = !isNew;
     $('edText').textContent = served > 0 ? '강아지 손님 ' + fmt(served) + '마리가 맛있게 먹고 갔어요.' : J(name, '이랑/랑') + ' 가게를 열어 봤어요.';
